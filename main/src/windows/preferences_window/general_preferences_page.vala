@@ -49,17 +49,19 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
     [GtkChild] private unowned Adw.ActionRow restore_backup_row;
     [GtkChild] private unowned Adw.ActionRow data_location_row;
     [GtkChild] private unowned Adw.ActionRow change_db_password_row;
+    [GtkChild] private unowned Adw.ActionRow remove_db_password_row;
     [GtkChild] private unowned Adw.ActionRow clear_cache_row;
     [GtkChild] private unowned Adw.ActionRow reset_database_row;
     [GtkChild] private unowned Adw.ActionRow factory_reset_row;
 
     public ViewModel.GeneralPreferencesPage model { get; set; default = new ViewModel.GeneralPreferencesPage(); }
     private Binding[] model_bindings = new Binding[0];
-    
+
     public signal void backup_requested();
     public signal void restore_backup_requested();
     public signal void show_data_location();
     public signal void change_db_password_requested();
+    public signal void remove_db_password_requested();
     public signal void clear_cache_requested();
     public signal void reset_database_requested();
     public signal void factory_reset_requested();
@@ -67,7 +69,7 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
 
     construct {
         this.notify["model"].connect(on_model_changed);
-        
+
         // Setup color scheme options
         var scheme_model = new Gtk.StringList(null);
         scheme_model.append("Default (Follow System)");
@@ -87,14 +89,15 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
         // Connect cert management rows
         api_cert_renew_row.activated.connect(on_cert_renew_clicked);
         api_cert_delete_row.activated.connect(on_cert_delete_clicked);
-        
+
         // Connect backup and data location rows
         backup_row.activated.connect(() => backup_requested());
         restore_backup_row.activated.connect(() => restore_backup_requested());
         data_location_row.activated.connect(() => show_data_location());
 
         change_db_password_row.activated.connect(() => change_db_password_requested());
-        
+        remove_db_password_row.activated.connect(() => remove_db_password_requested());
+
         // Connect database maintenance rows
         clear_cache_row.activated.connect(() => clear_cache_requested());
         reset_database_row.activated.connect(() => reset_database_requested());
@@ -160,7 +163,7 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
             // Show/hide API settings based on bot_features_enabled
             bot_features_row.notify["active"].connect(update_api_visibility);
             update_api_visibility();
-            
+
             // Bind color scheme with custom conversion
             model.notify["color-scheme"].connect(on_model_color_scheme_changed);
             color_scheme_row.notify["selected"].connect(on_ui_color_scheme_changed);

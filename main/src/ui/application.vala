@@ -84,7 +84,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         if (FileUtils.test(Path.build_filename(cwd, "bin", "openssl.exe"), FileTest.EXISTS)) {
             return cwd;
         }
-        
+
         // Method 2: Try common install locations
         string[] possible_dirs = {
             "C:\\Program Files\\DinoX",
@@ -92,13 +92,13 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             Path.build_filename(Environment.get_home_dir(), "dino-win", "dist"),
             "."
         };
-        
+
         foreach (string dir in possible_dirs) {
             if (FileUtils.test(Path.build_filename(dir, "bin", "openssl.exe"), FileTest.EXISTS)) {
                 return dir;
             }
         }
-        
+
         // Fallback to current dir
         return cwd;
     }
@@ -110,6 +110,72 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     private int unlock_failures = 0;
     private Adw.ApplicationWindow? unlock_parent = null;
     private bool unlock_window_centered_once = false;
+
+    // Path of the marker file that signals the DB is protected by an auto-key
+    // (i.e. the user chose "Skip" instead of setting a manual password).
+    private static string get_no_password_marker_path () {
+        return Path.build_filename (Dino.Application.get_storage_dir (), ".no_password");
+    }
+
+    // Path of the auto-generated key file used when no manual password is set.
+    private static string get_auto_key_path () {
+        return Path.build_filename (Dino.Application.get_storage_dir (), "auto.key");
+    }
+
+    // Returns true when the user has opted out of a manual password.
+    private static bool has_no_password_marker () {
+        return FileUtils.test (get_no_password_marker_path (), FileTest.EXISTS);
+    }
+
+    // Reads or creates the auto-key file and returns its contents.
+    // Throws on any I/O error so the caller can abort safely.
+    private static string get_or_create_auto_key () throws Error {
+        string key_path = get_auto_key_path ();
+        if (FileUtils.test (key_path, FileTest.EXISTS)) {
+            string key = "";
+            FileUtils.get_contents (key_path, out key);
+            key = key.strip ();
+            if (key.length > 0) return key;
+        }
+
+        // Generate a new 32-byte CSPRNG key stored as hex.
+        // Read from /dev/urandom (available on all supported platforms).
+        uint8[] key_bytes = new uint8[32];
+        try {
+            var urandom = File.new_for_path ("/dev/urandom").read ();
+            size_t bytes_read = 0;
+            urandom.read_all (key_bytes, out bytes_read);
+            if (bytes_read != 32) {
+                throw new IOError.FAILED ("Could not read 32 bytes from /dev/urandom");
+            }
+        } catch (Error rand_err) {
+            // Fallback: use GLib.Random (weaker, but better than nothing)
+            warning ("get_or_create_auto_key: /dev/urandom unavailable (%s), falling back to GLib.Random", rand_err.message);
+            for (int i = 0; i < 32; i++) {
+                key_bytes[i] = (uint8) (GLib.Random.next_int () & 0xFF);
+            }
+        }
+        var sb = new StringBuilder ();
+        foreach (uint8 b in key_bytes) sb.append_printf ("%02x", b);
+        string new_key = sb.str;
+
+        DirUtils.create_with_parents (Dino.Application.get_storage_dir (), 0700);
+        FileUtils.set_contents (key_path, new_key);
+        FileUtils.chmod (key_path, 0600);
+        return new_key;
+    }
+
+    // Write (or remove) the no-password marker file.
+    private static void set_no_password_marker (bool value) {
+        string path = get_no_password_marker_path ();
+        if (value) {
+            try { FileUtils.set_contents (path, ""); } catch (Error e) {
+                warning ("Could not write no-password marker: %s", e.message);
+            }
+        } else {
+            FileUtils.unlink (path);
+        }
+    }
 
     private bool is_first_run_no_db () {
         string db_path = Path.build_filename (Dino.Application.get_storage_dir (), "dino.db");
@@ -458,6 +524,78 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             return;
         }
 
+        // If the user previously skipped the password, open the DB automatically.
+        if (has_no_password_marker ()) {
+            try {
+                string auto_key = get_or_create_auto_key ();
+                this.db_key = auto_key;
+                ((Dino.Application)this).init ();
+
+                if (plugin_loader != null) {
+                    try { plugin_loader.load_all (); } catch (Error pe) {
+                        warning ("Plugin loading error (non-fatal): %s", pe.message);
+                    }
+                }
+                create_ui_actions ();
+                core_ready = true;
+
+                apply_color_scheme (settings.color_scheme);
+                settings.notify["color-scheme"].connect (() => {
+                    apply_color_scheme (settings.color_scheme);
+                });
+
+                NotificationEvents notification_events = stream_interactor.get_module<NotificationEvents> (NotificationEvents.IDENTITY);
+                get_notifications_dbus.begin ((_, res) => {
+                    DBusNotifications? dbus_notifications = get_notifications_dbus.end (res);
+                    if (dbus_notifications != null) {
+                        FreeDesktopNotifier free_desktop_notifier = new FreeDesktopNotifier (stream_interactor, dbus_notifications);
+                        notification_events.register_notification_provider.begin (free_desktop_notifier);
+                    } else {
+                        notification_events.register_notification_provider.begin (new GNotificationsNotifier (stream_interactor));
+                    }
+                });
+
+                notification_events.notify_content_item.connect ((content_item, conversation) => {
+                    var desktop_env = Environment.get_variable ("XDG_CURRENT_DESKTOP");
+                    if (desktop_env == null || !desktop_env.down ().contains ("gnome")) {
+                        if (this.active_window != null) { }
+                    }
+                });
+                stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
+
+                systray_manager = new SystrayManager (this);
+
+                stream_interactor.connection_manager.certificate_validation_required.connect ((account, peer_cert, errors) => {
+                    Idle.add (() => {
+                        var app = (Gtk.Application) GLib.Application.get_default ();
+                        Gtk.Window? parent_window = app != null ? app.active_window : null;
+                        if (parent_window != null) {
+                            var cert_dialog = new CertificateWarningDialog (account, peer_cert, errors, account.domainpart, stream_interactor);
+                            cert_dialog.present (parent_window);
+                        }
+                        return false;
+                    });
+                });
+
+                if (unlock_parent != null) {
+                    unlock_parent.close ();
+                    unlock_parent = null;
+                }
+
+                check_panic_marker ();
+
+                if (pending_activate) {
+                    pending_activate = false;
+                    activate ();
+                }
+                return;
+            } catch (Error e) {
+                warning ("Auto-unlock failed: %s", e.message);
+                // Fall through to manual password prompt.
+                set_no_password_marker (false);
+            }
+        }
+
         // Detect whether this startup follows a backup restore.
         // If so, the DB on disk is encrypted with the backup's original
         // password, which may differ from whatever the user set most recently
@@ -624,6 +762,78 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             body = _("Invalid password. Attempt %d/%d").printf( unlock_failures + 1, MAX_UNLOCK_TRIES);
         }
 
+        // "Skip" — generate an auto-key and start without a user-chosen password.
+        var skip_btn = new Gtk.Button.with_label (_("Skip"));
+        skip_btn.tooltip_text = _("Start without a password. You can set one later in Settings.");
+        skip_btn.clicked.connect (() => {
+            try {
+                string auto_key = get_or_create_auto_key ();
+                set_no_password_marker (true);
+                this.db_key = auto_key;
+                ((Dino.Application)this).init ();
+
+                if (plugin_loader != null) {
+                    try { plugin_loader.load_all (); } catch (Error pe) {
+                        warning ("Plugin loading error (non-fatal): %s", pe.message);
+                    }
+                }
+                create_ui_actions ();
+                core_ready = true;
+
+                apply_color_scheme (settings.color_scheme);
+                settings.notify["color-scheme"].connect (() => {
+                    apply_color_scheme (settings.color_scheme);
+                });
+
+                NotificationEvents notification_events = stream_interactor.get_module<NotificationEvents> (NotificationEvents.IDENTITY);
+                get_notifications_dbus.begin ((_, res) => {
+                    DBusNotifications? dbus_notifications = get_notifications_dbus.end (res);
+                    if (dbus_notifications != null) {
+                        FreeDesktopNotifier free_desktop_notifier = new FreeDesktopNotifier (stream_interactor, dbus_notifications);
+                        notification_events.register_notification_provider.begin (free_desktop_notifier);
+                    } else {
+                        notification_events.register_notification_provider.begin (new GNotificationsNotifier (stream_interactor));
+                    }
+                });
+
+                notification_events.notify_content_item.connect ((content_item, conversation) => {
+                    var desktop_env = Environment.get_variable ("XDG_CURRENT_DESKTOP");
+                    if (desktop_env == null || !desktop_env.down ().contains ("gnome")) {
+                        if (this.active_window != null) { }
+                    }
+                });
+                stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
+
+                systray_manager = new SystrayManager (this);
+
+                stream_interactor.connection_manager.certificate_validation_required.connect ((account, peer_cert, errors) => {
+                    Idle.add (() => {
+                        var app = (Gtk.Application) GLib.Application.get_default ();
+                        Gtk.Window? parent_window = app != null ? app.active_window : null;
+                        if (parent_window != null) {
+                            var cert_dialog = new CertificateWarningDialog (account, peer_cert, errors, account.domainpart, stream_interactor);
+                            cert_dialog.present (parent_window);
+                        }
+                        return false;
+                    });
+                });
+
+                if (unlock_parent != null) {
+                    unlock_parent.close ();
+                    unlock_parent = null;
+                }
+                if (pending_activate) {
+                    pending_activate = false;
+                    activate ();
+                }
+            } catch (Error e) {
+                warning ("Skip password failed: %s", e.message);
+                set_no_password_marker (false);
+                unlock_failures++;
+                prompt_set_password ();
+            }
+        });
+
         UnlockFormAction do_set = () => {
             string password = password_entry.text ?? "";
             string password2 = password_entry_confirm.text ?? "";
@@ -712,7 +922,54 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         };
 
         password_entry_confirm.activate.connect (() => do_set ());
-        set_unlock_window_content (build_unlock_form (heading, body, form, _("Set Password"), do_set));
+
+        // Build the form manually so we can inject the Skip button before the
+        // primary action button.
+        var outer = new Gtk.Box (Gtk.Orientation.VERTICAL, 12);
+        outer.margin_top = 18;
+        outer.margin_bottom = 18;
+        outer.margin_start = 18;
+        outer.margin_end = 18;
+
+        var title_lbl = new Gtk.Label (heading);
+        title_lbl.halign = Gtk.Align.START;
+        title_lbl.wrap = true;
+        title_lbl.add_css_class ("title-2");
+
+        var subtitle_lbl = new Gtk.Label (body);
+        subtitle_lbl.halign = Gtk.Align.START;
+        subtitle_lbl.wrap = true;
+
+        outer.append (title_lbl);
+        outer.append (subtitle_lbl);
+        outer.append (form);
+
+        var buttons = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 12);
+        buttons.halign = Gtk.Align.END;
+
+        var quit_btn = new Gtk.Button.with_label (_("Quit"));
+        quit_btn.clicked.connect (() => { Process.exit (0); });
+
+        skip_btn.hexpand = false;
+
+        var set_btn = new Gtk.Button.with_label (_("Set Password"));
+        set_btn.add_css_class ("suggested-action");
+        set_btn.clicked.connect (() => do_set ());
+
+        buttons.append (quit_btn);
+        buttons.append (skip_btn);
+        buttons.append (set_btn);
+        outer.append (buttons);
+
+        var clamp = new Adw.Clamp () {
+            maximum_size = 520,
+            tightening_threshold = 520,
+            child = outer,
+            halign = Gtk.Align.FILL,
+            valign = Gtk.Align.CENTER
+        };
+
+        set_unlock_window_content (clamp);
     }
 
     private void create_pre_unlock_actions () {
@@ -786,7 +1043,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         string data_dir = Path.build_filename (Environment.get_user_data_dir (), "dinox");
         string config_dir = Path.build_filename (Environment.get_user_config_dir (), "dinox");
         string cache_dir = Path.build_filename (Environment.get_user_cache_dir (), "dinox");
-        
+
         // Also delete old "dino" directories (legacy from original Dino)
         string old_data_dir = Path.build_filename (Environment.get_user_data_dir (), "dino");
         string old_config_dir = Path.build_filename (Environment.get_user_config_dir (), "dino");
@@ -801,7 +1058,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         string old_data_dir_win = old_data_dir.replace("/", "\\");
         string old_config_dir_win = old_config_dir.replace("/", "\\");
         string old_cache_dir_win = old_cache_dir.replace("/", "\\");
-        
+
         // Create a batch file that will delete after we exit
         // This is more reliable than inline cmd commands
         string batch_path = Path.build_filename(Environment.get_tmp_dir(), "dinox_wipe.bat").replace("/", "\\");
@@ -814,7 +1071,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         batch_content += "rd /s /q \"" + old_config_dir_win + "\" 2>nul\r\n";
         batch_content += "rd /s /q \"" + old_cache_dir_win + "\" 2>nul\r\n";
         batch_content += "(goto) 2>nul & del \"%~f0\"\r\n";  // Delete batch file silently
-        
+
         try {
             FileUtils.set_contents(batch_path, batch_content);
             // Start batch file hidden with START /B
@@ -1156,15 +1413,77 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         dialog.restore_backup_requested.connect (() => restore_from_backup ());
         dialog.show_data_location.connect (() => show_data_location_dialog ());
         dialog.change_db_password_requested.connect (() => show_change_db_password_dialog ());
+        dialog.remove_db_password_requested.connect (() => show_remove_db_password_dialog ());
         dialog.clear_cache_requested.connect (() => clear_cache ());
         dialog.reset_database_requested.connect (() => reset_database ());
         dialog.factory_reset_requested.connect (() => factory_reset ());
         dialog.present (window);
-        
+
         // Navigate to specific page if requested (e.g. "tor" from the Tor indicator)
         if (navigate_to_page != null) {
             dialog.set_visible_page_name (navigate_to_page);
         }
+    }
+
+    private void show_remove_db_password_dialog () {
+        if (this.db_key == null) {
+            warning ("Cannot remove database password: db_key is not set");
+            return;
+        }
+
+        // If already running without a manual password, nothing to do.
+        if (has_no_password_marker ()) {
+            var info = new Adw.AlertDialog (
+                _("No Password Set"),
+                _("The database is already running without a user-defined password.")
+            );
+            info.add_response ("ok", _("OK"));
+            info.present (window);
+            return;
+        }
+
+        var confirm_dialog = new Adw.AlertDialog (
+            _("Remove Database Password"),
+            _("The database will be re-encrypted with an automatically generated key. You will no longer be asked for a password on startup.\n\nThis cannot be undone without setting a new password.")
+        );
+        confirm_dialog.add_response ("cancel", _("Cancel"));
+        confirm_dialog.add_response ("remove", _("Remove Password"));
+        confirm_dialog.set_response_appearance ("remove", Adw.ResponseAppearance.DESTRUCTIVE);
+        confirm_dialog.default_response = "cancel";
+        confirm_dialog.close_response = "cancel";
+
+        confirm_dialog.response.connect ((response) => {
+            if (response != "remove") return;
+
+            try {
+                string auto_key = get_or_create_auto_key ();
+                db.rekey (auto_key);
+
+                if (plugin_loader != null) {
+                    plugin_loader.rekey_databases (auto_key);
+                }
+
+                this.db_key = auto_key;
+                set_no_password_marker (true);
+
+                var done = new Adw.AlertDialog (
+                    _("Password Removed"),
+                    _("The database password has been removed. DinoX will open automatically on the next launch.")
+                );
+                done.add_response ("ok", _("OK"));
+                done.present (window);
+            } catch (Error e) {
+                warning ("Remove DB password failed: %s", e.message);
+                var err_dialog = new Adw.AlertDialog (
+                    _("Error"),
+                    _("Could not remove the database password: %s").printf (e.message)
+                );
+                err_dialog.add_response ("ok", _("OK"));
+                err_dialog.present (window);
+            }
+        });
+
+        confirm_dialog.present (window);
     }
 
     private void show_change_db_password_dialog () {
@@ -1193,8 +1512,13 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         grid.margin_start = 6;
         grid.margin_end = 6;
 
+        // When no manual password is set, hide the "current password" field.
+        bool skip_old = has_no_password_marker ();
+
         var l_old = new Gtk.Label (_("Current Password"));
         l_old.halign = Gtk.Align.START;
+        l_old.visible = !skip_old;
+        old_entry.visible = !skip_old;
         var l_new = new Gtk.Label (_("New Password"));
         l_new.halign = Gtk.Align.START;
         var l_new2 = new Gtk.Label (_("Confirm New Password"));
@@ -1224,7 +1548,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             string new_pw = new_entry.text ?? "";
             string new_pw2 = new_entry_confirm.text ?? "";
 
-            if (old_pw != (!)this.db_key) {
+            // If running without a manual password, skip the old-password check —
+            // the current db_key is the auto-generated key, not a user-chosen one.
+            if (!has_no_password_marker () && old_pw != (!)this.db_key) {
                 warning ("Change DB password failed: wrong current password");
                 Idle.add (() => { show_change_db_password_dialog (); return false; });
                 return;
@@ -1250,6 +1576,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 }
 
                 this.db_key = new_pw;
+
+                // The user is now using a manual password — remove the no-password marker.
+                set_no_password_marker (false);
             } catch (Error e) {
                 warning ("Change DB password failed: %s", e.message);
                 Idle.add (() => { show_change_db_password_dialog (); return false; });
@@ -1428,7 +1757,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
     private void perform_restore_backup (string backup_path, string? password = null) {
         // Show progress dialog with spinner
-        var progress_dialog = new Adw.AlertDialog( 
+        var progress_dialog = new Adw.AlertDialog(
             password != null ? _("Decrypting Backup…") : _("Restoring Backup…"),
             _("Please wait, this may take a moment…")
 );
@@ -1737,7 +2066,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 <b>%s</b>
 %s
 
-<small>%s</small>""".printf( 
+<small>%s</small>""".printf(
             Markup.escape_text (_("Configuration:")),
             Markup.escape_text (config_dir),
             Markup.escape_text (_("Data & Database:")),
@@ -2194,7 +2523,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     private void perform_backup (string data_dir, string backup_path, string? password = null) {
 
         // Create progress dialog with spinner
-        var progress_dialog = new Adw.AlertDialog( 
+        var progress_dialog = new Adw.AlertDialog(
             password != null ? _("Creating Encrypted Backup…") : _("Creating Backup…"),
             _("Please wait while your data is being backed up.")
 );
@@ -2257,7 +2586,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             // Build archive command - backup the data directory
             // DinoX stores all data in ~/.local/share/dinox (get_user_data_dir)
             string data_parent = Environment.get_user_data_dir();
-            
+
 #if WINDOWS
             // On Windows, use the system tar.exe (C:\Windows\System32\tar.exe)
             // which understands native Windows paths. Don't use MSYS2 tar which has path issues.
@@ -2382,7 +2711,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             string final_stderr = stderr_str;
             string final_size = size_str;
             bool was_encrypted = backup_password != null;
-            
+
             // Use Timeout instead of Idle - more reliable on Windows
             Timeout.add(100, () => {
                 warning("Backup: Inside Timeout callback!");

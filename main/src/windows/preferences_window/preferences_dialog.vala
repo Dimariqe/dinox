@@ -19,16 +19,17 @@ public class Dino.Ui.PreferencesDialog : Adw.PreferencesDialog {
     public signal void restore_backup_requested();
     public signal void show_data_location();
     public signal void change_db_password_requested();
+    public signal void remove_db_password_requested();
     public signal void clear_cache_requested();
     public signal void reset_database_requested();
     public signal void factory_reset_requested();
 
-    construct {    
+    construct {
         this.set_size_request(360, 500);
         this.content_width = 700;
 
         var bp = new Adw.Breakpoint(new Adw.BreakpointCondition.length(Adw.BreakpointConditionLengthType.MAX_WIDTH, 600, Adw.LengthUnit.PX));
-        
+
         bp.apply.connect(() => {
             accounts_page.title = "";
             contacts_page.title = "";
@@ -59,11 +60,12 @@ public class Dino.Ui.PreferencesDialog : Adw.PreferencesDialog {
             model.selected_account = model.account_details[account];
             this.push_subpage(account_page);
         });
-        
+
         general_page.backup_requested.connect(() => backup_requested());
         general_page.restore_backup_requested.connect(() => restore_backup_requested());
         general_page.show_data_location.connect(() => show_data_location());
         general_page.change_db_password_requested.connect(() => change_db_password_requested());
+        general_page.remove_db_password_requested.connect(() => remove_db_password_requested());
         general_page.clear_cache_requested.connect(() => clear_cache_requested());
         general_page.reset_database_requested.connect(() => reset_database_requested());
         general_page.factory_reset_requested.connect(() => factory_reset_requested());
