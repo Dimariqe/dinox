@@ -32,7 +32,6 @@ MESON_OPTS=""
 if [[ "${1:-}" == "--clean" || "${1:-}" == "clean" ]]; then
     echo "Cleaning build artifacts..."
     rm -rf build/
-    # Временные директории зависимостей (на случай прерванной сборки)
     rm -rf sqlcipher-* webrtc-audio-processing-* libnice-* protobuf-c-* libomemo-c mosquitto-*
     rm -f  sqlcipher-*.tar.gz webrtc-audio-processing-*.tar.gz libnice-*.tar.gz \
            protobuf-c-*.tar.gz mosquitto-*.tar.gz
