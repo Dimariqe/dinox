@@ -28,6 +28,18 @@ NINJA_ARGS=""
 MAKE_ARGS="-j$(nproc)"
 MESON_OPTS=""
 
+# --- Clean mode ---
+if [[ "${1:-}" == "--clean" || "${1:-}" == "clean" ]]; then
+    echo "Cleaning build artifacts..."
+    rm -rf build/
+    # Временные директории зависимостей (на случай прерванной сборки)
+    rm -rf sqlcipher-* webrtc-audio-processing-* libnice-* protobuf-c-* libomemo-c mosquitto-*
+    rm -f  sqlcipher-*.tar.gz webrtc-audio-processing-*.tar.gz libnice-*.tar.gz \
+           protobuf-c-*.tar.gz mosquitto-*.tar.gz
+    echo "Clean done."
+    exit 0
+fi
+
 echo "Running Unicode Security Scan..."
 python3 scripts/scan_unicode.py
 
@@ -57,7 +69,7 @@ echo "SQLCipher $(sqlcipher :memory: 'select sqlite_version();' 2>/dev/null) wit
 
 # 2. webrtc-audio-processing
 echo "Building webrtc-audio-processing..."
-WEBRTC_VER=v2.1
+WEBRTC_VER=master
 wget -O "webrtc-audio-processing-${WEBRTC_VER}.tar.gz" "https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/archive/${WEBRTC_VER}/webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
 tar xf "webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
 cd "webrtc-audio-processing-${WEBRTC_VER}"
@@ -102,9 +114,10 @@ echo "Building libomemo-c..."
 if [ -d "libomemo-c" ]; then rm -rf libomemo-c; fi
 git clone https://github.com/rallep71/libomemo-c.git
 cd libomemo-c
+sed -i 's/cmake_minimum_required(VERSION [0-9.]*)/cmake_minimum_required(VERSION 3.5)/' CMakeLists.txt
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
 make $MAKE_ARGS
 $SUDO make install
 $SUDO ldconfig
