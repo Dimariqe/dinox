@@ -686,3 +686,217 @@ class ConnectionConfigTest : Gee.TestCase {
         assert_true(dbg.contains("host=test"));
     }
 }
+
+/* ══════════════════════════════════════════════════════════════
+ *  Audit-driven tests — added after comprehensive MQTT self-audit
+ *  Tests for bugs found and fixed in commit 030cc9d9.
+ * ══════════════════════════════════════════════════════════════ */
+
+/* ── Port Validation (SECURITY: clamp 1–65535) ──────────────── */
+
+class PortValidationTest : Gee.TestCase {
+
+    public PortValidationTest() {
+        base("PortValidation");
+
+        add_test("AUDIT_default_port_1883", test_default);
+        add_test("AUDIT_valid_port_8883", test_valid_8883);
+        add_test("AUDIT_min_port_1", test_min_port);
+        add_test("AUDIT_max_port_65535", test_max_port);
+        add_test("AUDIT_zero_clamped_to_1", test_zero_clamped);
+        add_test("AUDIT_negative_clamped_to_1", test_negative_clamped);
+        add_test("AUDIT_over_65535_clamped", test_over_max_clamped);
+        add_test("AUDIT_huge_port_clamped", test_huge_port);
+    }
+
+    private void test_default() {
+        var cfg = new MqttConnectionConfig();
+        assert_true(cfg.broker_port == 1883);
+    }
+
+    private void test_valid_8883() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = 8883;
+        assert_true(cfg.broker_port == 8883);
+    }
+
+    private void test_min_port() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = 1;
+        assert_true(cfg.broker_port == 1);
+    }
+
+    private void test_max_port() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = 65535;
+        assert_true(cfg.broker_port == 65535);
+    }
+
+    private void test_zero_clamped() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = 0;
+        assert_true(cfg.broker_port == 1);
+    }
+
+    private void test_negative_clamped() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = -100;
+        assert_true(cfg.broker_port == 1);
+    }
+
+    private void test_over_max_clamped() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = 65536;
+        assert_true(cfg.broker_port == 65535);
+    }
+
+    private void test_huge_port() {
+        var cfg = new MqttConnectionConfig();
+        cfg.broker_port = 999999;
+        assert_true(cfg.broker_port == 65535);
+    }
+}
+
+/* ── Truncate String Edge Cases ─────────────────────────────── */
+
+class TruncateEdgeCaseTest : Gee.TestCase {
+
+    public TruncateEdgeCaseTest() {
+        base("TruncateEdge");
+
+        add_test("AUDIT_max_len_3_returns_original", test_max_len_3);
+        add_test("AUDIT_max_len_2_returns_original", test_max_len_2);
+        add_test("AUDIT_max_len_1_returns_original", test_max_len_1);
+        add_test("AUDIT_max_len_0_returns_original", test_max_len_0);
+        add_test("AUDIT_max_len_negative_returns_original", test_max_len_neg);
+        add_test("AUDIT_max_len_4_truncates", test_max_len_4_truncates);
+        add_test("AUDIT_empty_string_unchanged", test_empty_string);
+    }
+
+    private void test_max_len_3() {
+        /* max_len <= 3 → can't append "...", return as-is */
+        string result = MqttUtils.truncate_string("abcdefgh", 3);
+        assert_true(result == "abcdefgh");
+    }
+
+    private void test_max_len_2() {
+        string result = MqttUtils.truncate_string("abcdefgh", 2);
+        assert_true(result == "abcdefgh");
+    }
+
+    private void test_max_len_1() {
+        string result = MqttUtils.truncate_string("abcdefgh", 1);
+        assert_true(result == "abcdefgh");
+    }
+
+    private void test_max_len_0() {
+        string result = MqttUtils.truncate_string("abcdefgh", 0);
+        assert_true(result == "abcdefgh");
+    }
+
+    private void test_max_len_neg() {
+        string result = MqttUtils.truncate_string("abcdefgh", -5);
+        assert_true(result == "abcdefgh");
+    }
+
+    private void test_max_len_4_truncates() {
+        /* max_len=4 > 3 → should truncate: 1 char + "..." = 4 */
+        string result = MqttUtils.truncate_string("abcdefgh", 4);
+        assert_true(result == "a...");
+        assert_true(result.length == 4);
+    }
+
+    private void test_empty_string() {
+        string result = MqttUtils.truncate_string("", 5);
+        assert_true(result == "");
+    }
+}
+
+/* NOTE: MqttPriority, AlertOperator, and AlertRule tests require
+ * alert_manager.vala which depends on the full Plugin class.
+ * Those types cannot be compiled standalone in this test binary.
+ * They are verified via manual/integration testing instead. */
+
+/* ── Alias Map Parsing & Resolve ────────────────────────────── */
+
+class AliasMapTest : Gee.TestCase {
+
+    public AliasMapTest() {
+        base("AliasMap");
+
+        add_test("AUDIT_empty_json_empty_map", test_empty);
+        add_test("AUDIT_set_and_get_alias", test_set_get);
+        add_test("AUDIT_remove_alias", test_remove);
+        add_test("AUDIT_resolve_exact_match", test_resolve_exact);
+        add_test("AUDIT_resolve_wildcard_prefix", test_resolve_wildcard);
+        add_test("AUDIT_resolve_no_match_null", test_resolve_no_match);
+        add_test("AUDIT_alias_length_clamped", test_alias_clamped);
+        add_test("AUDIT_json_roundtrip", test_json_roundtrip);
+    }
+
+    private void test_empty() {
+        var cfg = new MqttConnectionConfig();
+        var map = cfg.get_aliases_map();
+        assert_true(map.size == 0);
+    }
+
+    private void test_set_get() {
+        var cfg = new MqttConnectionConfig();
+        cfg.set_alias("home/temp", "Wohnzimmer");
+        var map = cfg.get_aliases_map();
+        assert_true(map.has_key("home/temp"));
+        assert_true(map["home/temp"] == "Wohnzimmer");
+    }
+
+    private void test_remove() {
+        var cfg = new MqttConnectionConfig();
+        cfg.set_alias("home/temp", "Wohnzimmer");
+        assert_true(cfg.remove_alias("home/temp"));
+        assert_false(cfg.remove_alias("home/temp")); /* already removed */
+        assert_true(cfg.get_aliases_map().size == 0);
+    }
+
+    private void test_resolve_exact() {
+        var cfg = new MqttConnectionConfig();
+        cfg.set_alias("home/temp", "Temperatur");
+        assert_true(cfg.resolve_alias("home/temp") == "Temperatur");
+    }
+
+    private void test_resolve_wildcard() {
+        var cfg = new MqttConnectionConfig();
+        cfg.set_alias("home/#", "Haus");
+        string? result = cfg.resolve_alias("home/living/temp");
+        assert_true(result != null);
+        assert_true(result == "Haus / living/temp");
+    }
+
+    private void test_resolve_no_match() {
+        var cfg = new MqttConnectionConfig();
+        cfg.set_alias("home/temp", "Temperatur");
+        assert_true(cfg.resolve_alias("office/temp") == null);
+    }
+
+    private void test_alias_clamped() {
+        var cfg = new MqttConnectionConfig();
+        /* MAX_ALIAS_LENGTH is 50 — build a 60-char alias */
+        var sb = new StringBuilder();
+        for (int i = 0; i < 60; i++) sb.append_c('A');
+        cfg.set_alias("test", sb.str);
+        string val = cfg.get_aliases_map()["test"];
+        assert_true(val.length == MqttConnectionConfig.MAX_ALIAS_LENGTH);
+    }
+
+    private void test_json_roundtrip() {
+        var cfg = new MqttConnectionConfig();
+        cfg.set_alias("a/b", "Alpha");
+        cfg.set_alias("c/d", "Gamma");
+        /* JSON is stored internally — read back from a fresh parse */
+        string json = cfg.topic_aliases_json;
+        var cfg2 = new MqttConnectionConfig();
+        cfg2.topic_aliases_json = json;
+        var map2 = cfg2.get_aliases_map();
+        assert_true(map2.size == 2);
+        assert_true(map2["a/b"] == "Alpha");
+        assert_true(map2["c/d"] == "Gamma");
+    }
+}
