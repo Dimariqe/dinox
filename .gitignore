@@ -54,6 +54,9 @@ windows.txt
 cross_file.txt
 check_translations.py
 
+# Auto-generated website sync scripts (local tooling, not for GitHub)
+scripts/sync_security_audit_html.py
+
 # Debug/test files
 test_*.py
 test_*.vala
