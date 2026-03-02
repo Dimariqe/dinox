@@ -5,4 +5,10 @@ contact_links:
     about: Please report security vulnerabilities through our security policy — do NOT open a public issue.
   - name: Discussions
     url: https://github.com/rallep71/dinox/discussions
-    about: Ask questions or start a discussion about DinoX.
+    about: Ask questions, get help, or start a discussion about DinoX.
+  - name: XMPP Chat (MUC)
+    url: xmpp:dinox@conference.handwerker.jetzt?join
+    about: Join the DinoX group chat for real-time help and chat.
+  - name: Website
+    url: https://dinox.handwerker.jetzt
+    about: Visit the DinoX website for documentation and downloads.
