@@ -67,6 +67,8 @@ public class MqttBotManagerDialog : Adw.Dialog {
     private Entry topic_entry;
     private Entry topic_alias_entry;
     private DropDown qos_dropdown;
+    private Button topic_add_btn;
+    private string? editing_topic = null;  /* topic being edited, or null */
 
     /* Alerts page widgets */
     private Adw.PreferencesGroup alerts_group;
@@ -469,10 +471,10 @@ public class MqttBotManagerDialog : Adw.Dialog {
         qos_dropdown.selected = 0;
         add_box.append(qos_dropdown);
 
-        var add_btn = new Button.with_label(_("Subscribe"));
-        add_btn.add_css_class("suggested-action");
-        add_btn.clicked.connect(on_add_topic);
-        add_box.append(add_btn);
+        topic_add_btn = new Button.with_label(_("Subscribe"));
+        topic_add_btn.add_css_class("suggested-action");
+        topic_add_btn.clicked.connect(on_add_topic);
+        add_box.append(topic_add_btn);
 
         add_group.add(add_box);
 
@@ -903,16 +905,14 @@ public class MqttBotManagerDialog : Adw.Dialog {
             });
             suffix_box.append(prio_dd);
 
-            /* Edit button (topic + alias + QoS) */
+            /* Edit button — loads values into the form above (like bridges) */
             var edit_btn = new Button.from_icon_name("document-edit-symbolic");
             edit_btn.valign = Align.CENTER;
             edit_btn.add_css_class("flat");
             edit_btn.tooltip_text = _("Edit subscription");
             string t_edit = topic;
-            int qos_edit = qos;
-            string? alias_edit = alias;
             edit_btn.clicked.connect(() => {
-                show_topic_editor(t_edit, qos_edit, alias_edit);
+                start_editing_topic(t_edit);
             });
             suffix_box.append(edit_btn);
 
@@ -935,70 +935,40 @@ public class MqttBotManagerDialog : Adw.Dialog {
     }
 
     /**
-     * Show an editor to change topic path, alias, and QoS of a subscription.
+     * Load a subscription's values into the form for editing (like bridges).
      */
-    private void show_topic_editor(string old_topic, int old_qos, string? old_alias) {
-        var dialog = new Adw.AlertDialog(
-            _("Edit Subscription"),
-            _("Edit topic, alias and QoS for this subscription."));
+    private void start_editing_topic(string topic) {
+        editing_topic = topic;
 
-        var box = new Box(Orientation.VERTICAL, 8);
-        box.margin_top = 12;
-        box.margin_start = 12;
-        box.margin_end = 12;
+        topic_entry.text = topic;
 
-        /* Topic entry */
-        var topic_lbl = new Label(_("Topic"));
-        topic_lbl.xalign = 0;
-        box.append(topic_lbl);
+        /* Restore QoS */
+        HashMap<string, int> qm = parse_qos_map(config.topic_qos_json);
+        qos_dropdown.selected = qm.has_key(topic) ? qm[topic] : 0;
 
-        var topic_ent = new Entry();
-        topic_ent.text = old_topic;
-        topic_ent.placeholder_text = "home/sensors/#";
-        topic_ent.hexpand = true;
-        box.append(topic_ent);
+        /* Restore alias */
+        HashMap<string, string> aliases = config.get_aliases_map();
+        topic_alias_entry.text = aliases.has_key(topic) ? aliases[topic] : "";
 
-        /* Alias entry */
-        var alias_lbl = new Label(_("Alias (optional)"));
-        alias_lbl.xalign = 0;
-        alias_lbl.margin_top = 6;
-        box.append(alias_lbl);
+        /* Visual cue: change button label */
+        topic_add_btn.label = _("Save");
+        topic_entry.grab_focus();
+    }
 
-        var alias_ent = new Entry();
-        alias_ent.text = old_alias ?? "";
-        alias_ent.placeholder_text = _("e.g. 🌡 Living Room");
-        alias_ent.max_length = MqttConnectionConfig.MAX_ALIAS_LENGTH;
-        box.append(alias_ent);
+    private void on_add_topic() {
+        string new_topic = topic_entry.text.strip();
+        if (new_topic == "") return;
 
-        /* QoS dropdown */
-        var qos_lbl = new Label(_("QoS"));
-        qos_lbl.xalign = 0;
-        qos_lbl.margin_top = 6;
-        box.append(qos_lbl);
+        string alias_text = topic_alias_entry.text.strip();
+        int qos = (int) qos_dropdown.selected;
 
-        string[] qos_opts = { "QoS 0", "QoS 1", "QoS 2" };
-        var qos_dd = new DropDown.from_strings(qos_opts);
-        qos_dd.selected = old_qos;
-        box.append(qos_dd);
+        if (editing_topic != null) {
+            /* ── Update existing subscription ── */
+            string old_topic = editing_topic;
+            editing_topic = null;
 
-        dialog.set_extra_child(box);
-
-        dialog.add_response("cancel", _("Cancel"));
-        dialog.add_response("save", _("Save"));
-        dialog.set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED);
-
-        dialog.response.connect((response_id) => {
-            if (response_id != "save") return;
-
-            string new_topic = topic_ent.text.strip();
-            if (new_topic == "") return;
-
-            string new_alias = alias_ent.text.strip();
-            int new_qos = (int) qos_dd.selected;
-
-            /* If topic path changed, swap the entry in the topic list */
             if (new_topic != old_topic) {
-                /* Replace in config.topics */
+                /* Topic path changed → swap in topic list */
                 string[] current = config.get_topic_list();
                 string[] updated = {};
                 foreach (string t in current) {
@@ -1006,13 +976,13 @@ public class MqttBotManagerDialog : Adw.Dialog {
                 }
                 config.topics = string.joinv(", ", updated);
 
-                /* Migrate QoS map */
+                /* Migrate QoS */
                 HashMap<string, int> qm = parse_qos_map(config.topic_qos_json);
                 qm.unset(old_topic);
-                qm[new_topic] = new_qos;
+                qm[new_topic] = qos;
                 config.topic_qos_json = build_qos_json(qm);
 
-                /* Migrate priority map */
+                /* Migrate priority */
                 HashMap<string, string> pm = parse_priority_map(config.topic_priorities_json);
                 if (pm.has_key(old_topic)) {
                     string pv = pm[old_topic];
@@ -1023,63 +993,50 @@ public class MqttBotManagerDialog : Adw.Dialog {
 
                 /* Migrate alias */
                 config.remove_alias(old_topic);
-                if (new_alias != "") {
-                    config.set_alias(new_topic, new_alias);
-                }
             } else {
-                /* Topic unchanged — just update QoS and alias */
+                /* Same topic — just update QoS */
                 HashMap<string, int> qm = parse_qos_map(config.topic_qos_json);
-                qm[old_topic] = new_qos;
+                qm[new_topic] = qos;
                 config.topic_qos_json = build_qos_json(qm);
+            }
 
-                if (new_alias != "") {
-                    config.set_alias(old_topic, new_alias);
-                } else {
-                    config.remove_alias(old_topic);
+            /* Update alias */
+            if (alias_text != "") {
+                config.set_alias(new_topic, alias_text);
+            } else {
+                config.remove_alias(new_topic);
+            }
+        } else {
+            /* ── Add new subscription ── */
+            string[] current = config.get_topic_list();
+            foreach (string t in current) {
+                if (t == new_topic) {
+                    topic_entry.text = "";
+                    topic_alias_entry.text = "";
+                    return;
                 }
             }
 
-            populate_topics_list();
-        });
+            if (config.topics.strip() == "") {
+                config.topics = new_topic;
+            } else {
+                config.topics = config.topics + ", " + new_topic;
+            }
 
-        dialog.present(this);
-    }
+            HashMap<string, int> qos_map = parse_qos_map(config.topic_qos_json);
+            qos_map[new_topic] = qos;
+            config.topic_qos_json = build_qos_json(qos_map);
 
-    private void on_add_topic() {
-        string new_topic = topic_entry.text.strip();
-        if (new_topic == "") return;
-
-        /* Add to comma-separated list */
-        string[] current = config.get_topic_list();
-        /* Check for duplicates */
-        foreach (string t in current) {
-            if (t == new_topic) {
-                topic_entry.text = "";
-                topic_alias_entry.text = "";
-                return;
+            if (alias_text != "") {
+                config.set_alias(new_topic, alias_text);
             }
         }
 
-        if (config.topics.strip() == "") {
-            config.topics = new_topic;
-        } else {
-            config.topics = config.topics + ", " + new_topic;
-        }
-
-        /* Update QoS */
-        int qos = (int) qos_dropdown.selected;
-        HashMap<string, int> qos_map = parse_qos_map(config.topic_qos_json);
-        qos_map[new_topic] = qos;
-        config.topic_qos_json = build_qos_json(qos_map);
-
-        /* Save alias if provided */
-        string alias_text = topic_alias_entry.text.strip();
-        if (alias_text != "") {
-            config.set_alias(new_topic, alias_text);
-        }
-
+        /* Clear form and reset button */
         topic_entry.text = "";
         topic_alias_entry.text = "";
+        qos_dropdown.selected = 0;
+        topic_add_btn.label = _("Subscribe");
         populate_topics_list();
     }
 
