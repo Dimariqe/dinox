@@ -677,6 +677,25 @@ public class Plugin : RootInterface, Object {
         }
     }
 
+    /**
+     * Immediately subscribe a bridge topic on all active MQTT clients.
+     * Called from dialog when a new bridge rule is added, so that
+     * forwarding works immediately without requiring Save & Apply.
+     */
+    public void subscribe_bridge_topic(string topic) {
+        string t = topic.strip();
+        if (t == "") return;
+
+        if (standalone_client != null && standalone_client.is_connected) {
+            standalone_client.subscribe(t, 0);
+        }
+        foreach (var entry in account_clients.entries) {
+            if (entry.value.is_connected) {
+                entry.value.subscribe(t, 0);
+            }
+        }
+    }
+
     private string? get_db_setting(string key) {
         var row_opt = app.db.settings.select({app.db.settings.value})
             .with(app.db.settings.key, "=", key)

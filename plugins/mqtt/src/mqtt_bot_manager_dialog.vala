@@ -73,6 +73,8 @@ public class MqttBotManagerDialog : Adw.Dialog {
     private Gee.ArrayList<Gtk.Widget> bridge_rows = new Gee.ArrayList<Gtk.Widget>();
     private Adw.EntryRow bridge_topic_entry;
     private Adw.EntryRow bridge_jid_entry;
+    private Adw.EntryRow bridge_alias_entry;
+    private DropDown bridge_format_dropdown;
 
     /* Publish page widgets */
     private Adw.PreferencesGroup presets_group;
@@ -655,6 +657,23 @@ public class MqttBotManagerDialog : Adw.Dialog {
         bridge_jid_entry.text = "";
         add_group.add(bridge_jid_entry);
 
+        bridge_alias_entry = new Adw.EntryRow();
+        bridge_alias_entry.title = _("Alias (optional)");
+        bridge_alias_entry.text = "";
+        add_group.add(bridge_alias_entry);
+
+        /* Format dropdown: full, payload, short */
+        var format_model = new Gtk.StringList(null);
+        format_model.append("full");
+        format_model.append("payload");
+        format_model.append("short");
+        bridge_format_dropdown = new DropDown(format_model, null);
+        bridge_format_dropdown.selected = 0;
+        var format_row = new Adw.ActionRow();
+        format_row.title = _("Format");
+        format_row.add_suffix(bridge_format_dropdown);
+        add_group.add(format_row);
+
         var add_btn = new Button.with_label(_("Add Bridge"));
         add_btn.add_css_class("suggested-action");
         add_btn.halign = Align.END;
@@ -1050,17 +1069,40 @@ public class MqttBotManagerDialog : Adw.Dialog {
         string jid = bridge_jid_entry.text.strip();
         if (topic == "" || jid == "") return;
 
-        var rule = new BridgeRule();
-        rule.topic = topic;
-        rule.target_jid = jid;
+        string alias_text = bridge_alias_entry.text.strip();
+        string? alias_val = (alias_text != "") ? alias_text : null;
+
+        /* Map dropdown index to format string */
+        string[] formats = { "full", "payload", "short" };
+        uint sel = bridge_format_dropdown.selected;
+        string format = (sel < formats.length) ? formats[sel] : "full";
 
         if (plugin.bridge_manager != null) {
-            plugin.bridge_manager.add_rule(rule);
+            if (editing_bridge_id != null) {
+                /* Update existing rule */
+                plugin.bridge_manager.update_rule(
+                    editing_bridge_id, topic, jid, format, alias_val);
+                editing_bridge_id = null;
+            } else {
+                /* Create new rule */
+                var rule = new BridgeRule();
+                rule.topic = topic;
+                rule.target_jid = jid;
+                rule.alias = alias_val;
+                rule.format = format;
+                plugin.bridge_manager.add_rule(rule);
+            }
         }
+
+        /* Immediately subscribe the new bridge topic on all active
+         * MQTT clients so that forwarding works without Save & Apply. */
+        plugin.subscribe_bridge_topic(topic);
 
         /* Clear form */
         bridge_topic_entry.text = "";
         bridge_jid_entry.text = "";
+        bridge_alias_entry.text = "";
+        bridge_format_dropdown.selected = 0;
 
         populate_bridges_list();
     }
@@ -1122,6 +1164,9 @@ public class MqttBotManagerDialog : Adw.Dialog {
 
     /* ── Bridges list ─────────────────────────────────────────────── */
 
+    /* ID of the rule currently being edited, or null */
+    private string? editing_bridge_id = null;
+
     private void populate_bridges_list() {
         foreach (var w in bridge_rows) {
             bridges_group.remove(w);
@@ -1143,8 +1188,12 @@ public class MqttBotManagerDialog : Adw.Dialog {
 
         foreach (var rule in rules) {
             var row = new Adw.ActionRow();
-            string? alias = config.resolve_alias(rule.topic);
+
+            /* Prefer rule-level alias, fall back to global config alias */
+            string? alias = rule.alias;
+            if (alias == null) alias = config.resolve_alias(rule.topic);
             string display_topic = (alias != null) ? alias : rule.topic;
+
             row.title = "%s → %s".printf(display_topic, rule.target_jid);
             string subtitle = "Format: %s".printf(rule.format ?? "full");
             if (alias != null) {
@@ -1152,6 +1201,18 @@ public class MqttBotManagerDialog : Adw.Dialog {
             }
             row.subtitle = subtitle;
 
+            /* ── Edit button ── */
+            var edit_btn = new Button.from_icon_name("document-edit-symbolic");
+            edit_btn.valign = Align.CENTER;
+            edit_btn.add_css_class("flat");
+            edit_btn.tooltip_text = _("Edit");
+            string eid = rule.id;
+            edit_btn.clicked.connect(() => {
+                start_editing_bridge(eid);
+            });
+            row.add_suffix(edit_btn);
+
+            /* ── Delete button ── */
             var remove_btn = new Button.from_icon_name("user-trash-symbolic");
             remove_btn.valign = Align.CENTER;
             remove_btn.add_css_class("flat");
@@ -1168,6 +1229,29 @@ public class MqttBotManagerDialog : Adw.Dialog {
             bridges_group.add(row);
             bridge_rows.add(row);
         }
+    }
+
+    /** Load a bridge rule's values into the form for editing. */
+    private void start_editing_bridge(string rule_id) {
+        if (plugin.bridge_manager == null) return;
+        BridgeRule? rule = plugin.bridge_manager.get_rule(rule_id);
+        if (rule == null) return;
+
+        editing_bridge_id = rule_id;
+        bridge_topic_entry.text = rule.topic;
+        bridge_jid_entry.text = rule.target_jid;
+        bridge_alias_entry.text = rule.alias ?? "";
+
+        /* Select the correct format in the dropdown */
+        string[] formats = { "full", "payload", "short" };
+        uint idx = 0;
+        for (uint i = 0; i < formats.length; i++) {
+            if (formats[i] == (rule.format ?? "full")) { idx = i; break; }
+        }
+        bridge_format_dropdown.selected = idx;
+
+        /* Visual cue: scroll to top / focus topic entry */
+        bridge_topic_entry.grab_focus();
     }
 
     /* ── Presets list ─────────────────────────────────────────────── */

@@ -28,11 +28,13 @@ public class BridgeRule : Object {
     public string target_jid;  /* Bare JID of the XMPP recipient */
     public bool enabled;
     public string? format;     /* Optional format: "full" (default), "payload", "short" */
+    public string? alias;      /* Human-readable display name for the topic */
 
     public BridgeRule() {
         id = Xmpp.random_uuid();
         enabled = true;
         format = "full";
+        alias = null;
     }
 
     /**
@@ -59,6 +61,7 @@ public class BridgeRule : Object {
         obj.set_string_member("target_jid", target_jid);
         obj.set_boolean_member("enabled", enabled);
         if (format != null) obj.set_string_member("format", format);
+        if (alias != null) obj.set_string_member("alias", alias);
         return obj;
     }
 
@@ -80,6 +83,8 @@ public class BridgeRule : Object {
             rule.enabled = obj.get_boolean_member("enabled");
         if (obj.has_member("format"))
             rule.format = obj.get_string_member("format");
+        if (obj.has_member("alias"))
+            rule.alias = obj.get_string_member("alias");
 
         return rule;
     }
@@ -159,6 +164,35 @@ public class MqttBridgeManager : Object {
         return rules;
     }
 
+    /**
+     * Update an existing bridge rule by its UUID.
+     * Returns true if the rule was found and updated.
+     */
+    public bool update_rule(string id, string topic, string target_jid,
+                             string? format, string? alias) {
+        foreach (var rule in rules) {
+            if (rule.id == id) {
+                rule.topic = topic;
+                rule.target_jid = target_jid;
+                rule.format = format ?? "full";
+                rule.alias = alias;
+                save_rules();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get a bridge rule by its UUID.
+     */
+    public BridgeRule? get_rule(string id) {
+        foreach (var rule in rules) {
+            if (rule.id == id) return rule;
+        }
+        return null;
+    }
+
     /* ── Message Forwarding ──────────────────────────────────────── */
 
     /**
@@ -230,11 +264,21 @@ public class MqttBridgeManager : Object {
      */
     private void deliver_message(Account account, Jid target_jid,
                                   string body, string source) {
+        /* Determine conversation type: MUC (groupchat) or regular chat.
+         * If the target JID is a known MUC, send as GROUPCHAT so the
+         * message goes to the room.  Otherwise send as a 1:1 CHAT. */
+        var muc_manager = plugin.app.stream_interactor.get_module<MucManager>(
+            MucManager.IDENTITY);
+        Conversation.Type conv_type = Conversation.Type.CHAT;
+        if (muc_manager != null && muc_manager.is_groupchat(target_jid, account)) {
+            conv_type = Conversation.Type.GROUPCHAT;
+        }
+
         /* Get the conversation (or create one) */
         var cm = plugin.app.stream_interactor.get_module<ConversationManager>(
             ConversationManager.IDENTITY);
         Conversation conv = cm.create_conversation(
-            target_jid, account, Conversation.Type.CHAT);
+            target_jid, account, conv_type);
         conv.encryption = Encryption.NONE;
 
         /* Send via MessageProcessor — create + send on main loop */
@@ -337,6 +381,7 @@ public class MqttBridgeManager : Object {
                 rule.target_jid = plugin.mqtt_db.bridge_rules.target_jid[row];
                 rule.format = plugin.mqtt_db.bridge_rules.format[row];
                 rule.enabled = plugin.mqtt_db.bridge_rules.enabled[row];
+                rule.alias = plugin.mqtt_db.bridge_rules.alias[row];
                 rules.add(rule);
             }
 
@@ -398,6 +443,7 @@ public class MqttBridgeManager : Object {
                         .value(plugin.mqtt_db.bridge_rules.target_jid, rule.target_jid)
                         .value(plugin.mqtt_db.bridge_rules.format, rule.format ?? "full")
                         .value(plugin.mqtt_db.bridge_rules.enabled, rule.enabled)
+                        .value(plugin.mqtt_db.bridge_rules.alias, rule.alias)
                         .value(plugin.mqtt_db.bridge_rules.created_at, now)
                         .perform();
                 }

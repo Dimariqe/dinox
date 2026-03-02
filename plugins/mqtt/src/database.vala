@@ -28,7 +28,7 @@ namespace Dino.Plugins.Mqtt {
 
 public class MqttDatabase : Qlite.Database {
 
-    private const int VERSION = 1;
+    private const int VERSION = 2;
 
     /* ══════════════════════════════════════════════════════════════════
      *  Table 1: mqtt_messages — Received MQTT messages
@@ -184,11 +184,12 @@ public class MqttDatabase : Qlite.Database {
         public Column<string> target_jid = new Column.NonNullText("target_jid");
         public Column<string> format = new Column.NonNullText("format") { default = "'full'" };
         public Column<bool> enabled = new Column.BoolInt("enabled") { default = "1" };
+        public Column<string?> alias = new Column.Text("alias");  /* v2: human-readable name */
         public Column<long> created_at = new Column.Long("created_at") { default = "0" };
 
         internal BridgeRulesTable(MqttDatabase db) {
             base(db, "mqtt_bridge_rules");
-            init({id, connection_id, topic, target_jid, format, enabled, created_at});
+            init({id, connection_id, topic, target_jid, format, enabled, alias, created_at});
             index("mqtt_bridge_rules_topic_idx", {topic});
         }
     }
@@ -322,13 +323,14 @@ public class MqttDatabase : Qlite.Database {
     }
 
     public override void migrate(long old_version) {
-        /* Version 1 is the initial schema — no migration needed yet.
-         * Future migrations go here:
-         *
-         * if (old_version < 2) {
-         *     // Add new columns or tables for v2
-         * }
-         */
+        if (old_version < 2) {
+            /* v2: Add alias column to bridge_rules table */
+            try {
+                exec("ALTER TABLE mqtt_bridge_rules ADD COLUMN alias TEXT DEFAULT NULL");
+            } catch (Error e) {
+                warning("MqttDatabase migrate v2: %s", e.message);
+            }
+        }
     }
 
     /* ── Convenience methods ─────────────────────────────────────── */
