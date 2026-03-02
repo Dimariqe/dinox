@@ -72,8 +72,8 @@ public class ConversationManager : StreamInteractionModule, Object {
             conversation.encryption = Encryption.NONE;
         }
 
-        add_conversation(conversation);
         conversation.persist(db);
+        add_conversation(conversation);
         return conversation;
     }
 

@@ -78,6 +78,7 @@ protected class AddGroupchatDialog : Adw.Dialog {
             conference.jid = new Jid(get_effective_jid());
             conference.nick = nick_entry.text != "" ? nick_entry.text : null;
             conference.name = alias_entry.text;
+            conference.autojoin = true;
             stream_interactor.get_module<MucManager>(MucManager.IDENTITY).add_bookmark(account_combobox.active_account, conference);
             
             // If "Create as private room" is checked or avatar is selected, configure the room after joining
