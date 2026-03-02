@@ -351,6 +351,13 @@ public class MqttDatabase : Qlite.Database {
             } catch (Error e) {
                 warning("MqttDatabase migrate v4: %s", e.message);
             }
+            /* Backfill: for per-account rules, client_label IS the
+             * account bare JID — copy it to send_account. */
+            try {
+                exec("UPDATE mqtt_bridge_rules SET send_account = client_label WHERE client_label != 'standalone' AND (send_account IS NULL OR send_account = '')");
+            } catch (Error e) {
+                warning("MqttDatabase migrate v4 backfill: %s", e.message);
+            }
         }
     }
 

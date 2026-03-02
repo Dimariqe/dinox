@@ -425,6 +425,41 @@ public class MqttBridgeManager : Object {
             }
 
             if (rules.size > 0) {
+                /* Auto-fill send_account for legacy rules that still
+                 * have it unset after the DB migration (e.g. standalone
+                 * rules where client_label == "standalone"). */
+                bool needs_save = false;
+                string? first_acct = null;
+                var accounts = plugin.app.stream_interactor.get_accounts();
+                foreach (var acct in accounts) {
+                    var st = plugin.app.stream_interactor.connection_manager
+                        .get_state(acct);
+                    if (st == ConnectionManager.ConnectionState.CONNECTED) {
+                        first_acct = acct.bare_jid.to_string();
+                        break;
+                    }
+                }
+                /* Fallback: first account even if not connected */
+                if (first_acct == null && accounts.size > 0) {
+                    first_acct = accounts.first().bare_jid.to_string();
+                }
+
+                foreach (var r in rules) {
+                    if (r.send_account == null || r.send_account.strip() == "") {
+                        if (r.client_label != "standalone") {
+                            r.send_account = r.client_label;
+                            needs_save = true;
+                        } else if (first_acct != null) {
+                            r.send_account = first_acct;
+                            needs_save = true;
+                        }
+                    }
+                }
+                if (needs_save) {
+                    message("MQTT BridgeManager: Auto-filled send_account for legacy rules");
+                    save_rules();
+                }
+
                 message("MQTT BridgeManager: Loaded %d bridge rules from mqtt.db", rules.size);
                 return;
             }
