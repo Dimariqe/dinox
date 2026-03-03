@@ -198,8 +198,8 @@ jobs:
           touch /tmp/vala-marker && sleep 1
           git clone --depth 1 https://gitlab.gnome.org/GNOME/vala.git/ vala-nightly
           pushd vala-nightly
-          # Fetch tags so autogen.sh can determine version numbers
-          git fetch --tags --depth=1 2>/dev/null || true
+          # Deepen history + fetch tags so autogen.sh / git-describe can resolve version
+          git fetch --deepen=200 --tags 2>/dev/null || true
           ./autogen.sh --prefix=/usr
           make -j$(nproc)
           sudo apt-get remove -y valac && sudo apt-get autoremove -y
