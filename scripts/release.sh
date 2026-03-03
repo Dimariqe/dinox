@@ -77,8 +77,28 @@ else
     echo -e "${YELLOW}[WARN]${NC} No [Unreleased] section in CHANGELOG.md"
 fi
 
-# Commit changelog update
-git add docs/internal/CHANGELOG.md
+TODAY=$(date +%Y-%m-%d)
+
+# Update VERSION file
+echo "$VERSION" > VERSION
+echo -e "${GREEN}[OK]${NC} Updated VERSION → $VERSION"
+
+# Update docs/index.html meta tags (softwareVersion + datePublished)
+if [ -f docs/index.html ]; then
+    sed -i "s/\"softwareVersion\": \"[^\"]*\"/\"softwareVersion\": \"$VERSION\"/" docs/index.html
+    sed -i "s/\"datePublished\": \"[^\"]*\"/\"datePublished\": \"$TODAY\"/" docs/index.html
+    echo -e "${GREEN}[OK]${NC} Updated docs/index.html meta tags"
+fi
+
+# Update dino.doap — insert new release block before the first existing <release>
+if [ -f dino.doap ]; then
+    NEW_RELEASE="    <release>\\n      <Version>\\n        <name>$VERSION<\\/name>\\n        <created>$TODAY<\\/created>\\n        <revision>$VERSION<\\/revision>\\n      <\\/Version>\\n    <\\/release>\\n"
+    sed -i "0,/<release>/{s/<release>/${NEW_RELEASE}\\n    <release>/}" dino.doap
+    echo -e "${GREEN}[OK]${NC} Updated dino.doap with new release entry"
+fi
+
+# Commit release update
+git add VERSION docs/internal/CHANGELOG.md docs/index.html dino.doap
 git commit -m "chore: Release version $VERSION
 
 Release: DinoX v$VERSION
