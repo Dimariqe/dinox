@@ -5,6 +5,20 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5.0] - 2026-03-04
+
+### Fixed
+- **MQTT per-account bot JID collision (BUG-CRITICAL)**: All per-account MQTT bots shared `mqtt-bot@mqtt.local` — ConversationManager strips resources for CHAT-type conversations, collapsing all per-account bots into the same conversation. New scheme: each account gets a unique bare JID `mqtt-<escaped_bare_jid>@mqtt.local` (e.g. `mqtt-user_at_example.org@mqtt.local`)
+- **MQTT standalone/per-account cross-wiring (BUG-CRITICAL)**: Standalone MQTT toggled per-account connection because both shared the same bare JID. Standalone now uses dedicated `mqtt-standalone@mqtt.local`
+- **`purge_caches()` crash on Clear Cache**: `DELETE FROM undecrypted` failed because the table is owned by the OMEMO plugin and never instantiated in the main Database. Wrapped in try/catch
+- **Avatar storage after Clear Cache**: `store_image()` failed because `~/.cache/dinox/avatars/` was deleted by cache clear. Now checks and re-creates the directory before writing
+- **CI vala-nightly build**: `git clone --depth 1` + `git fetch --tags --depth=1` prevented `git describe` from finding version tags. Changed to `git fetch --deepen=200 --tags`
+
+### Changed
+- **Version**: 1.1.4.9 → 1.1.5.0
+
+---
+
 ## [1.1.4.9] - 2026-03-03
 
 ### Fixed

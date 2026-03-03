@@ -1,7 +1,7 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 3, 2026 (v1.1.4.9)
-> **Current Release Line**: 1.1.4.x
+> **Last Updated**: March 4, 2026 (v1.1.5.0)
+> **Current Release Line**: 1.1.5.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
 
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.4.9 |
+| **Current Version** | 1.1.5.0 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (~85% translated) |
 | **Build Status** | Clean |
@@ -20,6 +20,14 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.5.0 (MQTT Bot JID Collision Fix, Clear Cache Fixes, CI Fix)
+
+- **MQTT Per-Account Bot JID Collision (BUG-CRITICAL)**: All per-account bots shared `mqtt-bot@mqtt.local` — ConversationManager collapsed them into one conversation. New unique bare JIDs: `mqtt-<escaped_bare_jid>@mqtt.local`
+- **MQTT Standalone Cross-Wiring (BUG-CRITICAL)**: Standalone and per-account shared same bare JID → standalone toggle affected per-account. Standalone now uses `mqtt-standalone@mqtt.local`
+- **Clear Cache Fixes**: `purge_caches()` crash on missing `undecrypted` table (try/catch), avatar directory re-creation after cache wipe
+- **CI vala-nightly**: Shallow clone prevented `git describe` from finding tags → `--deepen=200 --tags`
+- 5 files changed across libdino, plugins/mqtt, .github/workflows
 
 ### v1.1.4.9 (Build Tooling, GTK Warning Fixes, Zero-Warning Policy)
 
