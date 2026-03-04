@@ -74,7 +74,6 @@ public class MqttDiscoveryManager : GLib.Object {
     /* ── Software info ─────────────────────────────────────────────── */
 
     private const string ORIGIN_NAME = "DinoX";
-    private const string ORIGIN_SW   = "1.1.5.0";
     private const string ORIGIN_URL  = "https://github.com/rallep71/dinox";
 
     /* ── Construction ──────────────────────────────────────────────── */
@@ -291,7 +290,7 @@ public class MqttDiscoveryManager : GLib.Object {
         builder.set_member_name("mdl");
         builder.add_string_value("MQTT Plugin");
         builder.set_member_name("sw");
-        builder.add_string_value(ORIGIN_SW);
+        builder.add_string_value(Dino.VERSION);
         builder.end_object();
 
         /* ── origin (o) — mandatory for device discovery ───────────── */
@@ -300,7 +299,7 @@ public class MqttDiscoveryManager : GLib.Object {
         builder.set_member_name("name");
         builder.add_string_value(ORIGIN_NAME);
         builder.set_member_name("sw");
-        builder.add_string_value(ORIGIN_SW);
+        builder.add_string_value(Dino.VERSION);
         builder.set_member_name("url");
         builder.add_string_value(ORIGIN_URL);
         builder.end_object();
@@ -555,7 +554,7 @@ public class MqttDiscoveryManager : GLib.Object {
         sb.append("  • %s (button, cmd_t)\n".printf(ENTITY_RECONNECT));
         sb.append("  • %s (button, cmd_t)\n".printf(ENTITY_REFRESH));
         sb.append("\n");
-        sb.append(_("Origin: %s %s\n").printf(ORIGIN_NAME, ORIGIN_SW));
+        sb.append(_("Origin: %s %s\n").printf(ORIGIN_NAME, Dino.VERSION));
         return sb.str;
     }
 
