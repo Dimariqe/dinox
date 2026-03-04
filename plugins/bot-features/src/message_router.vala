@@ -218,6 +218,20 @@ public class MessageRouter : Object {
 
     public void set_botfather(BotfatherHandler handler) {
         this.botfather = handler;
+        // BUG-22: Connect deferred responses (async follow-ups after ejabberd API calls)
+        handler.deferred_response.connect((owner_jid, text) => {
+            // Find the self-chat conversation for this owner
+            var conversation_manager = app.stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY);
+            foreach (var account in app.stream_interactor.get_accounts()) {
+                if (account.bare_jid.to_string() == owner_jid) {
+                    var conv = conversation_manager.get_conversation(account.bare_jid, account, Conversation.Type.CHAT);
+                    if (conv != null) {
+                        send_chat_reply(conv, text);
+                    }
+                    break;
+                }
+            }
+        });
     }
 
     public void set_ejabberd_api(EjabberdApi api) {

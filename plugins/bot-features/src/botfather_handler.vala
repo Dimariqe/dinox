@@ -12,6 +12,9 @@ public class BotfatherHandler : Object {
     private TokenManager token_manager;
     private EjabberdApi? ejabberd_api;
 
+    // Signal for deferred async responses (e.g. after ejabberd API calls)
+    public signal void deferred_response(string owner_jid, string text);
+
     public BotfatherHandler(Dino.Application app, BotRegistry registry, TokenManager token_manager, EjabberdApi? ejabberd_api = null) {
         this.app = app;
         this.registry = registry;
@@ -142,27 +145,39 @@ public class BotfatherHandler : Object {
 
         string bot_name = bot.name ?? "?";
 
-        // For dedicated bots: unregister from ejabberd
+        // For dedicated bots: unregister from ejabberd FIRST, then delete
+        // BUG-22 fix: delete_bot() only runs after ejabberd confirms unregister
         if (bot.mode == "dedicated" && bot.jid != null && bot.jid.contains("@")) {
             string username = bot.jid.split("@")[0];
             if (ejabberd_api != null) {
-                // BUG-22 fix: Await the result and log failures instead of fire-and-forget
                 ejabberd_api.unregister_account.begin(username, (obj, res) => {
                     var result = ejabberd_api.unregister_account.end(res);
                     if (!result.success) {
-                        warning("Botfather: Failed to unregister %s from ejabberd: %s - account may be orphaned",
+                        warning("Botfather: Failed to unregister %s from ejabberd: %s",
                             username, result.error_message ?? "unknown");
+                        // Delete anyway — better than leaving bot in limbo
+                        // User is warned about the orphaned ejabberd account
+                        registry.delete_bot(bot_id);
+                        registry.log_action(bot_id, "deleted", "owner=%s ejabberd_unregister=FAILED".printf(owner_jid));
+                        deferred_response(owner_jid,
+                            _("Bot '%s' deleted, but ejabberd account '%s' could not be removed: %s\nManual cleanup may be needed.").printf(
+                                bot_name, username, result.error_message ?? "unknown"));
                     } else {
                         message("Botfather: ejabberd unregister %s: OK", username);
+                        registry.delete_bot(bot_id);
+                        registry.log_action(bot_id, "deleted", "owner=%s ejabberd_unregister=OK".printf(owner_jid));
                     }
                 });
             } else {
                 warning("Botfather: ejabberd API not available, cannot unregister %s", username);
+                registry.delete_bot(bot_id);
+                registry.log_action(bot_id, "deleted", "owner=%s ejabberd_api=unavailable".printf(owner_jid));
             }
+        } else {
+            // Non-dedicated bots: delete immediately
+            registry.delete_bot(bot_id);
+            registry.log_action(bot_id, "deleted", "owner=%s".printf(owner_jid));
         }
-
-        registry.delete_bot(bot_id);
-        registry.log_action(bot_id, "deleted", "owner=%s".printf(owner_jid));
 
         return "✅ " + _("Bot '%s' (ID: %d) deleted.").printf(bot_name, bot_id) + "\n" +
             _("Token is now invalid.");
