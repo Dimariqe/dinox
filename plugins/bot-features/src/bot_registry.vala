@@ -182,9 +182,7 @@ public class BotRegistry : Qlite.Database {
         bot.update().with(bot.id, "=", bot_id).set(bot.token_hash, new_hash).perform();
     }
 
-    public void update_bot_token_raw(int bot_id, string raw_token) {
-        bot.update().with(bot.id, "=", bot_id).set(bot.token_raw, raw_token).perform();
-    }
+    // BUG-02: update_bot_token_raw() removed — raw tokens are never stored
 
     public void update_bot_status(int bot_id, string status) {
         bot.update().with(bot.id, "=", bot_id).set(bot.status, status).perform();
@@ -351,7 +349,7 @@ public class BotRegistry : Qlite.Database {
         info.name = bot.name_.get(row);
         info.jid = bot.jid.get(row);
         info.token_hash = bot.token_hash.get(row);
-        info.token_raw = bot.token_raw.get(row);
+        // BUG-02 fix: token_raw deliberately not read — never store raw tokens
         info.owner_jid = bot.owner_jid.get(row);
         info.description = bot.description.get(row);
         info.permissions = bot.permissions.get(row);
@@ -374,7 +372,7 @@ public class BotInfo : Object {
     public string? name { get; set; }
     public string? jid { get; set; }
     public string? token_hash { get; set; }
-    public string? token_raw { get; set; }
+    // BUG-02 fix: token_raw removed — raw tokens are shown once at creation, never stored
     public string? owner_jid { get; set; }
     public string? description { get; set; }
     public string? permissions { get; set; }

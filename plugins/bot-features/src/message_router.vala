@@ -1107,11 +1107,6 @@ public class MessageRouter : Object {
 
     // API main menu
     private string build_api_menu(BotInfo bot) {
-        string? token = bot.token_raw;
-        string token_display = (token != null && token.length > 10)
-            ? token.substring(0, 8) + "..."
-            : _("(no token)");
-
         var sb = new StringBuilder();
         sb.append("HTTP API\n");
         sb.append("════════════════════\n\n");
@@ -1119,7 +1114,6 @@ public class MessageRouter : Object {
             app.settings.api_mode == "network" ? "https" : "http",
             app.settings.api_port) + "\n");
         sb.append("Bot-ID: %d\n".printf(bot.id));
-        sb.append("Token: %s\n".printf(token_display));
         sb.append("JID: %s\n".printf(bot.jid ?? "?"));
 
         string jid = bot.jid ?? "";
@@ -1155,8 +1149,6 @@ public class MessageRouter : Object {
 
     // API: Authentication
     private string build_api_auth_menu(BotInfo bot) {
-        string? token = bot.token_raw;
-
         var sb = new StringBuilder();
         sb.append(_("API: Authentication") + "\n");
         sb.append("════════════════════\n\n");
@@ -1165,16 +1157,12 @@ public class MessageRouter : Object {
         sb.append("Header:\n");
         sb.append("  Authorization: Bearer <TOKEN>\n\n");
 
-        if (token != null) {
-            sb.append(_("Your token:") + "\n");
-            sb.append("  %s\n\n".printf(token));
-        } else {
-            sb.append(_("(No token available - use /api token to generate)") + "\n\n");
-        }
+        sb.append(_("Tokens are shown only once at creation.") + "\n");
+        sb.append(_("Regenerate: /token %d").printf(bot.id) + "\n\n");
 
         sb.append("────────────────────\n");
         sb.append(_("Example:") + "\n\n");
-        sb.append("curl -H \"Authorization: Bearer %s\" \\\n".printf(token ?? "<TOKEN>"));
+        sb.append("curl -H \"Authorization: Bearer <TOKEN>\" \\\n");
         sb.append("  http://localhost:7842/bot/getMe\n\n");
 
         sb.append("────────────────────\n");
@@ -1197,7 +1185,7 @@ public class MessageRouter : Object {
 
     // API: Messages (send/receive)
     private string build_api_messages_menu(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
 
         var sb = new StringBuilder();
         sb.append(_("API: Messages") + "\n");
@@ -1254,7 +1242,7 @@ public class MessageRouter : Object {
 
     // API: Webhooks
     private string build_api_webhook_menu(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
         bool wh_enabled = bot.webhook_enabled;
         string? wh_url = bot.webhook_url;
 
@@ -1372,7 +1360,7 @@ public class MessageRouter : Object {
 
     // API: Advanced features (files, reactions, rooms, commands)
     private string build_api_advanced_menu(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
 
         var sb = new StringBuilder();
         sb.append(_("API: Advanced Features") + "\n");
@@ -1657,7 +1645,7 @@ public class MessageRouter : Object {
     }
 
     private string build_api_quick_examples(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
 
         var sb = new StringBuilder();
         sb.append(_("API: Quick Start") + "\n");

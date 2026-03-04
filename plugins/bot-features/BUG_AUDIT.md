@@ -11,11 +11,11 @@
 
 | Schweregrad | Anzahl | Davon behoben |
 |-------------|--------|---------------|
-| KRITISCH    | 3      | 2 fixed, 1 teilweise |
+| KRITISCH    | 3      | 3 fixed |
 | HOCH        | 6      | 3 fixed, 1 teilweise, 1 offen (ejabberd-Limit), 1 false positive |
 | MITTEL      | 8      | 5 fixed, 1 offen, 1 offen (API-Design), 1 offen (C-Binding) |
 | NIEDRIG     | 5      | 4 fixed, 1 offen |
-| **Gesamt**  | **22** | **14 fixed, 3 teilweise, 5 offen** |
+| **Gesamt**  | **22** | **15 fixed, 2 teilweise, 5 offen** |
 
 ---
 
@@ -27,11 +27,9 @@
 
 ---
 
-### BUG-02: Token im Klartext in Datenbank und API-Antworten gespeichert — TEILWEISE FIXED
-**Datei:** `bot_registry.vala`, `http_server.vala`  
-**Status:** ⚠️ Teilweise behoben — `bot_to_json()` gibt `token_raw` nicht mehr in API-Antworten aus (BUG-01 Guard verhindert Remote-Zugriff). Jedoch: `token_raw`-Spalte existiert noch in der DB, und der Klartext wird weiterhin gespeichert. Bei DB-Kompromittierung sind Tokens lesbar.
-
-**Verbleibender Fix:** `token_raw` aus DB-Schema entfernen oder verschlüsselt speichern.
+### ~~BUG-02: Token im Klartext in Datenbank und API-Antworten gespeichert~~ — FIXED
+**Datei:** `bot_registry.vala`, `http_server.vala`, `botfather_handler.vala`, `message_router.vala`  
+**Status:** ✅ Behoben — `token_raw` wird nirgends mehr gelesen oder geschrieben. `BotInfo.token_raw` Property entfernt, `update_bot_token_raw()` entfernt. Token wird nur bei Erstellung einmalig angezeigt ("Save this token! It won’t be shown again."). `/showtoken` erklärt, dass Tokens nicht gespeichert werden. API-Doku verwendet `<TOKEN>` als Platzhalter. DB-Spalte bleibt im Schema (Qlite-Kompatibilität), wird aber ignoriert.
 
 ---
 

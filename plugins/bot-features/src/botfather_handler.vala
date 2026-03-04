@@ -209,7 +209,7 @@ public class BotfatherHandler : Object {
             _("Generate a new token:") + " /token %d".printf(bot_id);
     }
 
-    // /showtoken <id> -- Show current token for a bot
+    // /showtoken <id> -- Explain that tokens are not stored
     private string cmd_showtoken(string owner_jid, string? id_str) {
         if (id_str == null) {
             return "🔑 " + _("Show Token") + "\n\n" +
@@ -220,19 +220,9 @@ public class BotfatherHandler : Object {
         BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
         if (bot == null) return bot_not_found(bot_id);
 
-        string? raw = bot.token_raw;
-        if (raw == null || raw.strip().length == 0) {
-            return "⚠️ " + _("No token stored for '%s' (ID: %d).").printf(bot.name ?? "?", bot_id) + "\n\n" +
-                _("Generate a new token:") + " /token %d".printf(bot_id);
-        }
-
-        return "🔑 " + _("Token for '%s'").printf(bot.name ?? "?") + "\n\n" +
-            "──────────\n" +
-            "%s\n".printf(raw) +
-            "──────────\n\n" +
-            "📋 " + _("Usage:") + "\n" +
-            "curl -H \"Authorization: Bearer %s\" \\\n".printf(raw) +
-            "  http://localhost:7842/bot/getMe";
+        return "🔑 " + _("Token for '%s' (ID: %d)").printf(bot.name ?? "?", bot_id) + "\n\n" +
+            "⚠️ " + _("Tokens are shown only once at creation and not stored.") + "\n\n" +
+            _("Generate a new token:") + " /token %d".printf(bot_id);
     }
 
     // /activate <id> -- Activate a bot
