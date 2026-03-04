@@ -4,6 +4,11 @@ namespace Dino.Plugins.BotFeatures {
 
 public class BotRegistry : Qlite.Database {
     private const int VERSION = 3;
+    private const int GCM_IV_SIZE = 12;
+    private const int GCM_TAG_SIZE = 16;
+    private const string ENC_PREFIX = "ENC:";
+
+    private uint8[]? _enc_key = null;
 
     // Fired after a bot is deleted, with the owner JID, bot ID, and bot details
     public signal void bot_deleted(string owner_jid, int bot_id, string? bot_jid, string? bot_mode);
@@ -326,6 +331,102 @@ public class BotRegistry : Qlite.Database {
             result[settings.key_.get(row)] = settings.value_.get(row);
         }
         return result;
+    }
+
+    // --- Encrypted Settings ---
+
+    // Lazily derive a 32-byte AES-256 key from server_hmac_key via HMAC-SHA256.
+    // Returns null only if server_hmac_key is not yet stored (TokenManager hasn't initialized).
+    private uint8[]? get_enc_key() {
+        if (_enc_key != null) return _enc_key;
+        string? hmac_key = get_setting("server_hmac_key");
+        if (hmac_key == null || hmac_key == "") return null;
+        var hmac = new GLib.Hmac(ChecksumType.SHA256, (uchar[]) hmac_key.data);
+        hmac.update((uchar[]) "dinox-settings-encryption".data);
+        size_t len = 32;
+        _enc_key = new uint8[len];
+        hmac.get_digest(_enc_key, ref len);
+        return _enc_key;
+    }
+
+    // Store a setting with AES-256-GCM encryption.
+    // Falls back to plaintext only if the encryption key is not yet available.
+    public void set_secret_setting(string key, string value) {
+        uint8[]? enc_key = get_enc_key();
+        if (enc_key == null) {
+            set_setting(key, value);
+            return;
+        }
+        try {
+            uint8[] plaintext = value.data;
+            // Generate random IV from two UUID4s (128-bit secure random), take first 12 bytes
+            string uuid_hex = GLib.Uuid.string_random().replace("-", "");
+            uint8[] iv = new uint8[GCM_IV_SIZE];
+            for (int i = 0; i < GCM_IV_SIZE; i++) {
+                iv[i] = (uint8) uint64.parse("0x" + uuid_hex.substring(i * 2, 2));
+            }
+
+            var cipher = new Crypto.SymmetricCipher("AES-GCM");
+            cipher.set_key(enc_key);
+            cipher.set_iv(iv);
+            uint8[] ciphertext = new uint8[plaintext.length];
+            cipher.encrypt(ciphertext, plaintext);
+            uint8[] tag = cipher.get_tag(GCM_TAG_SIZE);
+
+            // Pack: IV || ciphertext || tag
+            uint8[] packed = new uint8[GCM_IV_SIZE + ciphertext.length + GCM_TAG_SIZE];
+            GLib.Memory.copy(packed, iv, GCM_IV_SIZE);
+            GLib.Memory.copy((uint8*) packed + GCM_IV_SIZE, ciphertext, ciphertext.length);
+            GLib.Memory.copy((uint8*) packed + GCM_IV_SIZE + ciphertext.length, tag, GCM_TAG_SIZE);
+
+            set_setting(key, ENC_PREFIX + GLib.Base64.encode(packed));
+        } catch (GLib.Error e) {
+            warning("BotRegistry: encrypt error for '%s': %s — storing plaintext", key, e.message);
+            set_setting(key, value);
+        }
+    }
+
+    // Read a setting and decrypt if encrypted. Auto-migrates plaintext values on first read.
+    public string? get_secret_setting(string key) {
+        string? raw = get_setting(key);
+        if (raw == null) return null;
+
+        if (raw.has_prefix(ENC_PREFIX)) {
+            uint8[]? enc_key = get_enc_key();
+            if (enc_key == null) {
+                warning("BotRegistry: cannot decrypt '%s' — no encryption key", key);
+                return null;
+            }
+            try {
+                uint8[] packed = GLib.Base64.decode(raw.substring(ENC_PREFIX.length));
+                if (packed.length < GCM_IV_SIZE + GCM_TAG_SIZE) {
+                    warning("BotRegistry: encrypted data too short for '%s'", key);
+                    return null;
+                }
+                uint8[] iv = packed[0:GCM_IV_SIZE];
+                uint8[] ciphertext = packed[GCM_IV_SIZE:packed.length - GCM_TAG_SIZE];
+                uint8[] tag = packed[packed.length - GCM_TAG_SIZE:packed.length];
+
+                var cipher = new Crypto.SymmetricCipher("AES-GCM");
+                cipher.set_key(enc_key);
+                cipher.set_iv(iv);
+                uint8[] plaintext = new uint8[ciphertext.length];
+                cipher.decrypt(plaintext, ciphertext);
+                cipher.check_tag(tag);
+
+                return (string) plaintext;
+            } catch (GLib.Error e) {
+                warning("BotRegistry: decrypt error for '%s': %s", key, e.message);
+                return null;
+            }
+        }
+
+        // Plaintext value found — auto-migrate to encrypted storage
+        uint8[]? enc_key = get_enc_key();
+        if (enc_key != null) {
+            set_secret_setting(key, raw);
+        }
+        return raw;
     }
 
     // --- Audit Log ---

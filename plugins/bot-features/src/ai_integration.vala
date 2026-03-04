@@ -86,7 +86,7 @@ public class AiIntegration : Object {
         registry.set_setting(prefix + "_enabled", "true");
         registry.set_setting(prefix + "_type", ai_type);
         registry.set_setting(prefix + "_endpoint", endpoint);
-        registry.set_setting(prefix + "_key", api_key);
+        registry.set_secret_setting(prefix + "_key", api_key);
         registry.set_setting(prefix + "_model", model);
         registry.set_setting(prefix + "_system", system_prompt);
         message("AI: Configured for bot %d: type=%s model=%s endpoint=%s", bot_id, ai_type, model, endpoint);
@@ -185,7 +185,7 @@ public class AiIntegration : Object {
         string prefix = "bot_%d_ai".printf(bot_id);
         string? ai_type = registry.get_setting(prefix + "_type") ?? "openai";
         string? endpoint = registry.get_setting(prefix + "_endpoint");
-        string? api_key = registry.get_setting(prefix + "_key") ?? "";
+        string? api_key = registry.get_secret_setting(prefix + "_key") ?? "";
         string? model = registry.get_setting(prefix + "_model");
         string? system_prompt = registry.get_setting(prefix + "_system") ?? "Du bist ein hilfreicher Assistent.";
 

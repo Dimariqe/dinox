@@ -78,7 +78,7 @@ public class TelegramBridge : Object {
     public void configure(int bot_id, string tg_token, string tg_chat_id, string mode) {
         string prefix = "bot_%d_tg".printf(bot_id);
         registry.set_setting(prefix + "_enabled", "true");
-        registry.set_setting(prefix + "_token", tg_token);
+        registry.set_secret_setting(prefix + "_token", tg_token);
         registry.set_setting(prefix + "_chat_id", tg_chat_id);
         registry.set_setting(prefix + "_mode", mode);
         message("Telegram: Configured for bot %d: chat_id=%s mode=%s", bot_id, tg_chat_id, mode);
@@ -105,7 +105,7 @@ public class TelegramBridge : Object {
     // Delete webhook then start polling loop
     private async void delete_webhook_and_start(int bot_id) {
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         if (token != null) {
             string url = "https://api.telegram.org/bot%s/deleteWebhook".printf(token);
             try {
@@ -154,7 +154,7 @@ public class TelegramBridge : Object {
     // Forward an XMPP message to Telegram
     public async bool forward_to_telegram(int bot_id, string from_jid, string text) {
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         string? chat_id = registry.get_setting(prefix + "_chat_id");
 
         if (token == null || chat_id == null) {
@@ -383,7 +383,7 @@ public class TelegramBridge : Object {
         poll_in_progress[bot_id] = true;
 
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         if (token == null) { poll_in_progress[bot_id] = false; return; }
 
         int64 offset = 0;
@@ -620,7 +620,7 @@ public class TelegramBridge : Object {
     // Test the connection (get bot info from Telegram)
     public async string? test_connection(int bot_id) {
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         if (token == null) return "Telegram nicht konfiguriert.";
 
         string url = "https://api.telegram.org/bot%s/getMe".printf(token);

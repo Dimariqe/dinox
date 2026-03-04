@@ -158,12 +158,10 @@
 
 ## Hinweise (kein Fix erforderlich)
 
-1. **API-Key-Speicherung im Klartext:** AI- und Telegram-Keys werden als Klartext in der SQLite-Settings-Tabelle gespeichert. Bei Produktivbetrieb wäre Verschlüsselung empfehlenswert.
+1. ~~**API-Key-Speicherung im Klartext:**~~ **BEHOBEN** — Alle sensiblen Settings (Telegram-Token, AI-API-Keys, ejabberd-Admin-Passwort) werden jetzt mit AES-256-GCM verschlüsselt in der SQLite-Settings-Tabelle gespeichert. Key-Ableitung via HMAC-SHA256 aus dem server_hmac_key. Bestehende Klartextwerte werden beim ersten Lesen automatisch migriert. Siehe `set_secret_setting()` / `get_secret_setting()` in `bot_registry.vala`.
 
 2. **Self-signed Cert akzeptiert überall:** `session_pool.vala` akzeptiert blindlings alle Zertifikate (`return true`). Dies ist für den Entwicklungsbetrieb akzeptabel, sollte in Produktivumgebungen konfigurierbar sein.
 
-3. ~~**Dreifache Code-Duplikation von `escape_json()`:**~~ Behoben — Zentrale `BotUtils.escape_json()` in `bot_utils.vala`. Lokale Kopien in `message_router.vala` und `http_server.vala` noch vorhanden aber identisch aktualisiert.
+3. **10-Jahres-Zertifikat:** `cert_gen.c` generiert Zertifikate mit 10 Jahren Gültigkeit. Für Self-signed akzeptabel, aber lang.
 
-4. **10-Jahres-Zertifikat:** `cert_gen.c` generiert Zertifikate mit 10 Jahren Gültigkeit. Für Self-signed akzeptabel, aber lang.
-
-5. **BUG-09: `ejabberd_api.delete_mam_messages()` löscht Archive ALLER Benutzer:** ejabberd-API-Limitation, kein Code-Bug. Mitigation implementiert (Warnung wird angezeigt). Nicht lösbar ohne ejabberd-Änderung.
+4. **BUG-09: `ejabberd_api.delete_mam_messages()` löscht Archive ALLER Benutzer:** ejabberd-API-Limitation, kein Code-Bug. Mitigation implementiert (Warnung wird angezeigt). Nicht lösbar ohne ejabberd-Änderung.

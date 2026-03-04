@@ -29,7 +29,7 @@ public class EjabberdApi : Object {
     public bool is_configured() {
         string? url = registry.get_setting(KEY_API_URL);
         string? admin_jid = registry.get_setting(KEY_ADMIN_JID);
-        string? admin_pw = registry.get_setting(KEY_ADMIN_PASSWORD);
+        string? admin_pw = registry.get_secret_setting(KEY_ADMIN_PASSWORD);
         string? host = registry.get_setting(KEY_HOST);
         return (url != null && url.strip() != "" &&
                 admin_jid != null && admin_jid.strip() != "" &&
@@ -151,7 +151,7 @@ public class EjabberdApi : Object {
     private async ApiResult api_call(string endpoint, string json_body) {
         string? api_url = registry.get_setting(KEY_API_URL);
         string? admin_jid = registry.get_setting(KEY_ADMIN_JID);
-        string? admin_pw = registry.get_setting(KEY_ADMIN_PASSWORD);
+        string? admin_pw = registry.get_secret_setting(KEY_ADMIN_PASSWORD);
 
         if (api_url == null || admin_jid == null || admin_pw == null) {
             return ApiResult() { success = false, error_message = "Missing API configuration" };

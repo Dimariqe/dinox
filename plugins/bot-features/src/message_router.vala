@@ -715,7 +715,7 @@ public class MessageRouter : Object {
             switch (action.down()) {
                 case "on":
                     if (!telegram.is_enabled(bot.id)) {
-                        string? token = registry.get_setting("bot_%d_tg_token".printf(bot.id));
+                        string? token = registry.get_secret_setting("bot_%d_tg_token".printf(bot.id));
                         if (token == null) {
                             response = _("Telegram not configured.") + "\n\n" + build_telegram_setup_menu(bot.jid ?? "");
                         } else {
@@ -791,7 +791,7 @@ public class MessageRouter : Object {
     // Build the Telegram main menu
     private string build_telegram_menu(int bot_id, string jid = "") {
         bool enabled = telegram.is_enabled(bot_id);
-        bool configured = registry.get_setting("bot_%d_tg_token".printf(bot_id)) != null;
+        bool configured = registry.get_secret_setting("bot_%d_tg_token".printf(bot_id)) != null;
         string? mode = registry.get_setting("bot_%d_tg_mode".printf(bot_id));
 
         var sb = new StringBuilder();
@@ -983,7 +983,7 @@ public class MessageRouter : Object {
         bool ki_on = ai.is_enabled(bot.id);
         bool tg_on = telegram.is_enabled(bot.id);
         bool ki_configured = registry.get_setting("bot_%d_ai_endpoint".printf(bot.id)) != null;
-        bool tg_configured = registry.get_setting("bot_%d_tg_token".printf(bot.id)) != null;
+        bool tg_configured = registry.get_secret_setting("bot_%d_tg_token".printf(bot.id)) != null;
 
         sb.append(_("Status:") + "\n");
         if (ki_configured) {

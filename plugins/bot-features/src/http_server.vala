@@ -501,7 +501,7 @@ public class HttpServer : Object {
         if (method == "GET") {
             string? url = registry.get_setting(EjabberdApi.KEY_API_URL);
             string? admin_jid = registry.get_setting(EjabberdApi.KEY_ADMIN_JID);
-            string? admin_pw = registry.get_setting(EjabberdApi.KEY_ADMIN_PASSWORD);
+            string? admin_pw = registry.get_secret_setting(EjabberdApi.KEY_ADMIN_PASSWORD);
             string? host = registry.get_setting(EjabberdApi.KEY_HOST);
             bool configured = ejabberd_api.is_configured();
 
@@ -534,7 +534,7 @@ public class HttpServer : Object {
             if (admin_jid != null) registry.set_setting(EjabberdApi.KEY_ADMIN_JID, admin_jid.strip());
             // Only update password if not masked
             if (admin_pw != null && admin_pw != "********") {
-                registry.set_setting(EjabberdApi.KEY_ADMIN_PASSWORD, admin_pw.strip());
+                registry.set_secret_setting(EjabberdApi.KEY_ADMIN_PASSWORD, admin_pw.strip());
             }
             if (host != null) registry.set_setting(EjabberdApi.KEY_HOST, host.strip());
 
@@ -572,7 +572,7 @@ public class HttpServer : Object {
 
             // If password not provided in body, fall back to saved password
             if (admin_pw == null || admin_pw.strip() == "") {
-                admin_pw = registry.get_setting(EjabberdApi.KEY_ADMIN_PASSWORD);
+                admin_pw = registry.get_secret_setting(EjabberdApi.KEY_ADMIN_PASSWORD);
             }
 
             if (api_url != null && api_url.strip() != "" &&
@@ -992,7 +992,7 @@ public class HttpServer : Object {
         bool enabled = message_router.telegram.is_enabled(bot.id);
         string? chat_id = registry.get_setting("bot_%d_tg_chat_id".printf(bot.id));
         string? mode = registry.get_setting("bot_%d_tg_mode".printf(bot.id));
-        bool configured = registry.get_setting("bot_%d_tg_token".printf(bot.id)) != null;
+        bool configured = registry.get_secret_setting("bot_%d_tg_token".printf(bot.id)) != null;
 
         string json = "{\"enabled\":%s,\"configured\":%s,\"chat_id\":\"%s\",\"mode\":\"%s\"}".printf(
             enabled ? "true" : "false",
@@ -1022,7 +1022,7 @@ public class HttpServer : Object {
         bool new_enabled = body.get_boolean_member("enabled");
 
         if (new_enabled) {
-            string? token = registry.get_setting("bot_%d_tg_token".printf(bot.id));
+            string? token = registry.get_secret_setting("bot_%d_tg_token".printf(bot.id));
             if (token == null) {
                 AuthMiddleware.send_error(msg, 400, "not_configured",
                     "Telegram not configured. Use /bot/telegram/setup first.");
