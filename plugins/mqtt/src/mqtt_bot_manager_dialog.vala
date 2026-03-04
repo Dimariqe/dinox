@@ -1740,8 +1740,9 @@ public class MqttBotManagerDialog : Adw.Dialog {
         } else {
             plugin.save_account_config(account, config);
             plugin.apply_account_config_change(account, config);
-            message("MQTT Bot Manager: Saved config for %s (enabled=%s)",
-                    account.bare_jid.to_string(), config.enabled.to_string());
+            message("MQTT Bot Manager: Saved config for %s (enabled=%s, discovery=%s)",
+                    account.bare_jid.to_string(), config.enabled.to_string(),
+                    config.discovery_enabled.to_string());
         }
 
         /* Immediate UI feedback after save */

@@ -928,6 +928,29 @@ public class Plugin : RootInterface, Object {
                 if (account_clients.has_key(jid)) {
                     /* Already connected — re-sync topics (subscribe new, unsubscribe removed) */
                     sync_topics_to_client_cfg(account_clients[jid], cfg, jid);
+
+                    /* HA Discovery: live start/stop without requiring reconnect */
+                    bool is_xmpp_mode = cfg.use_xmpp_auth || cfg.broker_host.strip() == "";
+                    if (cfg.discovery_enabled && !is_xmpp_mode) {
+                        if (!discovery_managers.has_key(jid)) {
+                            /* Start discovery on already-connected client */
+                            var dm = new MqttDiscoveryManager(this, account_clients[jid], jid, cfg.discovery_prefix);
+                            discovery_managers[jid] = dm;
+                            dm.publish_birth();
+                            dm.publish_discovery_config();
+                            dm.publish_all_states();
+                            dm.subscribe_ha_status();
+                            message("[ACCT:%s] HA Discovery started (live)", jid);
+                        }
+                    } else {
+                        if (discovery_managers.has_key(jid)) {
+                            /* Stop discovery — remove configs from broker */
+                            discovery_managers[jid].remove_discovery_configs();
+                            discovery_managers.unset(jid);
+                            message("[ACCT:%s] HA Discovery stopped (live)", jid);
+                        }
+                    }
+
                     /* Notify UI — no connect/disconnect happened so no signal would fire,
                      * but the dialog needs to update status from "Connecting…" to "Connected". */
                     connection_changed(jid, account_clients[jid].is_connected);

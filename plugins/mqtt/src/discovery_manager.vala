@@ -74,7 +74,7 @@ public class MqttDiscoveryManager : GLib.Object {
     /* ── Software info ─────────────────────────────────────────────── */
 
     private const string ORIGIN_NAME = "DinoX";
-    private const string ORIGIN_SW   = "1.1.4.2";
+    private const string ORIGIN_SW   = "1.1.5.0";
     private const string ORIGIN_URL  = "https://github.com/rallep71/dinox";
 
     /* ── Construction ──────────────────────────────────────────────── */
