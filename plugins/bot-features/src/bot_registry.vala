@@ -318,6 +318,18 @@ public class BotRegistry : Qlite.Database {
         settings.delete().with(settings.key_, "=", key).perform();
     }
 
+    public void delete_settings_like(string pattern) {
+        settings.delete().with(settings.key_, "LIKE", pattern).perform();
+    }
+
+    public Gee.HashMap<string, string> get_settings_like(string pattern) {
+        var result = new Gee.HashMap<string, string>();
+        foreach (Qlite.Row row in settings.select().with(settings.key_, "LIKE", pattern)) {
+            result[settings.key_.get(row)] = settings.value_.get(row);
+        }
+        return result;
+    }
+
     // --- Audit Log ---
 
     public void log_action(int bot_id, string action, string? details = null, string? ip = null) {

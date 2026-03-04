@@ -498,6 +498,8 @@ public class BotOmemoManager : Object {
         registry.delete_setting("omemo_reg_id:%d".printf(bot_id));
         registry.delete_setting("omemo_spk:%d".printf(bot_id));
         registry.delete_setting("omemo_pks:%d".printf(bot_id));
+        // Delete per-key sessions (BUG-17 format) + legacy blob
+        registry.delete_settings_like("omemo_session:%d:%%".printf(bot_id));
         registry.delete_setting("omemo_sessions:%d".printf(bot_id));
         message("BotOmemo: Cleaned up bot %d", bot_id);
     }
@@ -606,10 +608,37 @@ public class BotOmemoManager : Object {
 
     /**
      * Load persisted Signal sessions from DB into the store.
+     * Supports both new per-key format (omemo_session:<bot>:<jid>:<did>)
+     * and legacy blob format (omemo_sessions:<bot>) for migration.
      */
     private void load_persisted_sessions(int bot_id,
                                           global::Omemo.Store store) {
         try {
+            // --- Try new per-key format first ---
+            var entries = registry.get_settings_like(
+                "omemo_session:%d:%%".printf(bot_id));
+            if (entries.size > 0) {
+                int count = 0;
+                foreach (var entry in entries.entries) {
+                    // Key: omemo_session:<bot_id>:<jid>:<device_id>
+                    // Value: base64-encoded session record
+                    string[] parts = entry.key.split(":", 4);
+                    if (parts.length < 4) continue;
+                    string name = parts[2];
+                    int did = int.parse(parts[3]);
+                    global::Omemo.Address addr =
+                        new global::Omemo.Address(name, did);
+                    store.session_store.store_session(addr,
+                        Base64.decode(entry.value));
+                    addr.device_id = 0; // prevent premature free
+                    count++;
+                }
+                message("BotOmemo: Loaded %d persisted sessions for bot %d (per-key)",
+                    count, bot_id);
+                return;
+            }
+
+            // --- Fallback: migrate legacy blob format ---
             string? json_str = registry.get_setting(
                 "omemo_sessions:%d".printf(bot_id));
             if (json_str == null || json_str.length == 0) return;
@@ -628,9 +657,16 @@ public class BotOmemoManager : Object {
                 store.session_store.store_session(addr,
                     Base64.decode(record_b64));
                 addr.device_id = 0; // prevent premature free
+
+                // Migrate: write as per-key entry
+                string new_key = "omemo_session:%d:%s:%d".printf(
+                    bot_id, name, did);
+                registry.set_setting(new_key, record_b64);
                 count++;
             }
-            message("BotOmemo: Loaded %d persisted sessions for bot %d",
+            // Delete legacy blob after successful migration
+            registry.delete_setting("omemo_sessions:%d".printf(bot_id));
+            message("BotOmemo: Migrated %d sessions for bot %d from blob to per-key",
                 count, bot_id);
         } catch (Error e) {
             warning("BotOmemo: Failed loading persisted sessions for bot %d: %s",
@@ -641,71 +677,13 @@ public class BotOmemoManager : Object {
     /**
      * Persist a single session update to DB.
      * Called from the session_stored signal whenever ratchet state changes.
+     * BUG-17 fix: Each session gets its own DB key instead of one blob.
      */
     private void persist_session(int bot_id,
                                   global::Omemo.SessionStore.Session session) {
-        try {
-            string key = "omemo_sessions:%d".printf(bot_id);
-            string? json_str = registry.get_setting(key);
-
-            var builder = new Json.Builder();
-            builder.begin_array();
-            bool found = false;
-
-            if (json_str != null && json_str.length > 0) {
-                var parser = new Json.Parser();
-                parser.load_from_data(json_str);
-                var arr = parser.get_root().get_array();
-                for (uint i = 0; i < arr.get_length(); i++) {
-                    var obj = arr.get_object_element(i);
-                    string n = obj.get_string_member("n");
-                    int d = (int) obj.get_int_member("d");
-                    if (n == session.name && d == session.device_id) {
-                        // Replace with updated record
-                        builder.begin_object();
-                        builder.set_member_name("n");
-                        builder.add_string_value(session.name);
-                        builder.set_member_name("d");
-                        builder.add_int_value(session.device_id);
-                        builder.set_member_name("r");
-                        builder.add_string_value(
-                            Base64.encode(session.record));
-                        builder.end_object();
-                        found = true;
-                    } else {
-                        // Keep existing session
-                        builder.begin_object();
-                        builder.set_member_name("n");
-                        builder.add_string_value(n);
-                        builder.set_member_name("d");
-                        builder.add_int_value(d);
-                        builder.set_member_name("r");
-                        builder.add_string_value(
-                            obj.get_string_member("r"));
-                        builder.end_object();
-                    }
-                }
-            }
-
-            if (!found) {
-                builder.begin_object();
-                builder.set_member_name("n");
-                builder.add_string_value(session.name);
-                builder.set_member_name("d");
-                builder.add_int_value(session.device_id);
-                builder.set_member_name("r");
-                builder.add_string_value(Base64.encode(session.record));
-                builder.end_object();
-            }
-
-            builder.end_array();
-            var gen = new Json.Generator();
-            gen.root = builder.get_root();
-            registry.set_setting(key, gen.to_data(null));
-        } catch (Error e) {
-            warning("BotOmemo: Failed to persist session for bot %d: %s",
-                bot_id, e.message);
-        }
+        string key = "omemo_session:%d:%s:%d".printf(
+            bot_id, session.name, session.device_id);
+        registry.set_setting(key, Base64.encode(session.record));
     }
 }
 

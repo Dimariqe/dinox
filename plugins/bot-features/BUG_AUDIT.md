@@ -13,9 +13,9 @@
 |-------------|--------|---------------|
 | KRITISCH    | 3      | 2 fixed, 1 teilweise |
 | HOCH        | 6      | 3 fixed, 1 teilweise, 1 offen (ejabberd-Limit), 1 false positive |
-| MITTEL      | 8      | 4 fixed, 2 offen, 1 offen (API-Design), 1 offen (C-Binding) |
+| MITTEL      | 8      | 5 fixed, 1 offen, 1 offen (API-Design), 1 offen (C-Binding) |
 | NIEDRIG     | 5      | 4 fixed, 1 offen |
-| **Gesamt**  | **22** | **13 fixed, 3 teilweise, 6 offen** |
+| **Gesamt**  | **22** | **14 fixed, 3 teilweise, 5 offen** |
 
 ---
 
@@ -130,11 +130,9 @@
 
 ---
 
-### BUG-17: Session-Persistenz — vollständiger JSON-Blob Rewrite bei jeder Änderung — OFFEN
-**Datei:** `bot_omemo.vala`, `persist_session()` Methode  
-**Status:** ⚠️ Offen — Jede Ratchet-State-Änderung liest/parst/schreibt den gesamten `omemo_sessions:<bot_id>` JSON-Blob. Bei vielen Sessions (50+) kann dies Performance-Probleme verursachen.
-
-**Fix:** Sessions einzeln speichern (z.B. `omemo_session:<bot_id>:<jid>:<device_id>`) statt als ein JSON-Blob.
+### ~~BUG-17: Session-Persistenz — vollständiger JSON-Blob Rewrite bei jeder Änderung~~ — FIXED
+**Datei:** `bot_omemo.vala`, `bot_registry.vala`  
+**Status:** ✅ Behoben — Jede Session wird jetzt einzeln unter `omemo_session:<bot_id>:<jid>:<device_id>` gespeichert. `persist_session()` schreibt nur einen DB-Key statt den gesamten Blob. Automatische Migration vom alten Blob-Format beim ersten Laden.
 
 ---
 
