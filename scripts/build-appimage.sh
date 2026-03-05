@@ -294,7 +294,17 @@ copy_dependencies() {
         libgstlevel.so \
         libgstisomp4.so \
         libgstvoaacenc.so \
-        libgstaudiofx.so
+        libgstaudiofx.so \
+        libgstwavparse.so \
+        libgstwavenc.so \
+        libgstflac.so \
+        libgstogg.so \
+        libgstvorbis.so \
+        libgstmpg123.so \
+        libgstid3demux.so \
+        libgstid3tag.so \
+        libgstflv.so \
+        libgstavi.so
     do
         find "$GST_PLUGIN_DIR" -name "$plugin" -exec cp {} "$APPDIR/usr/lib/gstreamer-1.0/" \; 2>/dev/null || true
     done
