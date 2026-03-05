@@ -110,6 +110,8 @@ public class MqttBotManagerDialog : Adw.Dialog {
     private Adw.EntryRow preset_name_entry;
     private Adw.EntryRow preset_topic_entry;
     private Adw.EntryRow preset_payload_entry;
+    private Gtk.Button show_bot_btn;
+    private Gtk.Button show_bot_btn_sa;
 
     public MqttBotManagerDialog(Plugin plugin, Account account) {
         this.plugin = plugin;
@@ -413,11 +415,12 @@ public class MqttBotManagerDialog : Adw.Dialog {
             status_group.add(status_row);
 
             /* Show Bot button (standalone) */
-            var show_bot_btn_sa = new Button.with_label(_("Show Bot in Chat"));
+            show_bot_btn_sa = new Button.with_label(_("Show Bot in Chat"));
             show_bot_btn_sa.add_css_class("flat");
             show_bot_btn_sa.add_css_class("pill");
             show_bot_btn_sa.halign = Align.CENTER;
             show_bot_btn_sa.tooltip_text = _("Re-open the MQTT Bot conversation in the sidebar");
+            show_bot_btn_sa.sensitive = plugin.get_standalone_config().enabled;
             show_bot_btn_sa.clicked.connect(() => {
                 if (plugin.bot_conversation != null) {
                     var conv = plugin.bot_conversation.reopen_standalone_conversation();
@@ -981,6 +984,7 @@ public class MqttBotManagerDialog : Adw.Dialog {
         if (broker_group != null) broker_group.sensitive = enabled;
         if (auth_group != null) auth_group.sensitive = enabled;
         if (disc_group != null) disc_group.sensitive = enabled;
+        if (show_bot_btn != null) show_bot_btn.sensitive = enabled;
     }
 
     private string format_server_type(string type) {

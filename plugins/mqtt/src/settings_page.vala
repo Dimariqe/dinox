@@ -43,6 +43,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
     private Switch disc_switch;
     private Adw.EntryRow disc_prefix_row;
     private Adw.PreferencesGroup discovery_group;
+    private Adw.ActionRow show_bot_row;
 
     /* Prevent saving during programmatic updates */
     private bool loading = true;
@@ -223,7 +224,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         manager_group.add(manager_row);
 
         /* Show Bot in Chat — re-open closed bot conversation */
-        var show_bot_row = new Adw.ActionRow();
+        show_bot_row = new Adw.ActionRow();
         show_bot_row.title = _("Show Bot in Chat");
         show_bot_row.subtitle = _("Re-open the MQTT Bot conversation if you closed it");
         show_bot_row.activatable = true;
@@ -436,6 +437,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         user_row.sensitive = enabled;
         pass_row.sensitive = enabled;
         if (discovery_group != null) discovery_group.sensitive = enabled;
+        if (show_bot_row != null) show_bot_row.sensitive = enabled;
     }
 
     /* ── Status display ───────────────────────────────────────────── */
