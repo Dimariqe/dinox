@@ -743,7 +743,7 @@ public class MqttAlertManager : Object {
             }
 
             if (rules.size > 0) {
-                message("MQTT AlertManager: Loaded %d alert rules from mqtt.db", rules.size);
+                debug("MQTT AlertManager: Loaded %d alert rules from mqtt.db", rules.size);
                 return;
             }
         }
@@ -769,12 +769,12 @@ public class MqttAlertManager : Object {
                 }
             }
 
-            message("MQTT AlertManager: Loaded %d alert rules from JSON (legacy)", rules.size);
+            debug("MQTT AlertManager: Loaded %d alert rules from JSON (legacy)", rules.size);
 
             /* One-time migration: write rules to mqtt.db */
             if (rules.size > 0 && plugin.mqtt_db != null) {
                 save_rules();
-                message("MQTT AlertManager: Migrated %d rules from JSON → mqtt.db", rules.size);
+                debug("MQTT AlertManager: Migrated %d rules from JSON → mqtt.db", rules.size);
             }
         } catch (GLib.Error e) {
             warning("MQTT AlertManager: Failed to load rules: %s", e.message);
@@ -853,7 +853,7 @@ public class MqttAlertManager : Object {
                 topic_priorities[member] = MqttPriority.from_string(prio_str);
             }
 
-            message("MQTT AlertManager: Loaded %d topic priorities",
+            debug("MQTT AlertManager: Loaded %d topic priorities",
                     topic_priorities.size);
         } catch (GLib.Error e) {
             warning("MQTT AlertManager: Failed to load priorities: %s",
@@ -896,7 +896,7 @@ public class MqttAlertManager : Object {
                 }
             }
 
-            message("MQTT AlertManager: Loaded %d topic QoS settings",
+            debug("MQTT AlertManager: Loaded %d topic QoS settings",
                     topic_qos.size);
         } catch (GLib.Error e) {
             warning("MQTT AlertManager: Failed to load QoS settings: %s",

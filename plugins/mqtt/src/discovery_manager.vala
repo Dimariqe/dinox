@@ -159,13 +159,13 @@ public class MqttDiscoveryManager : GLib.Object {
 
         string ha_topic = get_ha_status_topic();
         client.subscribe(ha_topic, 1);
-        message("MQTT Discovery: Subscribed to HA status topic: %s", ha_topic);
+        debug("MQTT Discovery: Subscribed to HA status topic: %s", ha_topic);
 
         /* Subscribe to command topics */
         client.subscribe(command_topic(ENTITY_ALERTS_PAUSE), 1);
         client.subscribe(command_topic(ENTITY_RECONNECT), 1);
         client.subscribe(command_topic(ENTITY_REFRESH), 1);
-        message("MQTT Discovery: Subscribed to command topics for node=%s", node_id);
+        debug("MQTT Discovery: Subscribed to command topics for node=%s", node_id);
 
         subscribed_to_ha_status = true;
     }
@@ -177,7 +177,7 @@ public class MqttDiscoveryManager : GLib.Object {
      */
     public void handle_ha_status_message(string payload) {
         if (payload.strip() == "online") {
-            message("MQTT Discovery: HA birth detected — re-publishing discovery for node=%s", node_id);
+            debug("MQTT Discovery: HA birth detected — re-publishing discovery for node=%s", node_id);
             /* Re-publish: force re-send even if already published */
             published = false;
             publish_discovery_config();
@@ -212,10 +212,10 @@ public class MqttDiscoveryManager : GLib.Object {
 
         if (cmd == "ON") {
             am.paused = true;
-            message("MQTT Discovery: Alerts paused via HA command");
+            debug("MQTT Discovery: Alerts paused via HA command");
         } else if (cmd == "OFF") {
             am.paused = false;
-            message("MQTT Discovery: Alerts resumed via HA command");
+            debug("MQTT Discovery: Alerts resumed via HA command");
         } else {
             return false;
         }
@@ -231,7 +231,7 @@ public class MqttDiscoveryManager : GLib.Object {
         string cmd = payload.strip().up();
         if (cmd != "PRESS") return false;
 
-        message("MQTT Discovery: Reconnect triggered via HA command for node=%s", node_id);
+        debug("MQTT Discovery: Reconnect triggered via HA command for node=%s", node_id);
         /* Schedule reconnect on main loop to avoid re-entrant issues.
          * apply_settings() reloads config AND reconnects; reload_config()
          * alone only reads the DB without acting on the change. */
@@ -249,7 +249,7 @@ public class MqttDiscoveryManager : GLib.Object {
         string cmd = payload.strip().up();
         if (cmd != "PRESS") return false;
 
-        message("MQTT Discovery: Refresh triggered via HA command for node=%s", node_id);
+        debug("MQTT Discovery: Refresh triggered via HA command for node=%s", node_id);
         published = false;
         publish_discovery_config();
         publish_all_states();
@@ -412,7 +412,7 @@ public class MqttDiscoveryManager : GLib.Object {
         publish_retained(config_topic, generate_json(builder));
 
         published = true;
-        message("MQTT Discovery: Published device config to %s", config_topic);
+        debug("MQTT Discovery: Published device config to %s", config_topic);
     }
 
     /**
@@ -526,7 +526,7 @@ public class MqttDiscoveryManager : GLib.Object {
         }
 
         published = false;
-        message("MQTT Discovery: Removed device config for node=%s", node_id);
+        debug("MQTT Discovery: Removed device config for node=%s", node_id);
     }
 
     /**

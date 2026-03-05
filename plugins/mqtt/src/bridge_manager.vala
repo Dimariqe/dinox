@@ -288,7 +288,7 @@ public class MqttBridgeManager : Object {
                     pm.target_jid = target_jid_str;
                     pm.body = body;
                     pending_messages.add(pm);
-                    message("MQTT Bridge: Queued message for %s (no XMPP account connected, %d pending)",
+                    debug("MQTT Bridge: Queued message for %s (no XMPP account connected, %d pending)",
                             target_jid_str, pending_messages.size);
                 } else {
                     warning("MQTT Bridge: Pending queue full (%d), dropping message for %s",
@@ -343,7 +343,7 @@ public class MqttBridgeManager : Object {
             return false;
         });
 
-        message("MQTT Bridge: Forwarded [%s] → %s (%d chars)",
+        debug("MQTT Bridge: Forwarded [%s] → %s (%d chars)",
                 source, target_jid.to_string(), body.length);
     }
 
@@ -377,7 +377,7 @@ public class MqttBridgeManager : Object {
         pending_messages.add_all(still_pending);
 
         if (delivered > 0) {
-            message("MQTT Bridge: Flushed %d pending messages (%d still pending)",
+            debug("MQTT Bridge: Flushed %d pending messages (%d still pending)",
                     delivered, still_pending.size);
         }
     }
@@ -457,11 +457,11 @@ public class MqttBridgeManager : Object {
                     }
                 }
                 if (needs_save) {
-                    message("MQTT BridgeManager: Auto-filled send_account for legacy rules");
+                    debug("MQTT BridgeManager: Auto-filled send_account for legacy rules");
                     save_rules();
                 }
 
-                message("MQTT BridgeManager: Loaded %d bridge rules from mqtt.db", rules.size);
+                debug("MQTT BridgeManager: Loaded %d bridge rules from mqtt.db", rules.size);
                 return;
             }
         }
@@ -487,12 +487,12 @@ public class MqttBridgeManager : Object {
                 }
             }
 
-            message("MQTT BridgeManager: Loaded %d bridge rules from JSON (legacy)", rules.size);
+            debug("MQTT BridgeManager: Loaded %d bridge rules from JSON (legacy)", rules.size);
 
             /* One-time migration: write rules to mqtt.db */
             if (rules.size > 0 && plugin.mqtt_db != null) {
                 save_rules();
-                message("MQTT BridgeManager: Migrated %d rules from JSON → mqtt.db", rules.size);
+                debug("MQTT BridgeManager: Migrated %d rules from JSON → mqtt.db", rules.size);
             }
         } catch (GLib.Error e) {
             warning("MQTT BridgeManager: Failed to load rules: %s", e.message);

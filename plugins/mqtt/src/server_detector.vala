@@ -122,12 +122,12 @@ public class ServerDetector {
                 if (nam.contains("ejabberd")) {
                     result.server_type = ServerType.EJABBERD;
                     result.info = "Detected ejabberd via server identity";
-                    message("MQTT ServerDetector: ejabberd detected (identity: %s/%s '%s')",
+                    debug("MQTT ServerDetector: ejabberd detected (identity: %s/%s '%s')",
                             cat, typ, identity.name ?? "");
                 } else if (nam.contains("prosody")) {
                     result.server_type = ServerType.PROSODY;
                     result.info = "Detected Prosody via server identity";
-                    message("MQTT ServerDetector: Prosody detected (identity: %s/%s '%s')",
+                    debug("MQTT ServerDetector: Prosody detected (identity: %s/%s '%s')",
                             cat, typ, identity.name ?? "");
                 }
             }
@@ -162,7 +162,7 @@ public class ServerDetector {
                     if (id.category == "pubsub") {
                         result.has_pubsub = true;
                         result.pubsub_jid = item.jid.to_string();
-                        message("MQTT ServerDetector: PubSub component found at %s",
+                        debug("MQTT ServerDetector: PubSub component found at %s",
                                 item.jid.to_string());
                     }
                 }
@@ -170,7 +170,7 @@ public class ServerDetector {
                 /* Check features for MQTT-related namespaces */
                 foreach (string feature in item_info.features) {
                     if (feature.contains("mqtt")) {
-                        message("MQTT ServerDetector: MQTT feature found: %s at %s",
+                        debug("MQTT ServerDetector: MQTT feature found: %s at %s",
                                 feature, item.jid.to_string());
                         if (result.server_type == ServerType.UNKNOWN) {
                             result.server_type = ServerType.EJABBERD;
@@ -190,7 +190,7 @@ public class ServerDetector {
             result.info = _("No MQTT server type detected — configure manually");
         }
 
-        message("MQTT ServerDetector: Result = %s (%s)",
+        debug("MQTT ServerDetector: Result = %s (%s)",
                 result.server_type.to_label(), result.info);
         return result;
     }

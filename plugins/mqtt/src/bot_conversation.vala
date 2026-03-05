@@ -240,7 +240,7 @@ public class MqttBotConversation : Object {
              * Reactivate it so it appears in the sidebar again. */
             if (!cached.active) {
                 if (!activate_and_pin(cached)) return null;
-                message("MQTT Bot: Reactivated closed conversation for '%s'", key);
+                debug("MQTT Bot: Reactivated closed conversation for '%s'", key);
             }
             return cached;
         }
@@ -262,7 +262,7 @@ public class MqttBotConversation : Object {
             bot_conversations[key] = existing;
             existing.nickname = compute_display_name(key, account);
             activate_and_pin(existing);
-            message("MQTT Bot: Reusing DB-loaded conversation for '%s' (conv.id=%d, name='%s')",
+            debug("MQTT Bot: Reusing DB-loaded conversation for '%s' (conv.id=%d, name='%s')",
                     key, existing.id, existing.nickname);
             return existing;
         }
@@ -283,7 +283,7 @@ public class MqttBotConversation : Object {
                     conv.id, key);
         }
 
-        message("MQTT Bot: Conversation created for '%s' (JID=%s, conv.id=%d)",
+        debug("MQTT Bot: Conversation created for '%s' (JID=%s, conv.id=%d)",
                 key, jid.to_string(), conv.id);
         return conv;
     }
@@ -328,11 +328,11 @@ public class MqttBotConversation : Object {
             /* Refresh display name (may have changed in settings) */
             conv.nickname = compute_display_name(key, account);
             if (conv.active) {
-                message("MQTT Bot: Conversation for '%s' already open — nothing to do", key);
+                debug("MQTT Bot: Conversation for '%s' already open — nothing to do", key);
                 return conv;
             }
             activate_and_pin(conv);
-            message("MQTT Bot: Conversation re-opened for '%s'", key);
+            debug("MQTT Bot: Conversation re-opened for '%s'", key);
             return conv;
         }
 
@@ -363,7 +363,7 @@ public class MqttBotConversation : Object {
         }
         bot_conversations.unset(key);
 
-        message("MQTT Bot: Conversation removed for %s", key);
+        debug("MQTT Bot: Conversation removed for %s", key);
     }
 
     /**

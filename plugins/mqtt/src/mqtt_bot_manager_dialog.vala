@@ -379,7 +379,7 @@ public class MqttBotManagerDialog : Adw.Dialog {
                 if (plugin.bot_conversation != null && account != null) {
                     var conv = plugin.bot_conversation.reopen_conversation(account);
                     if (conv != null) {
-                        message("MQTT Bot Manager: Bot conversation re-opened for %s",
+                        debug("MQTT Bot Manager: Bot conversation re-opened for %s",
                                 account.bare_jid.to_string());
                     }
                 }
@@ -425,7 +425,7 @@ public class MqttBotManagerDialog : Adw.Dialog {
                 if (plugin.bot_conversation != null) {
                     var conv = plugin.bot_conversation.reopen_standalone_conversation();
                     if (conv != null) {
-                        message("MQTT Bot Manager: Standalone bot conversation re-opened");
+                        debug("MQTT Bot Manager: Standalone bot conversation re-opened");
                     }
                 }
             });
@@ -1739,12 +1739,12 @@ public class MqttBotManagerDialog : Adw.Dialog {
              * with stale "[]". */
             plugin.save_standalone_config();
             plugin.apply_settings();
-            message("MQTT Bot Manager: Saved standalone config (enabled=%s)",
+            debug("MQTT Bot Manager: Saved standalone config (enabled=%s)",
                     config.enabled.to_string());
         } else {
             plugin.save_account_config(account, config);
             plugin.apply_account_config_change(account, config);
-            message("MQTT Bot Manager: Saved config for %s (enabled=%s, discovery=%s)",
+            debug("MQTT Bot Manager: Saved config for %s (enabled=%s, discovery=%s)",
                     account.bare_jid.to_string(), config.enabled.to_string(),
                     config.discovery_enabled.to_string());
         }

@@ -233,7 +233,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
             if (plugin.bot_conversation != null) {
                 var conv = plugin.bot_conversation.reopen_standalone_conversation();
                 if (conv != null) {
-                    message("MQTT Settings: Standalone bot conversation re-opened");
+                    debug("MQTT Settings: Standalone bot conversation re-opened");
                 }
             }
         });
@@ -371,7 +371,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         save_setting(StandaloneKey.DISCOVERY_PREFIX,
                      prefix_val != "" ? prefix_val : "homeassistant");
 
-        message("[STANDALONE] Save & Apply — reloading config");
+        debug("[STANDALONE] Save & Apply — reloading config");
         plugin.reload_config();
         plugin.apply_settings();
 

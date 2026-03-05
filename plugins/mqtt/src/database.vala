@@ -681,15 +681,14 @@ public class MqttDatabase : Qlite.Database {
         total += ph_deleted;
 
         if (total > 0) {
-            message("MqttDatabase: purge_expired() deleted %d rows " +
-                    "(messages=%d, freetext=%d, connlog=%d, publish=%d)",
+            GLib.debug("MqttDatabase: purge_expired() deleted %d rows (messages=%d, freetext=%d, connlog=%d, publish=%d)",
                     total, msg_deleted, ft_deleted, cl_deleted, ph_deleted);
 
             /* VACUUM after significant deletes to reclaim disk space */
             if (total > 1000) {
                 try {
                     exec("VACUUM");
-                    message("MqttDatabase: VACUUM completed after purging %d rows", total);
+                    GLib.debug("MqttDatabase: VACUUM completed after purging %d rows", total);
                 } catch (Error e) {
                     warning("MqttDatabase: VACUUM failed: %s", e.message);
                 }
