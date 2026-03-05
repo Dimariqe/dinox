@@ -5,6 +5,24 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5.5] - 2026-03-05
+
+### Fixed
+- **Video playback for uploaded files (WebM/VFR)**: Replaced manual `uridecodebin` pipeline with `playbin` — fixes WebM files with PTS=0 (variable framerate, e.g. screen recordings) that showed only a frozen first frame. MP4 video messages continue to work
+- **Pause/Stop properly stops decoding**: `pause_playback()` now stops both GStreamer pipeline (PAUSED) AND the 33ms frame-polling timer. Previously the timer kept running during pause, wasting CPU. `cleanup_playback()` (Stop) destroys the entire pipeline
+- **Seek slider re-enabled**: Uses safe `KEY_UNIT` seeking (nearest keyframe) instead of `ACCURATE` which crashed on VFR streams. 200ms debounce prevents seek flooding
+- **AdwBreakpointBin warning in file send dialog**: Set `content-height=400` on `FileSendOverlay` dialog template — prevents GTK warning where natural height < min height during async image loading
+
+### Added
+- **`pause_playback()` / `resume_playback()` helpers**: Centralized play/pause logic used by all 3 interaction points (play button, controls bar, click-on-video)
+- **Internal documentation**: `docs/internal/VIDEO_PLAYER_IMPLEMENTATION.md` — pipeline architecture, debugging guide, known limitations
+
+### Changed
+- **Video pipeline architecture**: `playbin` with custom video-sink bin (videoconvert → capsfilter(RGBA) → fakesink) replaces manual uridecodebin pipeline
+- **Version**: 1.1.5.4 → 1.1.5.5
+
+---
+
 ## [1.1.5.4] - 2026-03-05
 
 ### Fixed

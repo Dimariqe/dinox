@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 5, 2026 (v1.1.5.4)
+> **Last Updated**: March 5, 2026 (v1.1.5.5)
 > **Current Release Line**: 1.1.5.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.5.4 |
+| **Current Version** | 1.1.5.5 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (~85% translated) |
 | **Build Status** | Clean |
@@ -20,6 +20,14 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.5.5 (Video Player Fix, Seek Slider, FileSendOverlay Warning)
+
+- **Video Playback Fix**: `playbin` replaces manual `uridecodebin` — fixes WebM/VFR (PTS=0) files showing frozen first frame
+- **Pause/Stop Timer Management**: Frame polling timer properly stopped on pause, restarted on resume
+- **Seek Slider**: Re-enabled with safe `KEY_UNIT` seeking + 200ms debounce
+- **FileSendOverlay Warning**: `content-height=400` prevents AdwBreakpointBin min > natural height GTK warning
+- 3 files changed: video_player_widget.vala, file_send_overlay.ui, .gitignore
 
 ### v1.1.5.4 (Preferences Performance, Tor Switch Fix)
 

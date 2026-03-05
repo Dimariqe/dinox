@@ -4,6 +4,7 @@
     <template class="DinoUiFileSendOverlay">
         <property name="title" translatable="1">Send a file</property>
         <property name="content-width">400</property>
+        <property name="content-height">400</property>
         <child>
             <object class="GtkBox">
                 <property name="orientation">vertical</property>
