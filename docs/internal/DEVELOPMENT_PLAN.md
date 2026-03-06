@@ -21,6 +21,13 @@ This document is organized as a **chronological release timeline** first, follow
 
 ## Timeline (Recent Releases)
 
+### v1.1.5.7 (Memory Management — Widget Pruning, URL Cache Limit, Conversation Cleanup)
+
+- **ConversationView Widget Pruning**: `MAX_CONTENT_ITEMS=200` with `prune_newest_items()` / `prune_oldest_items()` — prevents unbounded widget accumulation during scrolling
+- **Conversation Close Cleanup**: `unset_conversation()` → `initialize_for_conversation(null)` → `clear()` frees all widgets when closing a chat
+- **URL Preview Cache LRU**: `MAX_CACHE_SIZE=200` with `LinkedList<string>` LRU eviction — prevents unbounded Gdk.Texture memory growth
+- 3 files changed: conversation_view.vala, url_preview_widget.vala, conversation_view_controller.vala
+
 ### v1.1.5.6 (Crash Fixes — Bookmark Close, Video Player, Reconnect Bookmarks)
 
 - **Bookmark Close Crash Fix**: `removing_conversations` guard prevents re-entry during async slide-up animation — fixes flicker, widget tree corruption, SEGV/system freeze

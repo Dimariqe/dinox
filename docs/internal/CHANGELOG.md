@@ -5,6 +5,18 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5.7] - 2026-03-06
+
+### Fixed
+- **Memory: Unbounded widget accumulation in ConversationView**: Added `MAX_CONTENT_ITEMS=200` limit. `prune_newest_items()` called after loading earlier messages, `prune_oldest_items()` after loading later messages. Previously, all loaded message widgets accumulated without bound during scrolling
+- **Memory: Widgets not freed on conversation close**: `unset_conversation()` now calls `initialize_for_conversation(null)` which triggers `clear()` to free all widgets immediately. Previously, closing a conversation without opening another left all widgets in memory
+- **Memory: Unbounded URL preview cache**: Added `MAX_CACHE_SIZE=200` with LRU eviction to `UrlPreviewCache`. Previously, every URL preview (including image textures at 100KB–1MB each) was cached forever in the singleton
+
+### Changed
+- **Version**: 1.1.5.6 → 1.1.5.7
+
+---
+
 ## [1.1.5.6] - 2026-03-06
 
 ### Fixed
