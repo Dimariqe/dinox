@@ -24,6 +24,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
 
     private const int MESSAGE_MENU_BOX_OFFSET = 0;
     private const int DISPLAY_LATEST_BATCH_BUDGET_US = 2000;
+    private const int MAX_CONTENT_ITEMS = 200;
 
     public Conversation? conversation { get; private set; }
 
@@ -352,6 +353,11 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         clear();
         pending_init_clear_work_us = Dino.Ui.UiTiming.now_us() - t_clear_us;
         Dino.Ui.UiTiming.log_ms("ConversationView.initialize_for_conversation: clear", t_clear_us);
+
+        if (conversation == null) {
+            this.conversation = null;
+            return;
+        }
 
         int64 t_init_us = Dino.Ui.UiTiming.now_us();
         initialize_for_conversation_(conversation);
@@ -748,6 +754,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             foreach (ContentMetaItem item in items) {
                 do_insert_item(item);
             }
+            prune_newest_items();
         } else {
             reloading_mutex.unlock();
         }
@@ -763,8 +770,26 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             foreach (ContentMetaItem item in items) {
                 do_insert_item(item);
             }
+            prune_oldest_items();
         } else {
             reloading_mutex.unlock();
+        }
+    }
+
+    /** Remove oldest items (top) when user scrolled down and loaded newer messages. */
+    private void prune_oldest_items() {
+        while (content_items.size > MAX_CONTENT_ITEMS) {
+            ContentMetaItem oldest = content_items.first();
+            remove_item(oldest);
+        }
+    }
+
+    /** Remove newest items (bottom) when user scrolled up and loaded older messages. */
+    private void prune_newest_items() {
+        at_current_content = false;
+        while (content_items.size > MAX_CONTENT_ITEMS) {
+            ContentMetaItem newest = content_items.last();
+            remove_item(newest);
         }
     }
 

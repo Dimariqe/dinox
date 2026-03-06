@@ -44,6 +44,8 @@ namespace Dino.Ui {
 
         /* url -> preview data (including "failed" entries) */
         private HashMap<string, UrlPreviewData> cache = new HashMap<string, UrlPreviewData>();
+        private Gee.LinkedList<string> cache_lru = new Gee.LinkedList<string>();
+        private const int MAX_CACHE_SIZE = 200;
         /* urls currently being fetched */
         private HashSet<string> in_flight = new HashSet<string>();
 
@@ -132,6 +134,11 @@ namespace Dino.Ui {
             }
 
             cache[url] = data;
+            cache_lru.add(url);
+            while (cache_lru.size > MAX_CACHE_SIZE) {
+                string oldest = cache_lru.remove_at(0);
+                cache.unset(oldest);
+            }
             in_flight.remove(url);
             preview_ready(url, data);
         }

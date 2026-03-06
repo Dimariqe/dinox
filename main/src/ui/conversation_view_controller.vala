@@ -212,6 +212,8 @@ public class ConversationViewController : Object {
     public void unset_conversation() {
         main_window.conversation_window_title.title = null;
         main_window.conversation_window_title.subtitle = null;
+        // Free all message widgets when no conversation is active
+        view.conversation_frame.initialize_for_conversation(null);
     }
 
     private async void update_file_upload_status() {
