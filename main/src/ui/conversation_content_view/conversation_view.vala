@@ -616,6 +616,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             }
             meta_items.remove(item);
             skeleton.dispose();
+            item.dispose();
         }
 
         removed_item(item);

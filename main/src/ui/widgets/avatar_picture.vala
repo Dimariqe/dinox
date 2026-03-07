@@ -58,9 +58,16 @@ public class Dino.Ui.ViewModel.ConversationParticipantAvatarPictureTileModel : A
     }
 
     ~ConversationParticipantAvatarPictureTileModel() {
-        // Disconnect signal handlers to prevent leaks (D6)
+        cleanup();
+    }
+
+    public void cleanup() {
+        // Disconnect signal handlers to break reference cycles (D6)
+        // These closures capture 'this' via instance method refs, preventing
+        // GObject finalisation. Must be called explicitly since the destructor
+        // can't fire while signals keep refcount > 0.
         if (roster_updated_handler_id != 0) {
-            var roster_mgr = stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY);
+            var roster_mgr = stream_interactor != null ? stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY) : null;
             if (roster_mgr != null && SignalHandler.is_connected(roster_mgr, roster_updated_handler_id)) {
                 SignalHandler.disconnect(roster_mgr, roster_updated_handler_id);
             }
@@ -70,13 +77,14 @@ public class Dino.Ui.ViewModel.ConversationParticipantAvatarPictureTileModel : A
         if (am != null) {
             if (received_avatar_handler_id != 0 && SignalHandler.is_connected(am, received_avatar_handler_id)) {
                 SignalHandler.disconnect(am, received_avatar_handler_id);
-                received_avatar_handler_id = 0;
             }
+            received_avatar_handler_id = 0;
             if (fetched_avatar_handler_id != 0 && SignalHandler.is_connected(am, fetched_avatar_handler_id)) {
                 SignalHandler.disconnect(am, fetched_avatar_handler_id);
-                fetched_avatar_handler_id = 0;
             }
+            fetched_avatar_handler_id = 0;
         }
+        image_bytes = null;
     }
 
     private void update_image_bytes() {
@@ -204,6 +212,11 @@ public class Dino.Ui.ViewModel.CompatAvatarPictureModel : AvatarPictureModel {
     public void reset() {
         var store = tiles as GLib.ListStore;
         if (store != null) {
+            // Cleanup tile models to break signal reference cycles before dropping references
+            for (uint i = 0; i < store.get_n_items(); i++) {
+                var tile = store.get_item(i) as ConversationParticipantAvatarPictureTileModel;
+                if (tile != null) tile.cleanup();
+            }
             store.remove_all();
         }
     }
@@ -590,6 +603,11 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
             background_color_binding = null;
             display_text_binding = null;
             image_bytes_binding = null;
+            // Clean up avatar tile model to break signal reference cycles
+            if (model != null) {
+                var participant_tile = model as ViewModel.ConversationParticipantAvatarPictureTileModel;
+                if (participant_tile != null) participant_tile.cleanup();
+            }
             label.unparent();
             picture.unparent();
             base.dispose();

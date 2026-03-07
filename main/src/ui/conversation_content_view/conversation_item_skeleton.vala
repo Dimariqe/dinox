@@ -406,6 +406,9 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             time_label = null;
         }
         if (avatar_picture != null) {
+            // Clean up avatar tile models to break signal reference cycles
+            var compat_model = avatar_picture.model as ViewModel.CompatAvatarPictureModel;
+            if (compat_model != null) compat_model.reset();
             avatar_picture.unparent();
             avatar_picture.dispose();
             avatar_picture = null;

@@ -145,6 +145,7 @@ public class ConversationSelector : Widget {
     }
 
     private void select_fallback_conversation(Conversation conversation) {
+        if (!rows.has_key(conversation)) return;
         if (list_box.get_selected_row() == rows[conversation]) {
             int index = rows[conversation].get_index();
             ListBoxRow? next_select_row = list_box.get_row_at_index(index + 1);
@@ -154,6 +155,10 @@ public class ConversationSelector : Widget {
             if (next_select_row != null) {
                 list_box.select_row(next_select_row);
                 row_activated(next_select_row);
+            } else {
+                // Last conversation being removed — deselect so the UI can
+                // switch to the "no active conversations" placeholder.
+                list_box.select_row(null);
             }
         }
     }
