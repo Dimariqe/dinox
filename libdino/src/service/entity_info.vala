@@ -59,6 +59,8 @@ public class EntityInfo : StreamInteractionModule, Object {
                 entity_caps_hashes.clear();
                 jid_features.clear();
                 jid_identity.clear();
+                entity_features.clear();
+                entity_identity.clear();
                 if (caps_count + feat_count + ident_count > 50) {
                     debug("D9: Cleared entity caches on disconnect: %d caps, %d features, %d identities",
                           caps_count, feat_count, ident_count);

@@ -45,7 +45,7 @@ namespace Dino.Ui {
         /* url -> preview data (including "failed" entries) */
         private HashMap<string, UrlPreviewData> cache = new HashMap<string, UrlPreviewData>();
         private Gee.LinkedList<string> cache_lru = new Gee.LinkedList<string>();
-        private const int MAX_CACHE_SIZE = 200;
+        private const int MAX_CACHE_SIZE = 50;
         /* urls currently being fetched */
         private HashSet<string> in_flight = new HashSet<string>();
 

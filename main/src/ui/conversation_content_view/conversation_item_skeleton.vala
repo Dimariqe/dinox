@@ -34,6 +34,10 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     public Widget? widget = null;
     private ReactionsController? reactions_controller = null;
 
+    private Binding? edit_mode_binding = null;
+    private Binding? mark_binding = null;
+    private bool _skeleton_disposed = false;
+
     private bool defer_heavy_work = false;
     private bool header_initialized = false;
     private bool content_initialized = false;
@@ -50,7 +54,7 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
         this.content_meta_item = item as ContentMetaItem;
         this.defer_heavy_work = defer_heavy_work;
 
-        item.bind_property("in-edit-mode", this, "item-in-edit-mode");
+        edit_mode_binding = item.bind_property("in-edit-mode", this, "item-in-edit-mode");
         this.notify["item-in-edit-mode"].connect(update_edit_mode);
 
         int64 t_builder_us = Dino.Ui.UiTiming.now_us();
@@ -122,7 +126,12 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             menu.set_parent(avatar_picture);
             menu.show_menu(item.jid, name_label.label);
             menu.popup();
-            menu.closed.connect(() => { menu.unparent(); });
+            menu.closed.connect(() => {
+                Idle.add(() => {
+                    menu.unparent();
+                    return false;
+                });
+            });
         }
     }
 
@@ -163,7 +172,7 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             update_time();
         }
 
-        item.bind_property("mark", this, "item-mark", BindingFlags.SYNC_CREATE);
+        mark_binding = item.bind_property("mark", this, "item-mark", BindingFlags.SYNC_CREATE);
         this.notify["item-mark"].connect_after(update_received_mark);
         update_received_mark();
 
@@ -332,6 +341,18 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     }
 
     public override void dispose() {
+        if (_skeleton_disposed) { base.dispose(); return; }
+        _skeleton_disposed = true;
+
+        // Unbind property bindings that keep item<->skeleton alive
+        if (edit_mode_binding != null) { edit_mode_binding.unbind(); edit_mode_binding = null; }
+        if (mark_binding != null) { mark_binding.unbind(); mark_binding = null; }
+
+        // Disconnect signals on item that prevent skeleton GC
+        if (item != null && header_initialized) {
+            item.notify["encryption"].disconnect(update_encryption_icon);
+        }
+
         if (deferred_header_source_id != 0) {
             Source.remove(deferred_header_source_id);
             deferred_header_source_id = 0;
@@ -352,6 +373,16 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             reactions_controller.cleanup();
             reactions_controller = null;
         }
+
+        // Dispose content widgets (VideoPlayerWidget, FileWidget, etc.)
+        if (content_widgets != null) {
+            foreach (var content_widget in content_widgets.values) {
+                content_widget.unparent();
+                content_widget.dispose();
+            }
+            content_widgets.clear();
+        }
+        widget = null;
 
         // Children won't be disposed automatically
         if (name_label != null) {

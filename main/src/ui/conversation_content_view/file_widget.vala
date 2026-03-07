@@ -115,7 +115,10 @@ public class FileWidget : SizeRequestBin {
             // If the widget changed in the meanwhile, stop
             if (content != content_bak) return;
 
-            if (content != null) content.unparent();
+            if (content != null) {
+                content.unparent();
+                content.dispose();
+            }
             content = file_image_widget;
             state = State.IMAGE;
             content.insert_after(this, null);
@@ -123,7 +126,10 @@ public class FileWidget : SizeRequestBin {
         }
 
         if (!show_image && state != State.DEFAULT) {
-            if (content != null) content.unparent();
+            if (content != null) {
+                content.unparent();
+                content.dispose();
+            }
             FileDefaultWidget default_file_widget = new FileDefaultWidget();
             default_widget_controller = new FileDefaultWidgetController(default_file_widget);
             default_widget_controller.set_file_transfer(file_transfer);

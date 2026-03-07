@@ -66,6 +66,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     private int64 pending_init_init_work_us = 0;
 
     private bool bulk_inserting_latest = false;
+    private bool new_item_during_bulk = false;
 
     construct {
         this.layout_manager = new BinLayout();
@@ -530,6 +531,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             }
 
             bulk_inserting_latest = false;
+            new_item_during_bulk = false;
 
             // Finished inserting.
             display_latest_source_id = 0;
@@ -581,6 +583,12 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         }
 
         do_insert_item(item);
+
+        // If a new message arrives while batch-loading, mark it so display_latest()
+        // scrolls to bottom after all batches complete.
+        if (bulk_inserting_latest) {
+            new_item_during_bulk = true;
+        }
     }
 
     public void do_insert_item(Plugins.MetaConversationItem item) {
@@ -720,6 +728,14 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     private void on_upper_notify() {
+        // During initial batch loading, suppress per-batch scrolling.
+        // The final scroll-to-bottom happens in display_latest() after all batches.
+        if (bulk_inserting_latest) {
+            was_upper = scrolled.vadjustment.upper;
+            was_page_size = scrolled.vadjustment.page_size;
+            return;
+        }
+
         if (was_upper == null || scrolled.vadjustment.value >  was_upper - was_page_size - 1) { // scrolled down or content smaller than page size
             if (at_current_content) {
                 Idle.add(() => {
@@ -786,7 +802,9 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
 
     /** Remove newest items (bottom) when user scrolled up and loaded older messages. */
     private void prune_newest_items() {
-        at_current_content = false;
+        if (content_items.size > MAX_CONTENT_ITEMS) {
+            at_current_content = false;
+        }
         while (content_items.size > MAX_CONTENT_ITEMS) {
             ContentMetaItem newest = content_items.last();
             remove_item(newest);
@@ -812,6 +830,11 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         }
         was_upper = null;
         was_page_size = null;
+        new_item_during_bulk = false;
+
+        // Guard against clear() being called after dispose() has nullified fields
+        if (content_items == null) return;
+
         foreach (var item in content_items) {
             item.dispose();
         }
@@ -822,11 +845,18 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             skeleton.dispose();
         }
         item_item_skeletons.clear();
+        // widgets[] contains skeleton.get_widget() (= main_grid) which is already
+        // disposed by skeleton.dispose() above — just clear the map, don't re-dispose.
         foreach (Widget widget in widgets.values) {
             widget.unparent();
-            widget.dispose();
         }
         widgets.clear();
+
+        // Clear static image caches to release textures
+        FileImageWidget.clear_frame_cache();
+
+        // Force glibc to return freed memory to OS after clearing all widgets
+        malloc_trim(0);
 
         Widget? notification = notifications.get_first_child();
         while (notification != null) {
