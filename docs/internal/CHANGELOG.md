@@ -5,6 +5,26 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5.9] - 2026-03-07
+
+### Fixed
+- **Memory: Call memory leaks — Jingle/RTP/ICE reference chain cleanup**: Aggressive teardown of the entire Jingle object hierarchy after call termination. Each call previously leaked ~10–50 MB due to surviving reference chains between Session, Content, Parameters, ICE TransportParameters, Nice.Agent, and GStreamer pipeline objects
+- **Session.terminate()**: Clear `contents` and `contents_map` after terminating all contents — previously the Session held strong references to all Content objects indefinitely
+- **Content.terminate()**: Null `content_params`, `transport_params`, `security_params`; clear `component_connections` and `encryptions` — previously kept entire ICE/DTLS/transport buffer tree alive
+- **Parameters.terminate()**: Clear `payload_types`, `header_extensions`, `remote_cryptos`; null crypto refs — previously kept codec negotiation state in memory
+- **JingleRtp.Stream.content**: Made nullable with null-checks on all property getters. `release_refs()` nulls both `content` and `plugin` references in `destroy()` — breaks the critical Stream→Content→Session retention chain
+- **content_parameters.vala use-after-free**: Fixed `weak_ref` callback crash — anonymous lambda `() => this.stream = null` could fire on already-freed Parameters object. Replaced with named `unset_stream()` method + `weak_unref()` before `close_stream()` to prevent `g_object_notify_by_pspec` CRITICAL on dead object
+- **CallWindowController signal handler tracking**: All 13+ signal handler IDs tracked and disconnected in `cleanup()`; `detach_all_video()` for immediate GStreamer release on call terminated
+- **CallState.end()**: Explicit `peer_bindings` unbind, peer signal handler disconnect, `peers.clear()`, `cim_jids_to_inform.clear()`
+- **PeerState**: `cleanup_signal_handlers()` disconnects 9+ handlers; `release_objects()` nulls session, content_parameter, content, encryption fields
+- **Plugin**: `malloc_trim(0)` after GStreamer pipeline destruction to return buffer pool pages to OS
+- **Stream**: REMB timer tracked via `remb_timeout_id` and cancelled with `Source.remove()` in `destroy()`
+
+### Changed
+- **Version**: 1.1.5.8 → 1.1.5.9
+
+---
+
 ## [1.1.5.8] - 2026-03-07
 
 ### Fixed

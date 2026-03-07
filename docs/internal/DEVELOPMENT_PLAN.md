@@ -21,6 +21,17 @@ This document is organized as a **chronological release timeline** first, follow
 
 ## Timeline (Recent Releases)
 
+### v1.1.5.9 (Call Memory Leak Fix — Jingle/RTP/ICE Reference Chain Cleanup)
+
+- **Jingle Session/Content Teardown**: `Session.terminate()` clears contents/contents_map; `Content.terminate()` nulls content_params, transport_params, security_params, clears component_connections + encryptions
+- **RTP Stream Reference Break**: `JingleRtp.Stream.content` made nullable, `release_refs()` nulls content + plugin in `destroy()`
+- **Parameters Cleanup**: `terminate()` clears payload_types, header_extensions, remote_cryptos; `weak_ref` → named `unset_stream()` + `weak_unref()` fixes use-after-free CRITICAL
+- **CallWindowController**: 13+ signal handler IDs tracked + disconnected in `cleanup()`; `detach_all_video()` on terminated
+- **CallState/PeerState**: Explicit binding unbind, handler disconnect, `release_objects()` nulls heavyweight Jingle fields
+- **Plugin**: `malloc_trim(0)` returns GStreamer buffer pool pages to OS after pipeline destroy
+- **Stream**: REMB timer tracked + cancelled in `destroy()`
+- 11 files changed, 486 insertions
+
 ### v1.1.5.8 (Memory Leak Fix — Reference Cycles, bind_property, Avatar Tile Cleanup)
 
 - **GObject Reference Cycles**: Fixed 26 `this.notify[].connect()` instances across 8 widget classes — closures capturing `this` created cycles preventing finalisation. Store handler IDs, disconnect in `dispose()`
