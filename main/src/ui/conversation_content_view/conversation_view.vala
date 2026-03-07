@@ -856,8 +856,10 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         // Clear static image caches to release textures
         FileImageWidget.clear_frame_cache();
 
+#if HAVE_MALLOC_TRIM
         // Force glibc to return freed memory to OS after clearing all widgets
         malloc_trim(0);
+#endif
 
         Widget? notification = notifications.get_first_child();
         while (notification != null) {

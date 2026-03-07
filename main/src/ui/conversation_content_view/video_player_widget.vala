@@ -17,8 +17,10 @@ using Xmpp;
 using Dino.Entities;
 using Dino.Security;
 
+#if HAVE_MALLOC_TRIM
 [CCode (cname = "malloc_trim", cheader_filename = "malloc.h")]
 extern int malloc_trim (size_t pad);
+#endif
 
 namespace Dino.Ui.ConversationSummary {
 
@@ -626,8 +628,10 @@ public class VideoPlayerWidget : Widget {
         playback_duration = -1;
         seeking = false;
         pipeline_active = false;
+#if HAVE_MALLOC_TRIM
         // Force glibc to return freed memory to OS
         malloc_trim(0);
+#endif
     }
 
     private File? temp_play_file = null;

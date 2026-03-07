@@ -173,6 +173,7 @@ vala_args = [
 message('VAPI DIR: ' + (meson.current_source_dir() / 'vapi'))
 if host_machine.system() != 'windows'
     vala_args += ['--pkg', 'systray_sni_dbus']
+    vala_args += ['-D', 'HAVE_MALLOC_TRIM']
 endif
 if have_x11
     vala_args += ['-D', 'HAVE_X11']
