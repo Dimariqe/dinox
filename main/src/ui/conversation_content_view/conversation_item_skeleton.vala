@@ -46,6 +46,10 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
 
     private uint time_update_timeout = 0;
     private ulong updated_roster_handler_id = 0;
+    private ulong notify_edit_mode_handler_id = 0;
+    private ulong notify_show_skeleton1_handler_id = 0;
+    private ulong notify_show_skeleton2_handler_id = 0;
+    private ulong notify_item_mark_handler_id = 0;
 
     public ConversationItemSkeleton(StreamInteractor stream_interactor, Conversation conversation, Plugins.MetaConversationItem item, bool defer_heavy_work = false) {
         this.stream_interactor = stream_interactor;
@@ -55,7 +59,7 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
         this.defer_heavy_work = defer_heavy_work;
 
         edit_mode_binding = item.bind_property("in-edit-mode", this, "item-in-edit-mode");
-        this.notify["item-in-edit-mode"].connect(update_edit_mode);
+        notify_edit_mode_handler_id = this.notify["item-in-edit-mode"].connect(update_edit_mode);
 
         int64 t_builder_us = Dino.Ui.UiTiming.now_us();
         Builder builder = new Builder.from_resource("/im/github/rallep71/DinoX/conversation_item_widget.ui");
@@ -91,8 +95,8 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             avatar_picture.add_controller(click_controller);
         }
 
-        this.notify["show-skeleton"].connect(update_margin);
-        this.notify["show-skeleton"].connect(set_header);
+        notify_show_skeleton1_handler_id = this.notify["show-skeleton"].connect(update_margin);
+        notify_show_skeleton2_handler_id = this.notify["show-skeleton"].connect(set_header);
 
         update_margin();
     }
@@ -173,7 +177,7 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
         }
 
         mark_binding = item.bind_property("mark", this, "item-mark", BindingFlags.SYNC_CREATE);
-        this.notify["item-mark"].connect_after(update_received_mark);
+        notify_item_mark_handler_id = this.notify["item-mark"].connect_after(update_received_mark);
         update_received_mark();
 
         Dino.Ui.UiTiming.log_ms("ConversationItemSkeleton.init_header: total", t0_us);
@@ -343,6 +347,12 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     public override void dispose() {
         if (_skeleton_disposed) { base.dispose(); return; }
         _skeleton_disposed = true;
+
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_edit_mode_handler_id != 0) { this.disconnect(notify_edit_mode_handler_id); notify_edit_mode_handler_id = 0; }
+        if (notify_show_skeleton1_handler_id != 0) { this.disconnect(notify_show_skeleton1_handler_id); notify_show_skeleton1_handler_id = 0; }
+        if (notify_show_skeleton2_handler_id != 0) { this.disconnect(notify_show_skeleton2_handler_id); notify_show_skeleton2_handler_id = 0; }
+        if (notify_item_mark_handler_id != 0) { this.disconnect(notify_item_mark_handler_id); notify_item_mark_handler_id = 0; }
 
         // Unbind property bindings that keep item<->skeleton alive
         if (edit_mode_binding != null) { edit_mode_binding.unbind(); edit_mode_binding = null; }

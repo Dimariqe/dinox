@@ -45,6 +45,8 @@ namespace Dino.Ui {
         private Conversation conversation;
         public Call.State call_state { get; set; } // needs to be public for binding
         private uint time_update_handler_id = 0;
+        private ulong notify_call_state_handler_id = 0;
+        private Binding? call_state_binding = null;
         private ArrayList<Widget> multiparty_peer_widgets = new ArrayList<Widget>();
 
         construct {
@@ -65,8 +67,8 @@ namespace Dino.Ui {
 //                }
 //            });
 
-            call.bind_property("state", this, "call-state");
-            this.notify["call-state"].connect(update_call_state);
+            call_state_binding = call.bind_property("state", this, "call-state");
+            notify_call_state_handler_id = this.notify["call-state"].connect(update_call_state);
 
             if (call_manager != null && (call.state == Call.State.ESTABLISHING || call.state == Call.State.IN_PROGRESS)) {
                 call_manager.peer_joined.connect(update_counterparts);
@@ -262,6 +264,9 @@ namespace Dino.Ui {
         }
 
         public override void dispose() {
+            // Break reference cycles: disconnect this.notify signals and unbind bindings
+            if (notify_call_state_handler_id != 0) { this.disconnect(notify_call_state_handler_id); notify_call_state_handler_id = 0; }
+            if (call_state_binding != null) { call_state_binding.unbind(); call_state_binding = null; }
             if (time_update_handler_id != 0) {
                 Source.remove(time_update_handler_id);
                 time_update_handler_id = 0;

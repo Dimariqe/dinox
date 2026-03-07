@@ -27,6 +27,8 @@ namespace Dino.Ui {
         private Button button = new Button();
 
         private Adw.TimedAnimation progress_animation;
+        private ulong notify_transferred_handler_id = 0;
+        private ulong notify_state_handler_id = 0;
 
         construct {
             add_css_class("circular-osd");
@@ -36,8 +38,8 @@ namespace Dino.Ui {
 
             this.button.clicked.connect(on_button_clicked);
 
-            this.notify["transferred-size"].connect(update_progress);
-            this.notify["state"].connect(on_state_changed);
+            notify_transferred_handler_id = this.notify["transferred-size"].connect(update_progress);
+            notify_state_handler_id = this.notify["state"].connect(on_state_changed);
             on_state_changed();
 
             setup_animation();
@@ -134,6 +136,9 @@ namespace Dino.Ui {
         }
 
         public override void dispose() {
+            // Break reference cycles: disconnect this.notify signals
+            if (notify_transferred_handler_id != 0) { this.disconnect(notify_transferred_handler_id); notify_transferred_handler_id = 0; }
+            if (notify_state_handler_id != 0) { this.disconnect(notify_state_handler_id); notify_state_handler_id = 0; }
             progress_animation = null;
             base.dispose();
         }

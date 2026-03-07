@@ -546,6 +546,9 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
         private Binding? display_text_binding;
         private Binding? image_bytes_binding;
 
+        private ulong notify_model_handler_id;
+        private ulong notify_bg_color_handler_id;
+
         private Label label = new Label("");
         private Picture picture = new Picture();
 
@@ -559,8 +562,8 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
             picture.@set("content-fit", 2);
 #endif
             picture.insert_after(this, label);
-            this.notify["model"].connect(on_model_changed);
-            this.notify["background-color"].connect(queue_draw);
+            notify_model_handler_id = this.notify["model"].connect(on_model_changed);
+            notify_bg_color_handler_id = this.notify["background-color"].connect(queue_draw);
         }
 
         private void on_model_changed() {
@@ -579,6 +582,8 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
         }
 
         public override void dispose() {
+            if (notify_model_handler_id != 0) { this.disconnect(notify_model_handler_id); notify_model_handler_id = 0; }
+            if (notify_bg_color_handler_id != 0) { this.disconnect(notify_bg_color_handler_id); notify_bg_color_handler_id = 0; }
             if (background_color_binding != null) background_color_binding.unbind();
             if (display_text_binding != null) display_text_binding.unbind();
             if (image_bytes_binding != null) image_bytes_binding.unbind();

@@ -37,6 +37,7 @@ public class MessageMetaItem : ContentMetaItem {
     ulong realize_id = -1;
     ulong marked_notify_handler_id = -1;
     uint pending_timeout_id = -1;
+    Binding? marked_binding = null;
 
     public Label label = new Label("") { use_markup=true, xalign=0, selectable=true, wrap=true, wrap_mode=Pango.WrapMode.WORD_CHAR, hexpand=true, vexpand=true };
 
@@ -52,7 +53,7 @@ public class MessageMetaItem : ContentMetaItem {
 
         Message message = ((MessageItem) content_item).message;
         if (message.direction == Message.DIRECTION_SENT && !(message.marked in Message.MARKED_RECEIVED)) {
-            var binding = message.bind_property("marked", this, "marked");
+            marked_binding = message.bind_property("marked", this, "marked");
             marked_notify_handler_id = this.notify["marked"].connect(() => {
                 // Currently "pending", but not anymore
                 if (additional_info == AdditionalInfo.PENDING &&
@@ -72,7 +73,7 @@ public class MessageMetaItem : ContentMetaItem {
 
                 // Nothing bad can happen anymore
                 if (message.marked in Message.MARKED_RECEIVED) {
-                    binding.unbind();
+                    if (marked_binding != null) { marked_binding.unbind(); marked_binding = null; }
                     this.disconnect(marked_notify_handler_id);
                     marked_notify_handler_id = -1;
                 }
@@ -475,6 +476,7 @@ public class MessageMetaItem : ContentMetaItem {
             this.notify["in-edit-mode"].disconnect(on_in_edit_mode_changed);
             stream_interactor = null;
         }
+        if (marked_binding != null) { marked_binding.unbind(); marked_binding = null; }
         if (marked_notify_handler_id != -1) {
             this.disconnect(marked_notify_handler_id);
             marked_notify_handler_id = -1;

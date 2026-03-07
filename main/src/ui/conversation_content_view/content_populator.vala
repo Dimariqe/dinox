@@ -147,6 +147,7 @@ public abstract class ContentMetaItem : Plugins.MetaConversationItem {
     public override void dispose() {
         if (mark_binding != null) { mark_binding.unbind(); mark_binding = null; }
         if (encryption_binding != null) { encryption_binding.unbind(); encryption_binding = null; }
+        if (content_item != null) { content_item.dispose(); content_item = null; }
         base.dispose();
     }
 }

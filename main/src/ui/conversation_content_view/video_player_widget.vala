@@ -107,6 +107,8 @@ public class VideoPlayerWidget : Widget {
     private bool preview_generating = false;
     private bool pipeline_active = false;
     private bool _disposed = false;
+    private ulong notify_mapped_handler_id = 0;
+    private ulong notify_ft_state_handler_id = 0;
 
     private Button? start_play_button = null;
 
@@ -150,7 +152,7 @@ public class VideoPlayerWidget : Widget {
         });
         overlay.add_overlay(start_play_button);
 
-        this.notify["mapped"].connect(() => {
+        notify_mapped_handler_id = this.notify["mapped"].connect(() => {
             if (_disposed) return;
             if (!this.get_mapped()) {
                 // Synchronously destroy pipeline on unmap (conversation switch, window close)
@@ -275,7 +277,7 @@ public class VideoPlayerWidget : Widget {
         update_widget.begin();
 
         ft_state_binding = file_transfer.bind_property("state", this, "file-transfer-state");
-        this.notify["file-transfer-state"].connect(update_widget);
+        notify_ft_state_handler_id = this.notify["file-transfer-state"].connect(update_widget);
         
         ft_size_binding1 = this.file_transfer.bind_property("size", file_size_label, "label", BindingFlags.SYNC_CREATE, file_size_label_transform);
         ft_size_binding2 = this.file_transfer.bind_property("size", transmission_progress, "file-size", BindingFlags.SYNC_CREATE);
@@ -512,9 +514,7 @@ public class VideoPlayerWidget : Widget {
             if (cur_state == Gst.State.PAUSED) {
                 // Get last-sample from the fakesink directly
                 Gst.Sample? sample = null;
-                var sink_val = GLib.Value(typeof(Gst.Sample));
-                vsink.get_property("last-sample", ref sink_val);
-                sample = (Gst.Sample?) sink_val.dup_boxed();
+                vsink.get("last-sample", out sample);
 
                 if (sample != null) {
                     var buf = sample.get_buffer();
@@ -932,6 +932,9 @@ public class VideoPlayerWidget : Widget {
 
     public override void dispose() {
         _disposed = true;
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_mapped_handler_id != 0) { this.disconnect(notify_mapped_handler_id); notify_mapped_handler_id = 0; }
+        if (notify_ft_state_handler_id != 0) { this.disconnect(notify_ft_state_handler_id); notify_ft_state_handler_id = 0; }
         // Unbind all file_transfer property bindings
         if (ft_state_binding != null) { ft_state_binding.unbind(); ft_state_binding = null; }
         if (ft_size_binding1 != null) { ft_size_binding1.unbind(); ft_size_binding1 = null; }

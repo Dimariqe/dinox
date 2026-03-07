@@ -217,6 +217,7 @@ public class AudioPlayerWidget : Box {
         if (temp_play_file != null) {
             audio_file = temp_play_file;
         } else {
+            if (file_transfer == null) return;
             var file = file_transfer.get_file();
             if (file == null) return;
 
@@ -503,6 +504,7 @@ public class AudioPlayerWidget : Box {
         if (temp_play_file != null) {
             file_to_play = temp_play_file;
         } else {
+            if (file_transfer == null) return;
             var file = file_transfer.get_file();
             if (file == null) {
                 // Already failed or download error? Don't wait
@@ -551,6 +553,7 @@ public class AudioPlayerWidget : Box {
                 yield;
 
                 Source.remove(timeout_id);
+                if (file_transfer == null) return;
                 file_transfer.disconnect(notify_path_id);
                 file_transfer.disconnect(notify_state_id);
 
