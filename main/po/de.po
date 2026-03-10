@@ -3,15 +3,16 @@ msgstr ""
 "Project-Id-Version: dino-0.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-01-01 18:06+0100\n"
-"PO-Revision-Date: 2025-03-13 23:17+0000\n"
-"Language-Team: German <https://hosted.weblate.org/projects/dino/translations/"
-"de/>\n"
+"PO-Revision-Date: 2026-03-11 22:09+0000\n"
+"Last-Translator: rallep71 <huepferralf@gmail.com>\n"
+"Language-Team: German <https://hosted.weblate.org/projects/dinox/"
+"translations/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.11-dev\n"
+"X-Generator: Weblate 5.17-dev\n"
 
 #: main/data/add_conversation/add_groupchat_dialog.ui:81
 msgid "Add MUC"
@@ -361,7 +362,7 @@ msgstr "Adresse"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:177
 msgid "Street"
-msgstr ""
+msgstr "Straße"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:182
 msgid "Postal Code"
@@ -369,16 +370,15 @@ msgstr ""
 
 #: main/data/preferences_window/account_preferences_subpage.ui:187
 msgid "City"
-msgstr ""
+msgstr "Stadt"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:192
-#, fuzzy
 msgid "Region"
-msgstr "Konto auf %s erstellen"
+msgstr "Region"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:197
 msgid "Country"
-msgstr ""
+msgstr "Land"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:204
 #: main/src/ui/conversation_details.vala:582
@@ -1660,9 +1660,8 @@ msgid "New"
 msgstr "Neu"
 
 #: main/src/ui/conversation_details.vala:188
-#, fuzzy
 msgid "Affiliation"
-msgstr "Zugehörigkeiten verwalten"
+msgstr "Zugehörigkeit"
 
 #: main/src/ui/conversation_details.vala:197
 msgid "Real JID"
