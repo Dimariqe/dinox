@@ -164,6 +164,9 @@ public class ConversationManager : StreamInteractionModule, Object {
 
         conversation.active = false;
         conversation_deactivated(conversation);
+
+        // Release cached messages for this conversation to free RAM
+        stream_interactor.get_module<MessageStorage>(MessageStorage.IDENTITY).clear_conversation_cache(conversation);
     }
 
     /**

@@ -68,6 +68,13 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     private bool bulk_inserting_latest = false;
     private bool new_item_during_bulk = false;
 
+    // Signal handler IDs for proper cleanup in dispose()
+    private ulong vadjust_upper_handler_id;
+    private ulong vadjust_page_size_handler_id;
+    private ulong vadjust_value_handler_id;
+    private ulong add_meta_notification_handler_id;
+    private ulong remove_meta_notification_handler_id;
+
     construct {
         this.layout_manager = new BinLayout();
         main_wrap_box.layout_manager = new BinLayout();
@@ -133,16 +140,16 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     public ConversationView init(StreamInteractor stream_interactor) {
         this.stream_interactor = stream_interactor;
         stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY).item_deleted.connect(on_item_deleted);
-        scrolled.vadjustment.notify["upper"].connect_after(on_upper_notify);
-        scrolled.vadjustment.notify["page-size"].connect(on_upper_notify);
-        scrolled.vadjustment.notify["value"].connect(on_value_notify);
+        vadjust_upper_handler_id = scrolled.vadjustment.notify["upper"].connect_after(on_upper_notify);
+        vadjust_page_size_handler_id = scrolled.vadjustment.notify["page-size"].connect(on_upper_notify);
+        vadjust_value_handler_id = scrolled.vadjustment.notify["value"].connect(on_value_notify);
 
         content_populator = new ContentProvider(stream_interactor);
         subscription_notification = new SubscriptionNotitication(stream_interactor);
         expiry_notification = new ExpiryNotification(stream_interactor);
 
-        add_meta_notification.connect(on_add_meta_notification);
-        remove_meta_notification.connect(on_remove_meta_notification);
+        add_meta_notification_handler_id = add_meta_notification.connect(on_add_meta_notification);
+        remove_meta_notification_handler_id = remove_meta_notification.connect(on_remove_meta_notification);
 
         Application app = GLib.Application.get_default() as Application;
         app.plugin_registry.register_conversation_addition_populator(new ChatStatePopulator(stream_interactor));
@@ -891,6 +898,33 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     public override void dispose() {
+        // Disconnect vadjustment signals
+        if (scrolled != null) {
+            var adj = scrolled.vadjustment;
+            if (adj != null) {
+                if (vadjust_upper_handler_id != 0) {
+                    SignalHandler.disconnect(adj, vadjust_upper_handler_id);
+                    vadjust_upper_handler_id = 0;
+                }
+                if (vadjust_page_size_handler_id != 0) {
+                    SignalHandler.disconnect(adj, vadjust_page_size_handler_id);
+                    vadjust_page_size_handler_id = 0;
+                }
+                if (vadjust_value_handler_id != 0) {
+                    SignalHandler.disconnect(adj, vadjust_value_handler_id);
+                    vadjust_value_handler_id = 0;
+                }
+            }
+        }
+        // Disconnect self-signals
+        if (add_meta_notification_handler_id != 0) {
+            SignalHandler.disconnect(this, add_meta_notification_handler_id);
+            add_meta_notification_handler_id = 0;
+        }
+        if (remove_meta_notification_handler_id != 0) {
+            SignalHandler.disconnect(this, remove_meta_notification_handler_id);
+            remove_meta_notification_handler_id = 0;
+        }
         if (stream_interactor != null) {
             stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY).item_deleted.disconnect(on_item_deleted);
             stream_interactor = null;

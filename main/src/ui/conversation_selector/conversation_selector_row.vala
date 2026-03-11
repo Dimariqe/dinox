@@ -51,6 +51,9 @@ public class ConversationSelectorRow : ListBoxRow {
     private ulong deletion_handler_id;
     private ulong conversation_cleared_handler_id;
     private ulong block_changed_handler_id;
+    private ulong notify_read_handler_id;
+    private ulong notify_pinned_handler_id;
+    private ulong notify_muted_handler_id;
 
     protected StreamInteractor stream_interactor;
 
@@ -151,9 +154,9 @@ public class ConversationSelectorRow : ListBoxRow {
         last_content_item = stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).get_latest(conversation);
 
         picture.model = new ViewModel.CompatAvatarPictureModel(stream_interactor).set_conversation(conversation);
-        conversation.notify["read-up-to-item"].connect(() => update_read());
-        conversation.notify["pinned"].connect(() => { update_pinned_icon(); });
-        conversation.notify["notify-setting"].connect(() => { update_muted_icon(); });
+        notify_read_handler_id = conversation.notify["read-up-to-item"].connect(() => update_read());
+        notify_pinned_handler_id = conversation.notify["pinned"].connect(() => { update_pinned_icon(); });
+        notify_muted_handler_id = conversation.notify["notify-setting"].connect(() => { update_muted_icon(); });
         
         // Listen for block status changes
         if (conversation.type_ == Conversation.Type.CHAT) {
@@ -207,6 +210,18 @@ public class ConversationSelectorRow : ListBoxRow {
         var bm = stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY);
         if (block_changed_handler_id != 0 && bm != null && SignalHandler.is_connected(bm, block_changed_handler_id)) {
             SignalHandler.disconnect(bm, block_changed_handler_id);
+        }
+        // Disconnect conversation property-change signals
+        if (conversation != null) {
+            if (notify_read_handler_id != 0 && SignalHandler.is_connected(conversation, notify_read_handler_id)) {
+                SignalHandler.disconnect(conversation, notify_read_handler_id);
+            }
+            if (notify_pinned_handler_id != 0 && SignalHandler.is_connected(conversation, notify_pinned_handler_id)) {
+                SignalHandler.disconnect(conversation, notify_pinned_handler_id);
+            }
+            if (notify_muted_handler_id != 0 && SignalHandler.is_connected(conversation, notify_muted_handler_id)) {
+                SignalHandler.disconnect(conversation, notify_muted_handler_id);
+            }
         }
     }
 

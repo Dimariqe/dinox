@@ -256,7 +256,11 @@ public class MessageCorrection : StreamInteractionModule, MessageListener {
 
         debug(@"Caching unmatched correction $(message_item.message.server_id) $(message_item.id)");
         if (!unmatched_corrections.has_key(conversation)) unmatched_corrections[conversation] = new ArrayList<ContentItem>();
-        unmatched_corrections[conversation].add(content_item);
+        var list = unmatched_corrections[conversation];
+        if (list.size >= 50) {
+            list.remove_at(0);
+        }
+        list.add(content_item);
     }
 }
 

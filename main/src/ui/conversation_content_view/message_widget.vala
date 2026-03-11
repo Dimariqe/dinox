@@ -101,13 +101,29 @@ public class MessageMetaItem : ContentMetaItem {
 
         if (markup_text == null) return; // TODO remove
 
-        // Increased limit from 10,000 to 100,000 characters (issue #1779)
-        // Most XMPP servers limit messages to ~262KB, so 100k chars is reasonable
-        // Extremely long messages (>100k) are truncated with a notice
+        // Truncate extremely long messages to prevent UI freeze.
+        // Base64/binary data without whitespace is especially expensive for
+        // regex processing and Pango layout, so detect and truncate early.
         bool message_truncated = false;
-        if (markup_text.length > 100000) {
-            markup_text = markup_text.substring(0, 100000);
-            message_truncated = true;
+        if (markup_text.length > 10000) {
+            // Check if the text looks like non-textual data (no whitespace in first 500 chars)
+            bool has_whitespace = false;
+            int check_len = int.min(500, markup_text.length);
+            for (int i = 0; i < check_len; i++) {
+                unichar c = markup_text[i];
+                if (c == ' ' || c == '\n' || c == '\t') {
+                    has_whitespace = true;
+                    break;
+                }
+            }
+            if (!has_whitespace && markup_text.length > 1000) {
+                // Likely base64 or binary data — truncate aggressively
+                markup_text = markup_text.substring(0, 200) + " …";
+                message_truncated = true;
+            } else if (markup_text.length > 50000) {
+                markup_text = markup_text.substring(0, 50000);
+                message_truncated = true;
+            }
         }
 
         bool theme_dependent = false;

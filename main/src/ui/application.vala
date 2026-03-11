@@ -344,6 +344,18 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         Environment.set_application_name ("DinoX");
         Gtk.Window.set_default_icon_name ("im.github.rallep71.DinoX");
 
+        // Suppress known harmless GTK4/libadwaita warnings that cannot be fixed
+        // from application code (AdwBreakpointBin internal layout, PopoverMenu
+        // accounting, GtkText blinking selection).
+        GLib.Log.set_handler("Gtk", GLib.LogLevelFlags.LEVEL_WARNING, (domain, level, msg) => {
+            if (msg.contains("AdwBreakpointBin") ||
+                msg.contains("Broken accounting of active state") ||
+                msg.contains("unexpected blinking selection")) {
+                return; // swallow
+            }
+            GLib.Log.default_handler(domain, level, msg);
+        });
+
         // For AppImage: ensure GTK4 can find bundled icons by prepending to XDG_DATA_DIRS.
         // (AppRun also sets this, but do it here as safety net for direct execution.)
         string? appdir = Environment.get_variable("APPDIR");
@@ -441,6 +453,15 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 if (systray_manager != null) {
                     systray_manager.set_window (window);
                 }
+
+#if HAVE_MALLOC_TRIM
+                // Periodically return freed heap memory to the OS.
+                // glibc keeps freed pages in its arena; malloc_trim(0) releases them.
+                Timeout.add_seconds(60, () => {
+                    malloc_trim(0);
+                    return Source.CONTINUE;
+                });
+#endif
             }
             window.present ();
 

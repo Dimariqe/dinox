@@ -39,6 +39,7 @@ public class AvatarManager : StreamInteractionModule, Object {
     private HashMap<string, Bytes> avatar_bytes_cache = new HashMap<string, Bytes>();
     private const int MAX_AVATAR_CACHE_SIZE = 200;
     private const int MAX_PIXEL = 192;
+    private const int MAX_FAILED_DECRYPT_HASHES = 500;
     private HashSet<string> failed_decrypt_hashes = new HashSet<string>();
 
     // Delegates to shared FileUtils (clone removal)
@@ -167,6 +168,9 @@ public class AvatarManager : StreamInteractionModule, Object {
                 return result;
             } catch (Error e) {
                 warning("Failed to decrypt avatar: %s", e.message);
+                if (failed_decrypt_hashes.size >= MAX_FAILED_DECRYPT_HASHES) {
+                    failed_decrypt_hashes.clear();
+                }
                 failed_decrypt_hashes.add(hash);
                 try {
                     file.delete();
