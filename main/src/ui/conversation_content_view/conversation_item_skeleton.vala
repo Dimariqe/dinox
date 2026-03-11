@@ -126,13 +126,23 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     private void on_avatar_clicked(GestureClick controller, int n_press, double x, double y) {
         // Allow both left (1) and right (3) click
         if (controller.get_current_button() == 1 || controller.get_current_button() == 3) {
+            // Don't open occupant menu for own avatar
+            if (conversation.type_ == Conversation.Type.GROUPCHAT) {
+                Xmpp.Jid? own_jid = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_own_jid(conversation.counterpart, conversation.account);
+                if (own_jid != null && item.jid.equals(own_jid)) return;
+            } else if (item.jid.equals_bare(conversation.account.bare_jid)) {
+                return;
+            }
+
             var menu = new Dino.Ui.OccupantMenu.View(stream_interactor, conversation);
             menu.set_parent(avatar_picture);
             menu.show_menu(item.jid, name_label.label);
             menu.popup();
             menu.closed.connect(() => {
                 Idle.add(() => {
-                    menu.unparent();
+                    if (menu.get_parent() != null) {
+                        menu.unparent();
+                    }
                     return false;
                 });
             });
