@@ -229,9 +229,13 @@ public class ConversationSelectorRow : ListBoxRow {
 
     public void dismiss_popover() {
         if (active_popover != null) {
-            active_popover.popdown();
-            active_popover.unparent();
+            var old_popover = active_popover;
             active_popover = null;
+            // unparent() removes the widget and destroys its GDK surface
+            // in one step.  Calling popdown() first would leave a window
+            // where GTK tries to query the half-torn-down surface
+            // (gdk_surface_get_device_position assertion / SIGSEGV).
+            old_popover.unparent();
         }
     }
 
@@ -715,8 +719,10 @@ public class ConversationSelectorRow : ListBoxRow {
         popover.set_pointing_to({ (int)x, (int)y, 1, 1 });
         popover.closed.connect(() => {
             Idle.add(() => {
-                if (active_popover == popover) {
+                if (popover.get_parent() != null) {
                     popover.unparent();
+                }
+                if (active_popover == popover) {
                     active_popover = null;
                 }
                 return false;
