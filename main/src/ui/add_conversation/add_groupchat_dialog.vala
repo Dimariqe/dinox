@@ -145,6 +145,11 @@ protected class AddGroupchatDialog : Adw.Dialog {
                             ((Xep.DataForms.DataForm.ListSingleField) field).value = want_private ? "anyone" : "moderators";
                         }
                         break;
+                    case "muc#roomconfig_publicroom":
+                        if (field.type_ == Xep.DataForms.DataForm.Type.BOOLEAN) {
+                            ((Xep.DataForms.DataForm.BooleanField) field).value = !want_private;
+                        }
+                        break;
                     case "muc#roomconfig_persistentroom":
                         if (field.type_ == Xep.DataForms.DataForm.Type.BOOLEAN) {
                             ((Xep.DataForms.DataForm.BooleanField) field).value = true;
