@@ -5,6 +5,31 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6.1] - 2026-03-11
+
+### Fixed
+- **CRITICAL: File transfer SIGSEGV crash**: `file_provider` stored message ID in `file_transfer.info` — when message body was empty (OOB-only stanzas), `Soup.Message("HEAD", "")` crashed in libsoup. Now stores `url:` + URL directly
+- **File transfer URL validation**: Added `Uri.parse()` validation before passing URLs to libsoup — prevents SIGSEGV on malformed URIs
+- **Unencrypted file detection**: Plain `https://` URLs in message body (without OOB element) now recognized as file transfers — fixes images showing as raw text in unencrypted MUCs
+- **MUC occupant list freeze + crash**: Batch row creation with `Timeout.add` (10 per frame), pre-sort occupants, cached affiliation per ListRow, initializing flag blocks presence events during batch loading
+- **MUC occupant list debounce**: 150ms debounce on `invalidate_filter()` — reduces O(n²) sort operations when joining rooms with many participants
+- **Room creation defaults**: Default to public; set `muc#roomconfig_publicroom=false` for private rooms so they don't appear in server directory
+- **Popover SIGSEGV crash**: Use `unparent()` only instead of `popdown()` + `unparent()` — avoids GDK surface lifecycle race condition
+- **Deleted contact reactivation**: Guard against reactivating conversations for contacts with `history_cleared_at` set and removed from roster
+- **Base64/binary UI freeze**: Smart truncation — no-whitespace data truncated to 200 chars, normal text to 50K chars (previously 100K)
+
+### Changed
+- **RAM: Signal handler leak fixes**: ConversationView stores 5 handler IDs + disconnects in `dispose()`; ConversationSelectorRow tracks 10 handler IDs + disconnects in destructor
+- **RAM: AvatarManager**: `failed_decrypt_hashes` capped at 500 entries (clear-on-overflow)
+- **RAM: MessageCorrection**: `unmatched_corrections` limited to 50 per conversation (FIFO eviction)
+- **RAM: Conversation close**: `clear_conversation_cache()` removes per-conversation stanza/server-ID lookup maps on close
+- **RAM: Periodic malloc_trim(0)**: Every 60s via `Timeout.add_seconds` to return freed glibc arena pages to OS
+- **RAM: message_storage**: `clear_conversation_cache()` no longer calls `message_refs.clear()` (was clearing ALL cached messages globally)
+- **GTK warnings**: Suppress known harmless AdwBreakpointBin, PopoverMenu accounting, GtkText blinking warnings
+- **Version**: 1.1.6.0 → 1.1.6.1
+
+---
+
 ## [1.1.6.0] - 2026-03-09
 
 ### Fixed

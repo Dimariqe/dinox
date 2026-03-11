@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 9, 2026 (v1.1.6.0)
+> **Last Updated**: March 11, 2026 (v1.1.6.1)
 > **Current Release Line**: 1.1.6.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.6.0 |
+| **Current Version** | 1.1.6.1 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (~85% translated) |
 | **Build Status** | Clean |
@@ -20,6 +20,23 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.6.1 (RAM Fixes, File Transfer Crash Fix, MUC Occupant List Performance)
+
+- **RAM: Signal handler leak fixes**: ConversationView (5 signal handler IDs stored + disconnected in dispose()), ConversationSelectorRow (10 handler IDs + disconnected in destructor)
+- **RAM: Cache limits**: AvatarManager `failed_decrypt_hashes` capped at 500; MessageCorrection `unmatched_corrections` limited to 50/conversation (FIFO eviction)
+- **RAM: Cache cleanup on conversation close**: `clear_conversation_cache()` removes per-conversation stanza/server-ID lookup maps
+- **RAM: Periodic malloc_trim(0)**: Every 60s, returns freed glibc arena pages to OS
+- **File transfer SIGSEGV fix**: `file_provider` now stores `url:` + URL in `file_transfer.info` instead of message ID — fixes crash when message body is empty (OOB-only stanzas)
+- **File transfer URL validation**: `Uri.parse()` before libsoup `Soup.Message()` — prevents SIGSEGV on malformed URLs
+- **Unencrypted file detection**: Plain `https://` URLs in body (without OOB element) now recognized as file transfers — many clients use HTTP Upload without OOB
+- **Message truncation**: Smart truncation for base64/binary data (200 chars) and normal text (50K chars) to prevent Pango/regex UI freeze
+- **MUC occupant list**: Fix freeze + crash + memory leak for large MUCs — batch row creation (10/frame), pre-sort, cached affiliations, 150ms debounce
+- **Room creation**: Default to public; private rooms hidden from server directory
+- **Popover crash fix**: `unparent()` only (no `popdown()`) prevents GDK surface lifecycle SIGSEGV
+- **Deleted contact guard**: Don't reactivate conversations for contacts with cleared history
+- **GTK warning suppression**: Known harmless AdwBreakpointBin, PopoverMenu, GtkText warnings silenced
+- 5 commits, 15 files changed, 359 insertions(+), 77 deletions(-)
 
 ### v1.1.6.0 (NULL Conversation Race Condition Fix)
 
