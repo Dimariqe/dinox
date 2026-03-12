@@ -107,7 +107,7 @@ public class ConversationViewController : Object {
         });
 
         stream_interactor.get_module<FileManager>(FileManager.IDENTITY).upload_available.connect(update_file_upload_status);
-        
+
         // Listen for conversation history cleared signal
         stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).conversation_cleared.connect((cleared_conversation) => {
             if (this.conversation != null && this.conversation.id == cleared_conversation.id) {
@@ -162,7 +162,7 @@ public class ConversationViewController : Object {
         }
 
         this.conversation = conversation;
-        
+
         if (conversation == null) {
             debug("ConversationViewController.select_conversation: conversation is NULL, returning!");
             return;
@@ -260,11 +260,58 @@ public class ConversationViewController : Object {
     private async void on_clipboard_paste() {
         try {
             Clipboard clipboard = view.get_clipboard();
-
-            // Only attempt texture read if clipboard actually has a supported image format.
-            // Without this check, read_texture_async tries every format (incl. image/x-xpixmap)
-            // which is slow and blocks the UI on each paste event.
             var formats = clipboard.get_formats();
+
+            // 1. Files copied from a file manager (Nautilus, Dolphin, Thunar, …)
+            //    GTK4 exposes them as a Gdk.FileList value.
+            bool has_file_list_gtype = formats.contain_gtype(typeof(Gdk.FileList));
+            bool has_uri_mime = formats.contain_mime_type("text/uri-list") ||
+                                formats.contain_mime_type("x-special/gnome-copied-files");
+
+            if (has_file_list_gtype) {
+                try {
+                    var result = yield clipboard.read_value_async(typeof(Gdk.FileList), Priority.DEFAULT, null);
+                    if (result != null) {
+                        Gdk.FileList? file_list = (Gdk.FileList?) ((!)result).get_boxed();
+                        if (file_list != null) {
+                            GLib.SList<weak GLib.File> files = ((!)file_list).get_files();
+                            foreach (unowned GLib.File f in files) {
+                                open_send_file_overlay(f);
+                            }
+                            return;
+                        }
+                    }
+                } catch (Error e) {
+                    warning("on_clipboard_paste: FileList read failed: %s", e.message);
+                }
+            }
+
+            // Fallback: try reading URI list as plain text when FileList GType is absent.
+            // Some desktop environments / clipboard managers expose only text/uri-list
+            // without registering the Gdk.FileList GType.
+            if (has_uri_mime && !has_file_list_gtype) {
+                try {
+                    string? text = yield clipboard.read_text_async(null);
+                    if (text != null && ((!)text).strip().length > 0) {
+                        string[] uris = ((!)text).strip().split("\n");
+                        bool opened_any = false;
+                        foreach (string uri_raw in uris) {
+                            string uri = uri_raw.strip();
+                            if (uri.length == 0 || uri.has_prefix("#")) continue;
+                            var f = GLib.File.new_for_uri(uri);
+                            if (f.query_exists(null)) {
+                                open_send_file_overlay(f);
+                                opened_any = true;
+                            }
+                        }
+                        if (opened_any) return;
+                    }
+                } catch (Error e) {
+                    warning("on_clipboard_paste: URI list fallback failed: %s", e.message);
+                }
+            }
+
+            // 2. Image data — read as texture and send in-memory (no temp file).
             bool has_image = formats.contain_mime_type("image/png") ||
                              formats.contain_mime_type("image/jpeg") ||
                              formats.contain_mime_type("image/bmp") ||
@@ -272,17 +319,65 @@ public class ConversationViewController : Object {
                              formats.contain_mime_type("image/tiff") ||
                              formats.contain_mime_type("image/webp") ||
                              formats.contain_mime_type("image/svg+xml");
-            if (!has_image) return;
-
-            Gdk.Texture? texture = yield clipboard.read_texture_async(null);
-            if (texture != null) {
-                var file_name = Path.build_filename(FileManager.get_storage_dir(), Xmpp.random_uuid() + ".png");
-                texture.save_to_png(file_name);
-                open_send_file_overlay(File.new_for_path(file_name));
+            if (has_image) {
+                Gdk.Texture? texture = yield clipboard.read_texture_async(null);
+                if (texture != null) {
+                    open_send_file_overlay_from_texture((!)texture);
+                }
+                return;
             }
         } catch (Error e) {
-            // Ignore clipboard read errors (unsupported formats, cancelled, etc.)
+            warning("on_clipboard_paste: unhandled error: %s", e.message);
         }
+    }
+
+    private void open_send_file_overlay_from_texture(Gdk.Texture texture) {
+        // Encode the texture to PNG bytes once — used for both preview and sending.
+        // No file is written to disk at this point.
+        var pixbuf = Gdk.pixbuf_get_from_texture(texture);
+        if (pixbuf == null) return;
+
+        uint8[]? png_bytes = null;
+        try {
+            ((!)pixbuf).save_to_bufferv(out png_bytes, "png", null, null);
+        } catch (Error e) {
+            warning("on_clipboard_paste: failed to encode texture to PNG: %s", e.message);
+            return;
+        }
+        if (png_bytes == null || ((!)png_bytes).length == 0) return;
+
+        string file_name = "clipboard-" + Xmpp.random_uuid() + ".png";
+        string mime_type = "image/png";
+        int64 byte_size = ((!)png_bytes).length;
+
+        var overlay = new FileSendOverlay.from_texture(texture, file_name, mime_type, byte_size);
+
+        overlay.send_bytes.connect((data, fname, mime) => {
+            stream_interactor.get_module<FileManager>(FileManager.IDENTITY)
+                .send_file_from_bytes.begin(data, fname, mime, conversation);
+        });
+
+        stream_interactor.get_module<FileManager>(FileManager.IDENTITY).get_file_size_limits.begin(conversation, (_, res) => {
+            var limits = stream_interactor.get_module<FileManager>(FileManager.IDENTITY).get_file_size_limits.end(res);
+            bool something_works = false;
+            foreach (var limit in limits.values) {
+                if (limit >= byte_size) {
+                    something_works = true;
+                }
+            }
+            if (!something_works && limits.has_key(0)) {
+                if (byte_size > limits[0]) {
+                    overlay.set_file_too_large();
+                }
+            }
+        });
+
+        overlay.closed.connect(() => {
+            update_file_upload_status.begin();
+        });
+
+        overlay.present(view);
+        update_file_upload_status.begin();
     }
 
     private bool on_drag_data_received(DropTarget target, Value val, double x, double y) {
@@ -395,19 +490,19 @@ public class ConversationViewController : Object {
             warning("ConversationViewController: Conversation is null!");
             return;
         }
-        
+
         string lat_str = "%.6f".printf(lat).replace(",", ".");
         string lon_str = "%.6f".printf(lon).replace(",", ".");
         string body = "geo:%s,%s".printf(lat_str, lon_str);
-        
+
         // Use MessageProcessor to create the message. This ensures it's saved to the DB and has correct IDs/timestamps.
         Entities.Message message = stream_interactor.get_module<MessageProcessor>(MessageProcessor.IDENTITY).create_out_message(body, conversation);
-        
+
         var user_loc = new Xmpp.Xep.UserLocation.UserLocation.create();
         user_loc.lat = lat;
         user_loc.lon = lon;
         user_loc.accuracy = accuracy;
-        
+
         ulong signal_id = 0;
         signal_id = stream_interactor.get_module<MessageProcessor>(MessageProcessor.IDENTITY).pre_message_send.connect((msg, stanza, conv) => {
             if (msg == message) {
@@ -416,7 +511,7 @@ public class ConversationViewController : Object {
                 stream_interactor.get_module<MessageProcessor>(MessageProcessor.IDENTITY).disconnect(signal_id);
             }
         });
-        
+
         stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).insert_message(message, conversation);
         stream_interactor.get_module<MessageProcessor>(MessageProcessor.IDENTITY).send_xmpp_message(message, conversation);
         stream_interactor.get_module<MessageProcessor>(MessageProcessor.IDENTITY).message_sent(message, conversation);

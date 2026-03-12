@@ -77,8 +77,132 @@ public class FileManager : StreamInteractionModule, Object {
 
     public delegate void OutgoingFileTransferConfigurator(FileTransfer file_transfer);
 
+    /**
+     * Send raw bytes directly without touching the filesystem.
+     * The bytes are treated as plaintext — they are encrypted into storage_dir
+     * by the normal save_file() path, just like any other outgoing file.
+     * No temporary file is ever written.
+     */
+    public async void send_file_from_bytes(uint8[] data, string file_name, string mime_type,
+                                           Conversation conversation,
+                                           owned OutgoingFileTransferConfigurator? configure = null) {
+        FileTransfer file_transfer = new FileTransfer();
+        file_transfer.account = conversation.account;
+        file_transfer.counterpart = conversation.counterpart;
+        if (conversation.type_.is_muc_semantic()) {
+            file_transfer.ourpart = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_own_jid(conversation.counterpart, conversation.account) ?? conversation.account.bare_jid;
+        } else {
+            file_transfer.ourpart = conversation.account.full_jid;
+        }
+        file_transfer.direction = FileTransfer.DIRECTION_SENT;
+        file_transfer.time = new DateTime.now_utc();
+        file_transfer.local_time = new DateTime.now_utc();
+        file_transfer.encryption = conversation.encryption;
+
+        file_transfer.file_name = file_name;
+        file_transfer.mime_type = mime_type;
+        file_transfer.size = data.length;
+
+        if (configure != null) {
+            configure(file_transfer);
+        }
+
+        // Wrap the bytes in a MemoryInputStream so save_file() can encrypt them.
+        var mem_stream = new MemoryInputStream.from_data(data, null);
+
+        try {
+            file_transfer.input_stream = mem_stream;
+            yield save_file(file_transfer);
+
+            // save_file consumed the stream; re-wrap the same bytes for upload.
+            file_transfer.input_stream = new MemoryInputStream.from_data(data, null);
+
+            stream_interactor.get_module<FileTransferStorage>(FileTransferStorage.IDENTITY).add_file(file_transfer);
+            conversation.last_active = file_transfer.time;
+            received_file(file_transfer, conversation);
+        } catch (Error e) {
+            file_transfer.state = FileTransfer.State.FAILED;
+            warning("Error saving outgoing file (from bytes): %s", e.message);
+            return;
+        }
+
+        try {
+            var file_meta = new FileMeta();
+            file_meta.size = file_transfer.size;
+            file_meta.mime_type = file_transfer.mime_type;
+
+            FileSender file_sender = null;
+            FileEncryptor file_encryptor = null;
+            foreach (FileSender sender in file_senders) {
+                if (yield sender.can_send(conversation, file_transfer)) {
+                    if (file_transfer.encryption == Encryption.NONE || yield sender.can_encrypt(conversation, file_transfer)) {
+                        file_sender = sender;
+                        break;
+                    } else {
+                        foreach (FileEncryptor encryptor in file_encryptors) {
+                            if (encryptor.can_encrypt_file(conversation, file_transfer)) {
+                                file_encryptor = encryptor;
+                                break;
+                            }
+                        }
+                        if (file_encryptor != null) {
+                            if (sender.get_id() == 1 && file_transfer.encryption == Encryption.OMEMO) {
+                                file_encryptor = null;
+                                continue;
+                            }
+                            file_sender = sender;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (file_sender == null) {
+                throw new FileSendError.UPLOAD_FAILED("No sender/encryptor combination available");
+            }
+
+            if (file_encryptor != null) {
+                file_meta = file_encryptor.encrypt_file(conversation, file_transfer);
+            }
+
+            FileSendData? file_send_data = yield file_sender.prepare_send_file(conversation, file_transfer, file_meta);
+            if (file_send_data == null) {
+                throw new FileSendError.UPLOAD_FAILED("Failed to prepare file upload (no send data returned)");
+            }
+
+            if (file_encryptor != null) {
+                file_send_data = file_encryptor.preprocess_send_file(conversation, file_transfer, file_send_data, file_meta);
+            }
+
+            file_transfer.state = FileTransfer.State.IN_PROGRESS;
+
+            LimitInputStream? limit_stream = file_transfer.input_stream as LimitInputStream;
+            if (limit_stream == null) {
+                limit_stream = new LimitInputStream(file_transfer.input_stream, file_meta.size);
+                file_transfer.input_stream = limit_stream;
+            }
+            if (limit_stream != null) {
+                limit_stream.bind_property("retrieved-bytes", file_transfer, "transferred-bytes", BindingFlags.SYNC_CREATE);
+            }
+
+            yield file_sender.send_file(conversation, file_transfer, file_send_data, file_meta);
+
+            if (file_transfer.input_stream != null) {
+                try { yield file_transfer.input_stream.close_async(); } catch (Error e) {}
+            }
+
+            file_transfer.state = FileTransfer.State.COMPLETE;
+
+        } catch (Error e) {
+            warning("Send file error (from bytes): %s", e.message);
+            file_transfer.state = FileTransfer.State.FAILED;
+            if (file_transfer.input_stream != null) {
+                try { yield file_transfer.input_stream.close_async(); } catch (Error ce) {}
+            }
+        }
+    }
+
     public async void send_file(File file, Conversation conversation, owned OutgoingFileTransferConfigurator? configure = null) {
-        debug("FileManager.send_file: called for %s", file.get_path());
         File file_to_use = file;
         File? temp_file = null;
 
@@ -101,63 +225,50 @@ public class FileManager : StreamInteractionModule, Object {
             }
         }
 
-        // try {
-            FileTransfer file_transfer = new FileTransfer();
-            file_transfer.account = conversation.account;
-            file_transfer.counterpart = conversation.counterpart;
-            if (conversation.type_.is_muc_semantic()) {
-                file_transfer.ourpart = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_own_jid(conversation.counterpart, conversation.account) ?? conversation.account.bare_jid;
-            } else {
-                file_transfer.ourpart = conversation.account.full_jid;
-            }
-            file_transfer.direction = FileTransfer.DIRECTION_SENT;
-            file_transfer.time = new DateTime.now_utc();
-            file_transfer.local_time = new DateTime.now_utc();
-            file_transfer.encryption = conversation.encryption;
+        FileTransfer file_transfer = new FileTransfer();
+        file_transfer.account = conversation.account;
+        file_transfer.counterpart = conversation.counterpart;
+        if (conversation.type_.is_muc_semantic()) {
+            file_transfer.ourpart = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_own_jid(conversation.counterpart, conversation.account) ?? conversation.account.bare_jid;
+        } else {
+            file_transfer.ourpart = conversation.account.full_jid;
+        }
+        file_transfer.direction = FileTransfer.DIRECTION_SENT;
+        file_transfer.time = new DateTime.now_utc();
+        file_transfer.local_time = new DateTime.now_utc();
+        file_transfer.encryption = conversation.encryption;
 
-            Xep.FileMetadataElement.FileMetadata metadata = new Xep.FileMetadataElement.FileMetadata();
-            foreach (FileMetadataProvider file_metadata_provider in this.file_metadata_providers) {
-                if (file_metadata_provider.supports_file(file_to_use)) {
-                    yield file_metadata_provider.fill_metadata(file_to_use, metadata);
-                }
+        Xep.FileMetadataElement.FileMetadata metadata = new Xep.FileMetadataElement.FileMetadata();
+        foreach (FileMetadataProvider file_metadata_provider in this.file_metadata_providers) {
+            if (file_metadata_provider.supports_file(file_to_use)) {
+                yield file_metadata_provider.fill_metadata(file_to_use, metadata);
             }
-            // Restore original filename if we used a temp file
-            if (file_to_use != file) {
-                metadata.name = file.get_basename();
-                try {
-                    file_transfer.input_stream = file_to_use.read();
-                } catch (Error e) {
-                    warning("Failed to read temp file: %s", e.message);
-                    return;
-                }
+        }
+        // Restore original filename if we used a temp file
+        if (file_to_use != file) {
+            metadata.name = file.get_basename();
+            try {
+                file_transfer.input_stream = file_to_use.read();
+            } catch (Error e) {
+                warning("Failed to read temp file: %s", e.message);
+                return;
             }
-            file_transfer.file_metadata = metadata;
-
-            debug("send_file: preparing '%s' size=%lld mime=%s conv_encryption=%d conv_type=%d",
-                  file_transfer.file_name,
-                  (long) file_transfer.size,
-              file_transfer.mime_type ?? "(null)",
-              (int) conversation.encryption,
-              (int) conversation.type_);
+        }
+        file_transfer.file_metadata = metadata;
 
         if (configure != null) {
             configure(file_transfer);
         }
 
         try {
-            debug("FileManager: Opening stream for local encryption...");
             file_transfer.input_stream = yield file_to_use.read_async();
 
-            debug("FileManager: Saving encrypted local copy...");
             yield save_file(file_transfer);
-            debug("FileManager: Local copy saved.");
-            
+
             // save_file consumed the stream, so we need to re-open it for sending
             try { ((InputStream)file_transfer.input_stream).close(); } catch (Error e) {}
-            
-            debug("FileManager: Re-opening stream for upload...");
+
             file_transfer.input_stream = yield file_to_use.read_async();
-            debug("FileManager: Stream re-opened.");
 
             stream_interactor.get_module<FileTransferStorage>(FileTransferStorage.IDENTITY).add_file(file_transfer);
             conversation.last_active = file_transfer.time;
@@ -188,11 +299,9 @@ public class FileManager : StreamInteractionModule, Object {
                             }
                         }
                         if (file_encryptor != null) {
-                            // Check if this sender is compatible with Jingle (sender_id=1)
-                            // OMEMO file encryption produces HttpFileMeta which is incompatible with Jingle
+                            // OMEMO file encryption produces HttpFileMeta which is incompatible with Jingle;
+                            // skip the Jingle sender (id=1) and let HTTP Upload handle it instead.
                             if (sender.get_id() == 1 && file_transfer.encryption == Encryption.OMEMO) {
-                                // Skip Jingle sender for OMEMO encrypted files - they require HTTP Upload
-                                debug("Skipping Jingle sender for OMEMO encrypted files");
                                 file_encryptor = null;
                                 continue;
                             }
@@ -201,17 +310,6 @@ public class FileManager : StreamInteractionModule, Object {
                         }
                     }
                 }
-            }
-
-            if (file_sender != null) {
-                debug("send_file: selected sender id=%d prio=%f encryptor=%s",
-                      file_sender.get_id(),
-                      file_sender.get_priority(),
-                      file_encryptor != null ? file_encryptor.get_type().name() : "(none)");
-            } else {
-                warning("send_file: no sender/encryptor available (encryption=%d size=%lld)",
-                        (int) file_transfer.encryption,
-                        (long) file_transfer.size);
             }
 
             if (file_sender == null) {
@@ -245,7 +343,7 @@ public class FileManager : StreamInteractionModule, Object {
             }
 
             yield file_sender.send_file(conversation, file_transfer, file_send_data, file_meta);
-            
+
             // Explicitly close the stream as we prevent libsoup/cis from closing the base stream
             if (file_transfer.input_stream != null) {
                 try { yield file_transfer.input_stream.close_async(); } catch (Error e) {}
@@ -256,14 +354,12 @@ public class FileManager : StreamInteractionModule, Object {
         } catch (Error e) {
             warning("Send file error: %s", e.message);
             file_transfer.state = FileTransfer.State.FAILED;
-            
+
             // Clean up the input stream to prevent segfault (fixes #1764)
             if (file_transfer.input_stream != null) {
                 try {
                     yield file_transfer.input_stream.close_async();
-                } catch (Error close_error) {
-                    debug("Failed to close input stream: %s", close_error.message);
-                }
+                } catch (Error close_error) {}
             }
         } finally {
             if (temp_file != null) {
@@ -407,7 +503,7 @@ public class FileManager : StreamInteractionModule, Object {
 
             // Encrypt stream to disk
             yield file_encryption.encrypt_stream(input_stream, os, file_transfer.cancellable);
-            
+
             yield input_stream.close_async(Priority.LOW, file_transfer.cancellable);
             yield os.close_async(Priority.LOW, file_transfer.cancellable);
 
@@ -542,14 +638,14 @@ public class FileManager : StreamInteractionModule, Object {
             string filename = Random.next_int().to_string("%x") + "_" + file_transfer.file_name;
             File file = File.new_for_path(Path.build_filename(get_storage_dir(), filename));
             OutputStream os = file.create(FileCreateFlags.REPLACE_DESTINATION);
-            
+
             // Encrypt stream to disk
             yield file_encryption.encrypt_stream(file_transfer.input_stream, os);
             yield os.close_async();
-            
+
             file_transfer.state = FileTransfer.State.COMPLETE;
             file_transfer.path = filename;
-            
+
             // For the input_stream of the FileTransfer (which might be used for UI preview or hashing),
             // we now need a stream of the *decrypted* content.
             // Since we just consumed the original input_stream, we should probably re-open the file and decrypt it.
@@ -557,22 +653,22 @@ public class FileManager : StreamInteractionModule, Object {
             // But wait, save_file is called in send_file.
             // In send_file: file_transfer.input_stream = yield file.read_async();
             // So it is a FileInputStream. We can re-open the source file.
-            
+
             // However, file_transfer.input_stream is updated here to point to the *stored* file.
             // If we point it to the stored file, it will be encrypted.
             // So any subsequent read from file_transfer.input_stream will get encrypted data, which is wrong for UI.
             // The UI expects cleartext.
-            
+
             // Let's look at how download_file handles this.
             // It doesn't set input_stream on the transfer object for persistent use.
             // FileTransfer.input_stream getter tries to open the file from disk.
-            
+
             // If we set file_transfer.path, the getter will use it.
             // We need to ensure that when the getter opens the file, it decrypts it.
             // But FileTransfer entity doesn't know about encryption.
-            
+
             // Let's check FileTransfer.input_stream getter in libdino/src/entity/file_transfer.vala
-            
+
         } catch (Error e) {
             throw new FileSendError.SAVE_FAILED("Saving file error: %s".printf(e.message));
         }
