@@ -5,6 +5,28 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6.3] - 2026-03-12
+
+### Added
+- **MQTT Bridge: Enable/Disable switch**: Each bridge rule now has a toggle switch in the UI — disable rules without deleting them
+- **MQTT Bridge: Freetext echo filter**: Self-published freetext messages (e.g. bot commands) are no longer echoed back through bridge rules
+- **Plugin i18n infrastructure**: Added GETTEXT_PACKAGE to tor-manager, wrapped strings in _(), added 18 plugin source files to POTFILES (515→1277 translatable strings)
+- **Translations**: DE/FR/ES for all new plugin strings (780+ strings each)
+- **Translation helper scripts**: translate_plugins.py, translations_fr.py, translations_es.py
+
+### Fixed
+- **MQTT Bridge: OMEMO encryption**: Removed forced `conv.encryption = Encryption.NONE` — bridge messages now respect per-conversation OMEMO encryption setting
+- **MQTT Bridge: Rate limiting**: Reduced from 2s to 200ms (millisecond granularity) — fast request/response chains (e.g. Node-RED) no longer dropped
+- **MQTT Bridge: Bot visibility**: Bridged messages now also appear in the bot conversation (previously hidden when forwarded)
+- **MQTT Translation fix**: Fixed misleading "Thema/Themenmuster" → "Topic" in DE, "sujet" → "topic" in FR, "tema" → "topic" in ES for MQTT context (MUC room subject translations preserved)
+
+### Changed
+- **Code audit: Duplicate elimination**: Extracted `escape_json()` to BotUtils, `finish_post_unlock()` in application.vala, `decrypt_to_temp()` in audio_player_widget.vala, removed duplicate `looks_like_svg_file` from stickers.vala, consolidated MQTT DB helpers into Plugin class
+- **Weblate merge**: 5 German translation strings from Weblate
+- **Version**: 1.1.6.2 → 1.1.6.3
+
+---
+
 ## [1.1.6.2] - 2026-03-11
 
 ### Fixed

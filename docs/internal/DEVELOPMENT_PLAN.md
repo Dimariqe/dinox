@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 11, 2026 (v1.1.6.2)
+> **Last Updated**: March 12, 2026 (v1.1.6.3)
 > **Current Release Line**: 1.1.6.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.6.2 |
+| **Current Version** | 1.1.6.3 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (~85% translated) |
 | **Build Status** | Clean |
@@ -20,6 +20,15 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.6.3 (Plugin i18n, Code Audit, MQTT Bridge Fixes)
+
+- **MQTT Bridge fixes**: OMEMO encryption respected, rate limit 2s→200ms, freetext echo filter, bridged messages visible in bot, enable/disable switch per rule
+- **Plugin i18n**: tor-manager, bot-features, MQTT plugin strings now translatable (515→1277 strings)
+- **Translations**: DE/FR/ES for 780+ new plugin strings; MQTT "Topic" mistranslation fixed in DE/FR/ES
+- **Code audit**: 5 duplicate code blocks eliminated (escape_json, finish_post_unlock, decrypt_to_temp, looks_like_svg_file, MQTT DB helpers)
+- **Weblate**: Merged 5 German translation strings
+- 2 commits, 64 files changed, 230494 insertions(+), 36224 deletions(-)
 
 ### v1.1.6.2 (Avatar Popup SIGSEGV Fix, Self-Chat Prevention)
 
