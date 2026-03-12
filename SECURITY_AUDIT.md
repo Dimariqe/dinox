@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Date** | February 17, 2026 (manual audit), February 23, 2026 (test suite) |
-| **Scope** | 39 crypto-related files (OMEMO v1/v2, Signal Protocol, SASL, file transfer, GCrypt wrapper) + OpenPGP plugin (15 files) |
-| **Findings** | 6 Critical/High, 11 Medium, 3 Low (manual audit) + 3 Medium OpenPGP + 21 bugs from automated test suite |
+| **Date** | February 17, 2026 (manual audit), February 23, 2026 (test suite), March 2, 2026 (MQTT audit) |
+| **Scope** | 39 crypto-related files (OMEMO v1/v2, Signal Protocol, SASL, file transfer, GCrypt wrapper) + OpenPGP plugin (15 files) + MQTT plugin (15 files) |
+| **Findings** | **55 total (all fixed):** 7 Critical, 5 High, 16 Medium, 6 Low (manual audits: crypto + OpenPGP + MQTT) + 21 bugs from automated test suite (1 High, 13 Medium, 7 Low) |
 | **Status** | All fixed |
-| **Test Suite** | [docs/internal/TESTING.md](docs/internal/TESTING.md) — 506 Meson tests + 136 standalone = 642 total, 0 failures |
+| **Test Suite** | [docs/internal/TESTING.md](docs/internal/TESTING.md) — 689 Meson tests + 136 standalone = 825 total, 0 failures |
 | **Website** | [dinox.handwerker.jetzt/security-audit.html](https://dinox.handwerker.jetzt/security-audit.html) |
 
 ---
@@ -37,22 +37,18 @@ The file is written in C because libomemo-c requires a `signal_crypto_provider` 
 C function pointers. This is standard practice -- every XMPP client using libsignal has
 equivalent glue code.
 
-**Note:** Several critical bugs found in this file (#1, #2, #6 below) are also present in
-the [original upstream Dino codebase](https://github.com/dino/dino) and have not been fixed
-there as of the audit date. These bugs have existed since 2017.
-
 ---
 
 ## Critical & High Severity (Fixed)
 
 | # | Severity | File | Issue |
 |---|----------|------|-------|
-| 1 | **CRITICAL** | `helper.c:159` | **Heap corruption:** `free(md)` called on `gcry_md_read()` internal pointer. `gcry_md_read()` returns a pointer to an internal buffer that must not be freed. *Also in upstream Dino.* |
-| 2 | **CRITICAL** | `helper.c:86-89` | **Resource leak:** Missing `gcry_mac_close()` before `free()` when `gcry_mac_setkey()` fails. GCrypt internal state leaked. *Also in upstream Dino.* |
+| 1 | **CRITICAL** | `helper.c:159` | **Heap corruption:** `free(md)` called on `gcry_md_read()` internal pointer. `gcry_md_read()` returns a pointer to an internal buffer that must not be freed. |
+| 2 | **CRITICAL** | `helper.c:86-89` | **Resource leak:** Missing `gcry_mac_close()` before `free()` when `gcry_mac_setkey()` fails. GCrypt internal state leaked. |
 | 3 | **CRITICAL** | `helper.c:343-345` | **Incomplete PKCS#5 padding validation.** Only the last byte checked. Fixed with constant-time XOR-accumulator verifying all padding bytes. |
 | 4 | **HIGH** | `simple_iks.vala:33-36` | **Timing attack:** Non-constant-time identity key comparison with early return. Fixed with XOR-OR accumulator. |
 | 5 | **HIGH** | `sasl.vala:110-113` | **Timing attack:** Non-constant-time SCRAM-SHA-1 server signature verification. Fixed with XOR-OR accumulator. |
-| 6 | **HIGH** | `helper.c:128` | **Type mismatch:** `sizeof(gcry_mac_hd_t)` instead of `sizeof(gcry_md_hd_t)` in SHA-512 digest init. *Also in upstream Dino.* |
+| 6 | **HIGH** | `helper.c:128` | **Type mismatch:** `sizeof(gcry_mac_hd_t)` instead of `sizeof(gcry_md_hd_t)` in SHA-512 digest init. |
 
 ---
 
@@ -307,24 +303,69 @@ GPG operations are serialized through a single worker thread to prevent race con
 
 ---
 
-## Upstream Dino Bugs
+## MQTT Plugin Security Audit (March 2026)
 
-The following bugs exist in the [original Dino codebase](https://github.com/dino/dino)
-in `plugins/omemo/src/native/helper.c` (formerly `signal_helper.c`) since 2017:
+A comprehensive self-audit of all MQTT plugin code (~15 source files) was performed
+against CODING_GUIDELINES.md, SECURITY_GUIDELINES.md, and REVIEW_CHECKLIST.md.
+All findings were fixed in commit [`030cc9d9`](https://github.com/rallep71/dinox/commit/030cc9d9).
+23 regression tests were added in commit [`bdb2e272`](https://github.com/rallep71/dinox/commit/bdb2e272).
 
-- **#1** -- `free(md)` after `gcry_md_read()`: heap corruption (internal pointer freed)
-- **#2** -- Missing `gcry_mac_close()` on `gcry_mac_setkey()` failure path
-- **#6** -- `sizeof(gcry_mac_hd_t)` vs `sizeof(gcry_md_hd_t)` type mismatch in SHA-512 init
+### MQTT Critical & High Findings (Fixed)
 
-These bugs are **not introduced by DinoX**. They were discovered during this audit and fixed
-in DinoX but remain unfixed in upstream Dino.
+| # | Severity | File | Issue |
+|---|----------|------|-------|
+| M1 | **CRITICAL** | `alert_manager.vala` | **SQL injection:** `db.exec("UPDATE ... WHERE id=%lld".printf(...))` used string interpolation for DML. Fixed by replacing with Qlite ORM `.update().with().set().perform()`. |
+| M2 | **CRITICAL** | `mqtt_client.vala` | **Reconnect race condition:** `attempt_reconnect()` yielded async then accessed `client` without null re-check. Another callback could null the reference during the yield. Fixed with null guard after yield. |
+| M3 | **CRITICAL** | `command_handler.vala` | **Publish payload truncation:** `!publish topic payload` split with limit=3, but only `token[2]` used as payload — any spaces after the second word were lost. Fixed by combining `token[2]` through remainder. |
+| M4 | **CRITICAL** | `bot_conversation.vala` | **Null dereference:** `ConversationManager` accessed without null check. Fixed with explicit null guard. |
+| M5 | **HIGH** | `plugin.vala`, `connection_config.vala`, `mqtt_bot_manager_dialog.vala` | **Port validation missing:** Port number from DB/user input accepted without range check. Values 0, -1, 99999 could cause connection failures or undefined behavior. Fixed with `.clamp(1, 65535)` in property setter + validation on save. |
+| M6 | **HIGH** | `discovery_manager.vala` | **Reconnect uses reload_config() instead of apply_settings():** Remote `!settings` command loaded new config but never acted on it (no reconnect, no timer restart). Fixed to call `apply_settings()`. |
+
+### MQTT Medium Findings (Fixed)
+
+| # | File | Issue |
+|---|------|-------|
+| M7 | `alert_manager.vala`, `mqtt_client.vala`, `mqtt_utils.vala` | **Empty catch blocks:** Multiple `catch (Error e) {}` silently swallowed exceptions. Added `debug()` logging to all. |
+| M8 | `database.vala` | **Unbounded queries:** `get_all_topic_stats()` queries had no LIMIT, could load thousands of rows. Added `.limit(10000)`. |
+| M9 | `mqtt_utils.vala` | **truncate_string() crash with max_len ≤ 3:** Tried to `.substring(0, max_len - 3)` with negative/zero length. Added guard returning original string when max_len ≤ 3. |
+
+### MQTT Low Findings (Fixed)
+
+| # | File | Issue |
+|---|------|-------|
+| M10 | `mqtt_bot_manager_dialog.vala` | **Priority dropdown mismatch:** Dropdown showed "urgent" but enum uses `CRITICAL`. Added missing "silent" level. UI labels now match enum `to_string()` keys exactly. |
+| M11 | `command_handler.vala`, `topic_manager_dialog.vala` | **Dead code:** Unreachable methods and unused signal handlers removed. |
+
+### MQTT Types Not Unit-Testable
+
+`MqttPriority` enum, `AlertOperator` enum, and `AlertRule.evaluate()` logic reside in
+`alert_manager.vala` which depends on the full `Plugin` class. The test binary cannot
+include it without pulling in the entire plugin dependency chain (dep_dino, dep_xmpp_vala,
+dep_qlite, dep_gtk4). These types are verified via manual/integration testing.
+
+### Guidelines Updated
+
+Based on audit findings, the following rules were added to project guidelines:
+
+| Guideline | New Rule |
+|-----------|----------|
+| CODING_GUIDELINES.md §7 #5 | `exec()` only for PRAGMA/DDL, never for DML |
+| CODING_GUIDELINES.md §5 | Every `catch` must log at minimum `debug()` |
+| CODING_GUIDELINES.md §14 #13 | Enum ↔ UI dropdown labels must match exactly |
+| CODING_GUIDELINES.md §14 #14 | No nullable types in non-null collections |
+| REVIEW_CHECKLIST.md §3.8 | No `exec()` for DML check |
+| REVIEW_CHECKLIST.md §6.7/§6.8 | Port range + property setter validation |
+| REVIEW_CHECKLIST.md §10.10 | `apply_settings()` vs `reload_config()` |
+| SECURITY_GUIDELINES.md §2.2 | Port number validation (1–65535) |
+| SECURITY_GUIDELINES.md §8.3 | Config reload vs apply distinction |
+| SECURITY_GUIDELINES.md §8.4 | Connection property validation in setters |
 
 ---
 
 ## Automated Test Suite -- Additional Bugs Found
 
-After the manual audit, a comprehensive **spec-based test suite** (506 Meson tests + 136
-standalone = 642 total) was built to verify all fixes and catch further defects.
+After the manual audit, a comprehensive **spec-based test suite** (689 Meson tests + 136
+standalone = 825 total) was built to verify all fixes and catch further defects.
 The test suite found **21 additional bugs** not discovered during the manual audit.
 
 Full test inventory, spec references, and reproduction steps:
@@ -369,4 +410,5 @@ Full test inventory, spec references, and reproduction steps:
 | XML/Stanza (RFC 6120) | 21 | T-20 |
 | Crypto Hashes (XEP-0300) | 15 | T-21 |
 | UI Helpers, Data Structures, Misc | 194 | 0 |
-| **Total** | **506** | **21** |
+| MQTT Plugin (12 suites) | 101 | 0 (audit bugs found by code review, not test suite) |
+| **Total** | **689** | **21** |

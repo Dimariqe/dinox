@@ -132,10 +132,15 @@ public class Database {
             }
         }
 
+        // P1: Enable WAL mode + relaxed sync BEFORE migration for faster schema upgrades
+        db.exec("PRAGMA journal_mode = WAL", null, null);
+        db.exec("PRAGMA synchronous = NORMAL", null, null);
+
         start_migration();
     }
 
     public void close() {
+        db = null;
     }
 
     private bool try_migrate_plaintext_to_encrypted(string key) throws Error {
@@ -329,6 +334,10 @@ public class Database {
         }
     }
 
+    public int changes() {
+        return db.changes();
+    }
+
     public void rekey(string new_key) throws Error {
         ensure_init();
         if (new_key.strip().length == 0) {
@@ -349,7 +358,7 @@ public class Database {
     public bool is_known_column(string table, string field) {
         ensure_init();
         foreach (Table t in tables) {
-            if (t.is_known_column(field)) return true;
+            if (t.name == table && t.is_known_column(field)) return true;
         }
         return false;
     }

@@ -39,57 +39,12 @@ public class AvatarManager : StreamInteractionModule, Object {
     private HashMap<string, Bytes> avatar_bytes_cache = new HashMap<string, Bytes>();
     private const int MAX_AVATAR_CACHE_SIZE = 200;
     private const int MAX_PIXEL = 192;
+    private const int MAX_FAILED_DECRYPT_HASHES = 500;
     private HashSet<string> failed_decrypt_hashes = new HashSet<string>();
 
-    private static bool bytes_contains_ascii_ci(uint8[] data, int data_len, string needle) {
-        if (needle == null || needle == "") return false;
-        int nlen = needle.length;
-        if (nlen <= 0) return false;
-        if (data_len < nlen) return false;
-
-        for (int i = 0; i <= data_len - nlen; i++) {
-            bool match = true;
-            for (int j = 0; j < nlen; j++) {
-                uint8 b = data[i + j];
-                char c = (char) b;
-                char nc = needle[j];
-                if (c >= 'A' && c <= 'Z') c = (char) (c - 'A' + 'a');
-                if (nc >= 'A' && nc <= 'Z') nc = (char) (nc - 'A' + 'a');
-                if (c != nc) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) return true;
-        }
-        return false;
-    }
-
+    // Delegates to shared FileUtils (clone removal)
     private static bool looks_like_svg_file(File file) {
-        try {
-            string? path = file.get_path();
-            if (path != null) {
-                string lower = path.down();
-                if (lower.has_suffix(".svg") || lower.has_suffix(".svgz")) return true;
-            }
-
-            FileInputStream s = file.read(null);
-            uint8[] buf = new uint8[8192];
-            ssize_t n = s.read(buf, null);
-            try { s.close(null); } catch (Error e) { }
-            if (n <= 0) return false;
-
-            int len = (int) n;
-            if (len > (int) buf.length) len = (int) buf.length;
-
-            if (len >= 2 && buf[0] == 0x1f && buf[1] == 0x8b) return true;
-            if (bytes_contains_ascii_ci(buf, len, "<svg")) return true;
-            if (bytes_contains_ascii_ci(buf, len, "<!doctype svg")) return true;
-            if (bytes_contains_ascii_ci(buf, len, "http://www.w3.org/2000/svg")) return true;
-        } catch (Error e) {
-            // If we can't read it, don't assume SVG.
-        }
-        return false;
+        return Dino.FileDetectionUtils.looks_like_svg_file(file);
     }
 
     public static void start(StreamInteractor stream_interactor, Database db, FileEncryption file_encryption) {
@@ -213,6 +168,9 @@ public class AvatarManager : StreamInteractionModule, Object {
                 return result;
             } catch (Error e) {
                 warning("Failed to decrypt avatar: %s", e.message);
+                if (failed_decrypt_hashes.size >= MAX_FAILED_DECRYPT_HASHES) {
+                    failed_decrypt_hashes.clear();
+                }
                 failed_decrypt_hashes.add(hash);
                 try {
                     file.delete();
@@ -547,6 +505,13 @@ public class AvatarManager : StreamInteractionModule, Object {
     public async void store_image(string id, Bytes data) {
         File file = File.new_for_path(Path.build_filename(folder, id));
         try {
+            /* Ensure the avatars directory exists — it may have been removed
+             * by "Clear Cache" which deletes the entire cache tree. */
+            File dir = File.new_for_path(folder);
+            if (!dir.query_exists()) {
+                dir.make_directory_with_parents();
+            }
+
             if (file.query_exists()) file.delete();
 
             uint8[] plaintext = data.get_data();

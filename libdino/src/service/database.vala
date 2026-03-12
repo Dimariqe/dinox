@@ -16,7 +16,7 @@ using Dino.Entities;
 namespace Dino {
 
 public class Database : Qlite.Database {
-    private const int VERSION = 39;
+    private const int VERSION = 40;
 
     public class AccountTable : Table {
         public Column<int> id = new Column.Integer("id") { primary_key = true, auto_increment = true };
@@ -142,6 +142,7 @@ public class Database : Qlite.Database {
         internal BodyMeta(Database db) {
             base(db, "body_meta");
             init({id, message_id, from_char, to_char, info_type, info});
+            index("body_meta_message_id_idx", {message_id});
         }
     }
 
@@ -203,6 +204,7 @@ public class Database : Qlite.Database {
         internal UndecryptedTable(Database db) {
             base(db, "undecrypted");
             init({message_id, type_, data});
+            index("undecrypted_message_id_idx", {message_id});
         }
     }
 
@@ -240,6 +242,7 @@ public class Database : Qlite.Database {
                 time, local_time, encryption, file_name, path, mime_type, size, state, provider, info, modification_date,
                 width, height, length, is_sticker, sticker_pack_id, sticker_pack_jid, sticker_pack_node});
             index("file_transfer_account_counterpart_idx", {account_id, counterpart_id});
+            index("file_transfer_info_idx", {info});
         }
     }
 
@@ -614,6 +617,7 @@ public class Database : Qlite.Database {
         init({ account, jid, entity, content_item, message, message_occupant_id, body_meta, message_correction, reply, real_jid, occupantid, file_transfer, file_hashes, file_thumbnails, sfs_sources, call, call_counterpart, conversation, avatar, entity_identity, entity_feature, roster, mam_catchup, reaction, settings, account_settings, conversation_settings, pinned_certificate, sticker_pack, sticker_item }, key, false);
 
         try {
+            // WAL + synchronous already set in qlite before migration; re-assert here for clarity
             exec("PRAGMA journal_mode = WAL");
             exec("PRAGMA synchronous = NORMAL");
             exec("PRAGMA secure_delete = ON");
@@ -827,6 +831,30 @@ public class Database : Qlite.Database {
                 message.fts_rebuild();
             }
         }
+        if (oldVersion < 40) {
+            // B4: Clean up orphaned content_items referencing non-existent messages
+            // This can happen when messages are deleted but content_items remain
+            // (e.g. from the old persist()/last_insert_rowid() bug)
+            try {
+                exec("DELETE FROM content_item WHERE content_type = 1 AND foreign_id NOT IN (SELECT id FROM message)");
+            } catch (Error e) {
+                warning("Failed to clean up orphaned content_items: %s", e.message);
+            }
+
+            // B5: Fix conversation read_up_to_item pointing to deleted content_items
+            try {
+                exec("UPDATE conversation SET read_up_to_item = -1 WHERE read_up_to_item > 0 AND read_up_to_item NOT IN (SELECT id FROM content_item)");
+            } catch (Error e) {
+                warning("Failed to fix dangling read_up_to_item: %s", e.message);
+            }
+
+            // B6: Fix conversation read_up_to pointing to deleted messages
+            try {
+                exec("UPDATE conversation SET read_up_to = NULL WHERE read_up_to IS NOT NULL AND read_up_to NOT IN (SELECT id FROM message)");
+            } catch (Error e) {
+                warning("Failed to fix dangling read_up_to: %s", e.message);
+            }
+        }
     }
 
     public ArrayList<Account> get_accounts() {
@@ -882,7 +910,7 @@ public class Database : Qlite.Database {
             if (id > 0) {
                 select.where(@"time < ? OR (time = ? AND message.id < ?)", { before.to_unix().to_string(), before.to_unix().to_string(), id.to_string() });
             } else {
-                select.with(message.id, "<", id);
+                select.with(message.time, "<", (long) before.to_unix());
             }
         }
         if (after != null) {
@@ -890,9 +918,6 @@ public class Database : Qlite.Database {
                 select.where(@"time > ? OR (time = ? AND message.id > ?)", { after.to_unix().to_string(), after.to_unix().to_string(), id.to_string() });
             } else {
                 select.with(message.time, ">", (long) after.to_unix());
-            }
-            if (id > 0) {
-                select.with(message.id, ">", id);
             }
         } else {
             select.order_by(message.time, "DESC");
@@ -993,42 +1018,46 @@ public class Database : Qlite.Database {
     public int purge_caches() {
         int total_deleted = 0;
         try {
-            // Count rows before deleting for reporting
-            total_deleted += (int) entity.select().count();
-            total_deleted += (int) entity_identity.select().count();
-            total_deleted += (int) entity_feature.select().count();
-            total_deleted += (int) avatar.select().count();
-            total_deleted += (int) file_thumbnails.select().count();
-            total_deleted += (int) mam_catchup.select().count();
-            total_deleted += (int) roster.select().count();
-            total_deleted += (int) sticker_item.select().count();
-            total_deleted += (int) sticker_pack.select().count();
-
             // Entity discovery cache (caps hashes, disco#info results)
             exec("DELETE FROM entity");
+            total_deleted += changes();
             exec("DELETE FROM entity_identity");
+            total_deleted += changes();
             exec("DELETE FROM entity_feature");
+            total_deleted += changes();
 
             // Avatar references (actual files cleared from filesystem separately)
             exec("DELETE FROM contact_avatar");
+            total_deleted += changes();
 
             // File thumbnail cache (data URIs, re-fetchable)
             exec("DELETE FROM file_thumbnails");
+            total_deleted += changes();
 
-            // Undecrypted message stash (transient, keys won't arrive later)
-            exec("DELETE FROM undecrypted");
+            // Undecrypted message stash (transient, keys won't arrive later).
+            // Table is owned by OMEMO plugin — may not exist on this DB.
+            try {
+                exec("DELETE FROM undecrypted");
+                total_deleted += changes();
+            } catch (Error ue) {
+                // Table not present — nothing to purge, that's fine
+            }
 
             // MAM sync progress markers (forces clean re-sync from server)
             exec("DELETE FROM mam_catchup");
+            total_deleted += changes();
 
             // Roster cache (fully re-synced on next connect)
             exec("DELETE FROM roster");
+            total_deleted += changes();
             // Reset roster_version so server sends full roster instead of incremental
             exec("UPDATE account SET roster_version = NULL");
 
             // Sticker cache (re-fetchable from PubSub, local files cleared from filesystem)
             exec("DELETE FROM sticker_item");
+            total_deleted += changes();
             exec("DELETE FROM sticker_pack");
+            total_deleted += changes();
 
             // Reclaim disk space
             exec("VACUUM");

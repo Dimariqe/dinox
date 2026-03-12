@@ -28,7 +28,7 @@ namespace Dino.Plugins.Mqtt {
 
 public class MqttDatabase : Qlite.Database {
 
-    private const int VERSION = 1;
+    private const int VERSION = 4;
 
     /* ══════════════════════════════════════════════════════════════════
      *  Table 1: mqtt_messages — Received MQTT messages
@@ -184,11 +184,14 @@ public class MqttDatabase : Qlite.Database {
         public Column<string> target_jid = new Column.NonNullText("target_jid");
         public Column<string> format = new Column.NonNullText("format") { default = "'full'" };
         public Column<bool> enabled = new Column.BoolInt("enabled") { default = "1" };
+        public Column<string?> alias = new Column.Text("alias");  /* v2: human-readable name */
+        public Column<string> client_label = new Column.NonNullText("client_label") { default = "'standalone'" };  /* v3: which MQTT client */
+        public Column<string?> send_account = new Column.Text("send_account");  /* v4: bare JID of XMPP account to send from */
         public Column<long> created_at = new Column.Long("created_at") { default = "0" };
 
         internal BridgeRulesTable(MqttDatabase db) {
             base(db, "mqtt_bridge_rules");
-            init({id, connection_id, topic, target_jid, format, enabled, created_at});
+            init({id, connection_id, topic, target_jid, format, enabled, alias, client_label, send_account, created_at});
             index("mqtt_bridge_rules_topic_idx", {topic});
         }
     }
@@ -322,13 +325,43 @@ public class MqttDatabase : Qlite.Database {
     }
 
     public override void migrate(long old_version) {
-        /* Version 1 is the initial schema — no migration needed yet.
-         * Future migrations go here:
-         *
-         * if (old_version < 2) {
-         *     // Add new columns or tables for v2
-         * }
-         */
+        if (old_version < 2) {
+            /* v2: Add alias column to bridge_rules table */
+            try {
+                exec("ALTER TABLE mqtt_bridge_rules ADD COLUMN alias TEXT DEFAULT NULL");
+            } catch (Error e) {
+                warning("MqttDatabase migrate v2: %s", e.message);
+            }
+        }
+        if (old_version < 3) {
+            /* v3: Add client_label column to bridge_rules table.
+             * Existing rules default to 'standalone' — safe because
+             * before this version all rules were global anyway. */
+            try {
+                exec("ALTER TABLE mqtt_bridge_rules ADD COLUMN client_label TEXT NOT NULL DEFAULT 'standalone'");
+            } catch (Error e) {
+                warning("MqttDatabase migrate v3: %s", e.message);
+            }
+        }
+        if (old_version < 4) {
+            /* v4: Add send_account column to bridge_rules table.
+             * Explicit XMPP account to send from (bare JID). */
+            try {
+                exec("ALTER TABLE mqtt_bridge_rules ADD COLUMN send_account TEXT DEFAULT NULL");
+            } catch (Error e) {
+                warning("MqttDatabase migrate v4: %s", e.message);
+            }
+            /* Backfill: for per-account rules, client_label IS the
+             * account bare JID — copy it to send_account.
+             * exec() OK here: no user input, column-to-column copy in
+             * schema migration — Qlite ORM cannot express this
+             * (SET col = other_col with compound WHERE).  (Audit F5) */
+            try {
+                exec("UPDATE mqtt_bridge_rules SET send_account = client_label WHERE client_label != 'standalone' AND (send_account IS NULL OR send_account = '')");
+            } catch (Error e) {
+                warning("MqttDatabase migrate v4 backfill: %s", e.message);
+            }
+        }
     }
 
     /* ── Convenience methods ─────────────────────────────────────── */
@@ -340,7 +373,7 @@ public class MqttDatabase : Qlite.Database {
     public void record_message(string conn_id, string topic_name,
                                string? payload_str, int qos_val,
                                bool is_retained, string priority_str) {
-        long now = (long) new DateTime.now_utc().to_unix();
+        long now = (long) MqttUtils.now_unix();
         int payload_len = payload_str != null ? payload_str.length : 0;
 
         /* Insert into messages */
@@ -436,7 +469,7 @@ public class MqttDatabase : Qlite.Database {
     public void record_freetext(string conn_id, string direction_str,
                                 string topic_name, string? payload_str,
                                 int qos_val, bool retain_flag) {
-        long now = (long) new DateTime.now_utc().to_unix();
+        long now = (long) MqttUtils.now_unix();
         freetext.insert()
             .value(freetext.connection_id, conn_id)
             .value(freetext.direction, direction_str)
@@ -454,7 +487,7 @@ public class MqttDatabase : Qlite.Database {
     public void record_connection_event(string conn_id, string event_name,
                                         string? host, int port,
                                         string? error_msg = null) {
-        long now = (long) new DateTime.now_utc().to_unix();
+        long now = (long) MqttUtils.now_unix();
         connection_log.insert()
             .value(connection_log.connection_id, conn_id)
             .value(connection_log.event, event_name)
@@ -471,7 +504,7 @@ public class MqttDatabase : Qlite.Database {
     public void record_publish(string conn_id, string topic_name,
                                string? payload_str, int qos_val,
                                bool retain_flag, string source_type) {
-        long now = (long) new DateTime.now_utc().to_unix();
+        long now = (long) MqttUtils.now_unix();
         publish_history.insert()
             .value(publish_history.connection_id, conn_id)
             .value(publish_history.topic, topic_name)
@@ -509,6 +542,7 @@ public class MqttDatabase : Qlite.Database {
         var iter = topic_stats.select()
             .with(topic_stats.connection_id, "=", conn_id)
             .order_by(topic_stats.last_seen, "DESC")
+            .limit(10000)
             .iterator();
         while (iter.next()) {
             result.add(iter.get());
@@ -556,6 +590,7 @@ public class MqttDatabase : Qlite.Database {
         var result = new Gee.ArrayList<Row>();
         var iter = topic_stats.select()
             .order_by(topic_stats.last_seen, "DESC")
+            .limit(10000)
             .iterator();
         while (iter.next()) {
             result.add(iter.get());
@@ -621,7 +656,7 @@ public class MqttDatabase : Qlite.Database {
      * Returns total number of rows deleted (for logging).
      */
     public int purge_expired() {
-        long now = (long) new DateTime.now_utc().to_unix();
+        long now = (long) MqttUtils.now_unix();
         int total = 0;
 
         /* Count before delete for logging */
@@ -646,15 +681,14 @@ public class MqttDatabase : Qlite.Database {
         total += ph_deleted;
 
         if (total > 0) {
-            message("MqttDatabase: purge_expired() deleted %d rows " +
-                    "(messages=%d, freetext=%d, connlog=%d, publish=%d)",
+            GLib.debug("MqttDatabase: purge_expired() deleted %d rows (messages=%d, freetext=%d, connlog=%d, publish=%d)",
                     total, msg_deleted, ft_deleted, cl_deleted, ph_deleted);
 
             /* VACUUM after significant deletes to reclaim disk space */
             if (total > 1000) {
                 try {
                     exec("VACUUM");
-                    message("MqttDatabase: VACUUM completed after purging %d rows", total);
+                    GLib.debug("MqttDatabase: VACUUM completed after purging %d rows", total);
                 } catch (Error e) {
                     warning("MqttDatabase: VACUUM failed: %s", e.message);
                 }

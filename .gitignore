@@ -40,10 +40,12 @@ docs/internal/TOR_IMPLEMENTATION.md
 docs/internal/DEVELOPMENT_PLAN_BOTFATHER.md
 docs/internal/SIP_DTMF_ANALYSIS.md
 docs/internal/Audit.md
+docs/internal/GIT_WORKFLOW.md
 docs/internal/TESTING_GAPS.md
 docs/internal/MUJI_GROUP_CALLS_PLAN.md
 docs/internal/MQTT_UI_PLAN.md
 docs/internal/DOMAIN_MIGRATION.md
+docs/internal/VIDEO_PLAYER_IMPLEMENTATION.md
 docs/accessibility-pruefprotokoll.md
 
 # Text/log files (except build-system configs)
@@ -52,6 +54,9 @@ windowsbuild.txt
 windows.txt
 cross_file.txt
 check_translations.py
+
+# Auto-generated website sync scripts (local tooling, not for GitHub)
+scripts/sync_security_audit_html.py
 
 # Debug/test files
 test_*.py
@@ -83,3 +88,6 @@ Voice\ Message\ System\ --\ Ist-Zustand.txt
 docs/internal/monal_session_terminate_reply.md
 docs/internal/message_to_jacquescomeaux.md
 docs/internal/LINUX_PACKAGING_OVERVIEW.md
+MQTT_UI_PLAN.md
+build_warnings.txt
+RAM_ANALYSE.md

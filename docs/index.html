@@ -7,8 +7,8 @@
     <!-- Primary SEO Meta Tags -->
     <title>DinoX - XMPP Client | First XMPP Messenger with Extensible REST API, AI Support, MQTT &amp; Botmother</title>
     <meta name="title" content="DinoX - XMPP Client | First XMPP Messenger with Extensible REST API, AI Support, MQTT &amp; Botmother">
-    <meta name="description" content="DinoX is the first XMPP client with an extensible REST API supporting 9 AI providers (OpenClaw, Claude, OpenAI, Gemini, Groq, Mistral, DeepSeek, Perplexity, Ollama), MQTT plugin for IoT sensor data and XMPP bridging, DTMF support with Dialpad for SIP Provider telephony, Telegram bridge, Botmother bot management, local API server with 31 endpoints, integrated Tor & Obfs4proxy, OMEMO encryption, group video calls, and full database encryption in a modern GTK4/libadwaita interface.">
-    <meta name="keywords" content="XMPP client, XMPP REST API, extensible API, XMPP AI support, XMPP MQTT, MQTT IoT XMPP, MQTT sensor data, XMPP IoT client, MQTT bridge XMPP, OpenClaw XMPP, Claude XMPP, XMPP bot, XMPP messenger, Jabber client, AI chat client, OpenClaw agent, Botmother, XMPP Telegram bridge, XMPP API server, OMEMO encryption, Tor, Obfs4proxy, privacy, secure chat, video calls, DTMF, SIP gateway, dialpad, RFC 4733, telephone, Linux chat app, Windows chat app, Windows XMPP client, Linux XMPP client, GTK4, open source messenger, DinoX, group video conference, database encryption, VAAPI, hardware acceleration, OpenAI XMPP, Gemini XMPP, Groq XMPP, Mistral XMPP, DeepSeek XMPP, Perplexity XMPP, Ollama XMPP, first XMPP client with REST API, XMPP bot management, secure AI chat, MQTT 3.1.1, Prosody mod_pubsub_mqtt, IoT sparkline, XMPP client with MQTT support">
+    <meta name="description" content="DinoX is the first XMPP client with an extensible REST API supporting 9 AI providers (OpenClaw, Claude, OpenAI, Gemini, Groq, Mistral, DeepSeek, Perplexity, Ollama), MQTT plugin for IoT, Smart Home &amp; Home Automation with Node-RED integration, DTMF support with Dialpad for SIP Provider telephony, Telegram bridge, Botmother bot management, local API server with 31 endpoints, integrated Tor &amp; Obfs4proxy, OMEMO encryption, group video calls, and full database encryption in a modern GTK4/libadwaita interface.">
+    <meta name="keywords" content="XMPP client, XMPP REST API, extensible API, XMPP AI support, XMPP MQTT, MQTT IoT XMPP, MQTT sensor data, XMPP IoT client, MQTT bridge XMPP, MQTT home automation, MQTT smart home, Home Assistant MQTT, XMPP home automation, XMPP smart home, IoT dashboard XMPP, Node-RED XMPP MQTT, ejabberd mod_mqtt, MQTT 3.1.1, MQTT TLS, OpenClaw XMPP, Claude XMPP, XMPP bot, XMPP messenger, Jabber client, AI chat client, OpenClaw agent, Botmother, XMPP Telegram bridge, XMPP API server, OMEMO encryption, Tor, Obfs4proxy, privacy, secure chat, video calls, DTMF, SIP gateway, dialpad, RFC 4733, telephone, Linux chat app, Windows chat app, Windows XMPP client, Linux XMPP client, GTK4, open source messenger, DinoX, group video conference, database encryption, VAAPI, hardware acceleration, OpenAI XMPP, Gemini XMPP, Groq XMPP, Mistral XMPP, DeepSeek XMPP, Perplexity XMPP, Ollama XMPP, first XMPP client with REST API, XMPP bot management, secure AI chat, Prosody mod_pubsub_mqtt, IoT sparkline, XMPP client with MQTT support, AUR dinox, Arch Linux XMPP, Flatpak XMPP client">
     <meta name="author" content="Ralf Peter">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="googlebot" content="index, follow">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://dinox.handwerker.jetzt/">
     <meta name="twitter:title" content="DinoX - First XMPP Client with Extensible REST API, AI &amp; MQTT Support">
-    <meta name="twitter:description" content="The first XMPP messenger with an extensible REST API. AI support for 9 providers, MQTT plugin for IoT, Botmother bot management, Telegram bridge, Tor, OMEMO, group video calls.">
+    <meta name="twitter:description" content="The first XMPP messenger with an extensible REST API. AI support for 9 providers, MQTT for IoT &amp; Home Automation, Node-RED integration, Botmother bot management, Telegram bridge, Tor, OMEMO, group video calls.">
     <meta name="twitter:image" content="https://dinox.handwerker.jetzt/assets/og-image.png">
     <meta name="twitter:image:alt" content="DinoX XMPP Messenger">
     
@@ -71,8 +71,8 @@
         "description": "The first XMPP messenger with an extensible REST API and AI support for 9 providers (OpenClaw, Claude, OpenAI, Gemini, Groq, Mistral, DeepSeek, Perplexity, Ollama), Botmother bot management, Telegram bridge, 31 REST API endpoints, integrated Tor/Obfs4proxy, OMEMO encryption, decentralized group video calls, and full local data encryption.",
         "url": "https://dinox.handwerker.jetzt/",
         "downloadUrl": "https://github.com/rallep71/dinox/releases/latest",
-        "softwareVersion": "1.1.1.2",
-        "datePublished": "2026-02-19",
+        "softwareVersion": "1.1.5.4",
+        "datePublished": "2026-03-05",
         "author": {
             "@type": "Person",
             "name": "Ralf Peter",
@@ -96,6 +96,8 @@
             "Botmother Bot Management",
             "Telegram Bridge",
             "Local REST API Server (31 Endpoints)",
+            "MQTT Plugin for IoT, Smart Home & Home Automation",
+            "Node-RED Integration for MQTT Workflows",
             "Integrated Tor & Obfs4proxy (Zero-Config)",
             "OMEMO 1 + 2 End-to-End Encryption",
             "Full Local Database Encryption",
@@ -177,6 +179,14 @@
                 "acceptedAnswer": {
                     "@type": "Answer",
                     "text": "Yes, DinoX fully supports OMEMO (XEP-0384) end-to-end encryption for all messages and files using the Double Ratchet protocol."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Does DinoX support MQTT and Home Automation?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes, DinoX includes an MQTT 3.1.1 plugin that connects to any MQTT broker (ejabberd mod_mqtt, Mosquitto, etc.) over TLS. It supports IoT sensor monitoring with sparkline charts, smart home integration, alert rules, and Node-RED workflows — all controllable via XMPP chat commands."
                 }
             }
         ]
@@ -1191,7 +1201,7 @@ ninja -C build && sudo ninja -C build install</code></pre>
                         <img src="assets/icon.svg" alt="DinoX Logo" width="32" height="32">
                         <span>DinoX</span>
                     </div>
-                    <p>Privacy-first XMPP Messenger for Linux &amp; Windows with OMEMO 1+2, OpenPGP, Tor &amp; Obfs4, WebRTC calls and a local REST API with AI support via 9 providers.</p>
+                    <p>Privacy-first XMPP Messenger for Linux &amp; Windows with OMEMO 1+2, OpenPGP, Tor &amp; Obfs4, WebRTC calls, MQTT for IoT &amp; Home Automation, and a local REST API with AI support via 9 providers.</p>
                 </div>
                 
                 <nav class="footer-section" aria-label="Site links">

@@ -78,6 +78,7 @@ public class MessageStorage : StreamInteractionModule, Object {
     }
 
     public Gee.List<MessageItem> get_messages_before_message(Conversation? conversation, DateTime before, int id, int count = 20) {
+        if (conversation == null) return new ArrayList<MessageItem>();
         Gee.List<Message> db_messages = db.get_messages(conversation.counterpart, conversation.account, Util.get_message_type_for_conversation(conversation), count, before, null, id);
         Gee.List<MessageItem> ret = new ArrayList<MessageItem>();
         foreach (Message message in db_messages) {
@@ -87,6 +88,7 @@ public class MessageStorage : StreamInteractionModule, Object {
     }
 
     public Gee.List<MessageItem> get_messages_after_message(Conversation? conversation, DateTime after, int id, int count = 20) {
+        if (conversation == null) return new ArrayList<MessageItem>();
         Gee.List<Message> db_messages = db.get_messages(conversation.counterpart, conversation.account, Util.get_message_type_for_conversation(conversation), count, null, after, id);
         Gee.List<MessageItem> ret = new ArrayList<MessageItem>();
         foreach (Message message in db_messages) {
@@ -224,16 +226,13 @@ public class MessageStorage : StreamInteractionModule, Object {
     }
 
     public void clear_conversation_cache(Conversation conversation) {
-        // Remove all cached messages for this conversation
+        // Remove cached message lookup maps for this conversation only
         if (messages_by_stanza_id.has_key(conversation)) {
             messages_by_stanza_id.unset(conversation);
         }
         if (messages_by_server_id.has_key(conversation)) {
             messages_by_server_id.unset(conversation);
         }
-        
-        // Clear message refs (this will also clear messages_by_db_id via WeakMap)
-        message_refs.clear();
     }
 
     public static string? get_reference_id(Message message) {

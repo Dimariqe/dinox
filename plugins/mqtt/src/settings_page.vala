@@ -39,6 +39,11 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
     private Adw.EntryRow user_row;
     private Adw.PasswordEntryRow pass_row;
     private Label status_label;
+    private Gtk.Button save_button;
+    private Switch disc_switch;
+    private Adw.EntryRow disc_prefix_row;
+    private Adw.PreferencesGroup discovery_group;
+    private Adw.ActionRow show_bot_row;
 
     /* Prevent saving during programmatic updates */
     private bool loading = true;
@@ -46,12 +51,13 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
     /* TLS warning */
     private Adw.PreferencesGroup tls_warning_group;
 
-    /* HA Discovery group (BUG-18) */
-    private Adw.PreferencesGroup discovery_group;
-
     /* Status refresh timer */
     private uint status_timer_id = 0;
+    private uint status_oneshot_id = 0;
     private ulong connection_signal_id = 0;
+
+    /* Tracked Idle.add source for deferred sensitivity update (§9) */
+    private uint sensitivity_idle_id = 0;
 
     /* ── DB keys — now use StandaloneKey.* for standalone config ──── */
 
@@ -71,6 +77,24 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         build_ui();
         load_settings();
         loading = false;
+
+        /* When the page is unmapped (user navigates away from preferences
+         * or closes the window), clear focus entirely to prevent GTK
+         * "Broken accounting of active state" and "GtkText - did not
+         * receive a focus-out event" warnings.  grab_focus() on a
+         * container re-delegates focus to a child entry, which doesn't
+         * help — Gtk.Root.set_focus(null) clears it completely. */
+        this.unmap.connect(() => {
+            var root = this.get_root() as Gtk.Root;
+            if (root != null) root.set_focus(null);
+        });
+    }
+
+    private void start_status_timer() {
+        status_timer_id = Timeout.add_seconds(3, () => {
+            update_status();
+            return true;  /* keep timer */
+        });
     }
 
     /* ── UI construction ──────────────────────────────────────────── */
@@ -90,21 +114,27 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
 
         enable_switch = new Switch();
         enable_switch.valign = Align.CENTER;
-        enable_switch.state_set.connect((state) => {
-            enable_switch.state = state;
-            if (!loading) {
-                save_setting(StandaloneKey.ENABLED, state ? "1" : "0");
-                /* Defer heavy work (20+ DB reads, disconnect, reconnect)
-                 * to the next idle iteration so the switch animation
-                 * is not blocked on the main thread. */
-                Idle.add(() => {
-                    plugin.apply_settings();
-                    Timeout.add(500, () => { update_status(); return false; });
-                    return false;
-                });
+        /* Toggle only updates the visual state and marks dirty.
+         * Actual save + apply happens via "Save & Apply" button,
+         * matching the per-account MQTT UX.
+         *
+         * Sensitivity changes are deferred to Idle.add() so they
+         * don't block the Switch animation frame — setting .sensitive
+         * on 6+ widgets triggers CSS restyling + relayout which
+         * causes visible stutter if done synchronously in
+         * notify["active"]. */
+        enable_switch.notify["active"].connect(() => {
+            if (loading) return;
+            mark_dirty();
+            if (sensitivity_idle_id != 0) {
+                Source.remove(sensitivity_idle_id);
+                sensitivity_idle_id = 0;
             }
-            update_sensitivity();
-            return true;
+            sensitivity_idle_id = Idle.add(() => {
+                sensitivity_idle_id = 0;
+                update_sensitivity();
+                return Source.REMOVE;
+            });
         });
         enable_row.add_suffix(enable_switch);
         conn_group.add(enable_row);
@@ -118,10 +148,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         host_row = new Adw.EntryRow();
         host_row.title = _("Host");
         host_row.changed.connect(() => {
-            if (!loading) {
-                save_setting(StandaloneKey.BROKER_HOST, host_row.text);
-                schedule_apply();
-            }
+            if (!loading) mark_dirty();
             check_tls_warning();
         });
         broker_group.add(host_row);
@@ -131,10 +158,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         port_row = new Adw.SpinRow(port_adj, 1, 0);
         port_row.title = _("Port");
         port_row.notify["value"].connect(() => {
-            if (!loading) {
-                save_setting(StandaloneKey.BROKER_PORT, ((int) port_row.value).to_string());
-                schedule_apply();
-            }
+            if (!loading) mark_dirty();
         });
         broker_group.add(port_row);
 
@@ -145,14 +169,9 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
 
         tls_switch = new Switch();
         tls_switch.valign = Align.CENTER;
-        tls_switch.state_set.connect((state) => {
-            tls_switch.state = state;
-            if (!loading) {
-                save_setting(StandaloneKey.TLS, state ? "1" : "0");
-                schedule_apply();
-            }
+        tls_switch.notify["active"].connect(() => {
+            if (!loading) mark_dirty();
             check_tls_warning();
-            return true;
         });
         tls_row.add_suffix(tls_switch);
         broker_group.add(tls_row);
@@ -179,20 +198,14 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         user_row = new Adw.EntryRow();
         user_row.title = _("Username");
         user_row.changed.connect(() => {
-            if (!loading) {
-                save_setting(StandaloneKey.USERNAME, user_row.text);
-                schedule_apply();
-            }
+            if (!loading) mark_dirty();
         });
         auth_group.add(user_row);
 
         pass_row = new Adw.PasswordEntryRow();
         pass_row.title = _("Password");
         pass_row.changed.connect(() => {
-            if (!loading) {
-                save_setting(StandaloneKey.PASSWORD, pass_row.text);
-                schedule_apply();
-            }
+            if (!loading) mark_dirty();
         });
         auth_group.add(pass_row);
 
@@ -218,7 +231,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         manager_group.add(manager_row);
 
         /* Show Bot in Chat — re-open closed bot conversation */
-        var show_bot_row = new Adw.ActionRow();
+        show_bot_row = new Adw.ActionRow();
         show_bot_row.title = _("Show Bot in Chat");
         show_bot_row.subtitle = _("Re-open the MQTT Bot conversation if you closed it");
         show_bot_row.activatable = true;
@@ -227,7 +240,7 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
             if (plugin.bot_conversation != null) {
                 var conv = plugin.bot_conversation.reopen_standalone_conversation();
                 if (conv != null) {
-                    message("MQTT Settings: Standalone bot conversation re-opened");
+                    debug("MQTT Settings: Standalone bot conversation re-opened");
                 }
             }
         });
@@ -246,59 +259,94 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         status_row.add_suffix(status_label);
         status_group.add(status_row);
 
+        /* Reconnect button */
+        var reconnect_btn = new Gtk.Button.with_label(_("Reconnect"));
+        reconnect_btn.add_css_class("flat");
+        reconnect_btn.halign = Align.CENTER;
+        reconnect_btn.margin_top = 6;
+        reconnect_btn.clicked.connect(() => {
+            if (!enable_switch.active) {
+                status_label.label = _("Disabled — enable first");
+                return;
+            }
+            if (host_row.text.strip() == "") {
+                status_label.label = _("No broker host configured");
+                return;
+            }
+            status_label.label = _("Reconnecting…");
+            status_label.remove_css_class("success");
+            status_label.add_css_class("dim-label");
+            plugin.force_reconnect_standalone();
+        });
+        status_group.add(reconnect_btn);
+
         /* Update status periodically and on connection changes */
         update_status();
-        status_timer_id = Timeout.add_seconds(3, () => {
-            update_status();
-            return true;  /* keep timer */
-        });
+        start_status_timer();
         connection_signal_id = plugin.connection_changed.connect((source, connected) => {
-            update_status();
+            if (source == "standalone") update_status();
         });
 
-        /* ── Group 7: HA Discovery ────────────────────────────────── */
+        /* Pause/resume status timer when the page is hidden/shown.
+         * With dialog caching the page stays alive, so the timer would
+         * otherwise poll every 3 s even while the dialog is closed. */
+        this.map.connect(() => {
+            update_status();
+            if (status_timer_id == 0) start_status_timer();
+        });
+        this.unmap.connect(() => {
+            if (status_timer_id != 0) {
+                Source.remove(status_timer_id);
+                status_timer_id = 0;
+            }
+        });
+
+        /* ── HA Discovery ─────────────────────────────────────────── */
         discovery_group = new Adw.PreferencesGroup();
         discovery_group.title = _("Home Assistant Discovery");
-        discovery_group.description = _("Announce DinoX as a device in Home Assistant via MQTT Discovery.");
+        discovery_group.description = _("Announce DinoX as a device in Home Assistant via MQTT Discovery.\n" +
+            "Requires a broker with retained message support (not XMPP-MQTT).");
         this.add(discovery_group);
 
-        var disc_switch = new Switch();
-        disc_switch.valign = Align.CENTER;
-        disc_switch.active = (get_setting(StandaloneKey.DISCOVERY_ENABLED) ?? "0") == "1";
         var disc_row = new Adw.ActionRow();
         disc_row.title = _("Enable Discovery");
-        disc_row.subtitle = _("Publish device &amp; entity configs to the broker");
-        disc_row.add_suffix(disc_switch);
-        disc_row.activatable_widget = disc_switch;
+        disc_row.subtitle = _("Publish device and entity configs to the broker");
+        disc_switch = new Switch();
+        disc_switch.valign = Align.CENTER;
         disc_switch.notify["active"].connect(() => {
-            if (loading) return;
-            save_setting(StandaloneKey.DISCOVERY_ENABLED, disc_switch.active ? "1" : "0");
-            var sa_cfg = plugin.get_standalone_config();
-            sa_cfg.discovery_enabled = disc_switch.active;
-            plugin.save_standalone_config();
-            plugin.reload_config();
+            if (!loading) mark_dirty();
         });
+        disc_row.add_suffix(disc_switch);
         discovery_group.add(disc_row);
 
-        var prefix_row = new Adw.EntryRow();
-        prefix_row.title = _("Discovery Prefix");
-        prefix_row.text = get_setting(StandaloneKey.DISCOVERY_PREFIX) ?? "homeassistant";
-        prefix_row.changed.connect(() => {
-            if (loading) return;
-            string val = prefix_row.text.strip();
-            if (val == "") val = "homeassistant";
-            save_setting(StandaloneKey.DISCOVERY_PREFIX, val);
-            var sa_cfg = plugin.get_standalone_config();
-            sa_cfg.discovery_prefix = val;
-            plugin.save_standalone_config();
+        disc_prefix_row = new Adw.EntryRow();
+        disc_prefix_row.title = _("Discovery Prefix");
+        disc_prefix_row.changed.connect(() => {
+            if (!loading) mark_dirty();
         });
-        discovery_group.add(prefix_row);
+        discovery_group.add(disc_prefix_row);
+
+        /* ── Save & Apply (bottom of page) ────────────────────────── */
+        var save_group = new Adw.PreferencesGroup();
+        save_button = new Gtk.Button.with_label(_("Save & Apply"));
+        save_button.add_css_class("suggested-action");
+        save_button.add_css_class("pill");
+        save_button.halign = Align.CENTER;
+        save_button.margin_top = 12;
+        save_button.sensitive = false;
+        save_button.clicked.connect(on_save_clicked);
+        save_group.add(save_button);
+        this.add(save_group);
     }
 
     ~MqttStandaloneSettingsPage() {
-        if (apply_timer_id != 0) {
-            Source.remove(apply_timer_id);
-            apply_timer_id = 0;
+        if (sensitivity_idle_id != 0) {
+            Source.remove(sensitivity_idle_id);
+            sensitivity_idle_id = 0;
+        }
+        if (status_oneshot_id != 0) {
+            Source.remove(status_oneshot_id);
+            status_oneshot_id = 0;
         }
         if (status_timer_id != 0) {
             Source.remove(status_timer_id);
@@ -310,23 +358,51 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         }
     }
 
-    /* ── Debounced apply ──────────────────────────────────────────── */
+    /* ── Save & Apply ─────────────────────────────────────────────── */
 
-    private uint apply_timer_id = 0;
+    /** Mark connection settings as modified — enables the Save button. */
+    private void mark_dirty() {
+        if (save_button != null) save_button.sensitive = true;
+    }
 
     /**
-     * Schedule apply_settings() with debounce (1.5 s after last change).
-     * This avoids reconnecting on every keystroke in host/user/pass fields.
+     * Save all connection fields to DB and apply.
+     * Matches the per-account "Save & Apply" UX pattern.
      */
-    private void schedule_apply() {
-        if (apply_timer_id != 0) {
-            Source.remove(apply_timer_id);
+    private void on_save_clicked() {
+        /* Clear focus entirely to prevent GTK "Broken accounting
+         * of active state" / "did not receive a focus-out event"
+         * warnings.  set_focus(null) is more reliable than
+         * save_button.grab_focus() which can leave entry children
+         * in an inconsistent state. */
+        var root = this.get_root() as Gtk.Root;
+        if (root != null) root.set_focus(null);
+
+        save_setting(StandaloneKey.ENABLED, enable_switch.active ? "1" : "0");
+        save_setting(StandaloneKey.BROKER_HOST, host_row.text);
+        save_setting(StandaloneKey.BROKER_PORT, ((int) port_row.value).to_string());
+        save_setting(StandaloneKey.TLS, tls_switch.active ? "1" : "0");
+        save_setting(StandaloneKey.USERNAME, user_row.text);
+        save_setting(StandaloneKey.PASSWORD, pass_row.text);
+        save_setting(StandaloneKey.DISCOVERY_ENABLED, disc_switch.active ? "1" : "0");
+        string prefix_val = disc_prefix_row.text.strip();
+        save_setting(StandaloneKey.DISCOVERY_PREFIX,
+                     prefix_val != "" ? prefix_val : "homeassistant");
+
+        debug("[STANDALONE] Save & Apply — reloading config");
+        plugin.reload_config();
+        plugin.apply_settings();
+
+        save_button.sensitive = false;
+
+        /* Refresh status after a short delay */
+        if (status_oneshot_id != 0) {
+            Source.remove(status_oneshot_id);
+            status_oneshot_id = 0;
         }
-        apply_timer_id = Timeout.add(1500, () => {
-            apply_timer_id = 0;
-            if (enable_switch.active) {
-                plugin.apply_settings();
-            }
+        status_oneshot_id = Timeout.add(500, () => {
+            status_oneshot_id = 0;
+            update_status();
             return false;
         });
     }
@@ -344,6 +420,9 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         tls_switch.active = get_setting(StandaloneKey.TLS) == "1";
         user_row.text = get_setting(StandaloneKey.USERNAME) ?? "";
         pass_row.text = get_setting(StandaloneKey.PASSWORD) ?? "";
+
+        disc_switch.active = get_setting(StandaloneKey.DISCOVERY_ENABLED) == "1";
+        disc_prefix_row.text = get_setting(StandaloneKey.DISCOVERY_PREFIX) ?? "homeassistant";
 
         update_sensitivity();
         check_tls_warning();
@@ -375,8 +454,8 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
         tls_switch.sensitive = enabled;
         user_row.sensitive = enabled;
         pass_row.sensitive = enabled;
-        /* BUG-18 fix: discovery settings depend on MQTT being enabled */
         if (discovery_group != null) discovery_group.sensitive = enabled;
+        if (show_bot_row != null) show_bot_row.sensitive = enabled;
     }
 
     /* ── Status display ───────────────────────────────────────────── */
@@ -391,31 +470,25 @@ public class MqttStandaloneSettingsPage : Adw.PreferencesPage {
     }
 
     private void update_status() {
+        /* Show standalone-specific status only — this is the standalone
+         * settings page.  The old code also checked per-account clients,
+         * which caused the status to stay "Connected (N accounts)" after
+         * standalone was disabled if per-account MQTT was still active.
+         * The user then thinks standalone didn't disconnect. */
+
+        /* Use the SAVED config state, not the UI switch.
+         * The enable_switch reflects the user's unsaved intent;
+         * status must reflect the actual backend state so the user
+         * sees "Disabled" / "Connecting…" only AFTER "Save & Apply". */
+        bool saved_enabled = plugin.get_standalone_config().enabled;
+
         var standalone = plugin.get_standalone_client();
         if (standalone != null && standalone.is_connected) {
-            status_label.label = _("Connected (standalone)");
+            status_label.label = _("Connected");
             status_label.remove_css_class("dim-label");
             status_label.add_css_class("success");
-            return;
-        }
-
-        /* Check per-account clients */
-        var accounts = plugin.app.stream_interactor.get_accounts();
-        int connected = 0;
-        foreach (var acc in accounts) {
-            var client = plugin.get_client_for_account(acc.bare_jid.to_string());
-            if (client != null && client.is_connected) {
-                connected++;
-            }
-        }
-
-        if (connected > 0) {
-            status_label.label = _("Connected (%d account%s)").printf(
-                connected, connected > 1 ? "s" : "");
-            status_label.remove_css_class("dim-label");
-            status_label.add_css_class("success");
-        } else if (enable_switch.active) {
-            status_label.label = _("Waiting for connection...");
+        } else if (saved_enabled) {
+            status_label.label = _("Connecting…");
             status_label.remove_css_class("success");
             status_label.add_css_class("dim-label");
         } else {

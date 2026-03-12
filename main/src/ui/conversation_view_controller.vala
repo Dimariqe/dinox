@@ -142,6 +142,7 @@ public class ConversationViewController : Object {
 
         SimpleAction close_conversation_action = new SimpleAction("close-current-conversation", null);
         close_conversation_action.activate.connect(() => {
+            if (conversation == null) return;
             if (conversation.type_ == Conversation.Type.GROUPCHAT) {
                 // Leave the MUC room, unset autojoin bookmark, and close
                 stream_interactor.get_module<MucManager>(MucManager.IDENTITY).part(
@@ -211,6 +212,8 @@ public class ConversationViewController : Object {
     public void unset_conversation() {
         main_window.conversation_window_title.title = null;
         main_window.conversation_window_title.subtitle = null;
+        // Free all message widgets when no conversation is active
+        view.conversation_frame.initialize_for_conversation(null);
     }
 
     private async void update_file_upload_status() {

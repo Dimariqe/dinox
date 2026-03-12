@@ -1,4 +1,4 @@
-project('Dino', 'c', 'cpp', 'vala', version: '1.1.4.1', license: 'GPL-3.0', meson_version: '>=1.3.0')
+project('Dino', 'c', 'cpp', 'vala', version: '1.1.4.7', license: 'GPL-3.0', meson_version: '>=1.3.0')
 
 # Security Hardening Flags
 add_project_arguments(
@@ -7,6 +7,13 @@ add_project_arguments(
   '-Wformat',
   '-Werror=format-security',
   language: 'c'
+)
+add_project_arguments(
+  '-fstack-protector-strong',
+  '-D_FORTIFY_SOURCE=2',
+  '-Wformat',
+  '-Werror=format-security',
+  language: 'cpp'
 )
 
 add_project_arguments(

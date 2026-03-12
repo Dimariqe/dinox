@@ -122,7 +122,7 @@ public class Plugin : RootInterface, Object {
             /* Run initial purge to clean up expired data from last session */
             int purged = mqtt_db.purge_expired();
             if (purged > 0) {
-                message("MQTT plugin: startup purge removed %d expired rows", purged);
+                debug("MQTT plugin: startup purge removed %d expired rows", purged);
             }
 
             /* Schedule periodic purge every 6 hours */
@@ -130,7 +130,7 @@ public class Plugin : RootInterface, Object {
                 if (mqtt_db != null) {
                     int n = mqtt_db.purge_expired();
                     if (n > 0) {
-                        message("MQTT plugin: periodic purge removed %d rows", n);
+                        debug("MQTT plugin: periodic purge removed %d rows", n);
                     }
                 }
                 return Source.CONTINUE;
@@ -185,7 +185,7 @@ public class Plugin : RootInterface, Object {
         /* Register account MQTT Bot manager signal */
         app.open_account_mqtt_manager.connect(on_open_account_mqtt_manager);
 
-        /* Listen for XMPP connection state changes */
+        /* Listen for XMPP connection state changes (per-account MQTT lifecycle) */
         app.stream_interactor.connection_manager.connection_state_changed.connect(
             on_xmpp_connection_state_changed);
 
@@ -193,6 +193,22 @@ public class Plugin : RootInterface, Object {
         app.stream_interactor.get_module<MessageProcessor>(
             MessageProcessor.IDENTITY).pre_message_send.connect(
                 on_pre_message_send);
+
+        /* ── Standalone auto-connect ──────────────────────────────
+         * Standalone MQTT is independent of XMPP accounts.
+         * Connect immediately at startup if enabled. */
+        if (standalone_config.enabled && standalone_config.broker_host != "") {
+            debug("[STANDALONE] Auto-connecting to %s:%d (independent of XMPP)",
+                    standalone_config.broker_host, standalone_config.broker_port);
+            standalone_connecting = true;
+            start_standalone.begin((obj, res) => {
+                start_standalone.end(res);
+                standalone_connecting = false;
+                /* Note: connection_changed is already emitted by the
+                 * on_connection_changed handler wired in create_client().
+                 * No explicit emit needed here. */
+            });
+        }
     }
 
     public void shutdown() {
@@ -269,7 +285,8 @@ public class Plugin : RootInterface, Object {
         cfg.bot_enabled    = db.account_settings.get_value(account.id, AccountKey.BOT_ENABLED) != "0"; /* default true */
         cfg.broker_host    = db.account_settings.get_value(account.id, AccountKey.BROKER_HOST) ?? "";
         string? port_s     = db.account_settings.get_value(account.id, AccountKey.BROKER_PORT);
-        cfg.broker_port    = port_s != null ? int.parse(port_s) : 1883;
+        int raw_port       = port_s != null ? int.parse(port_s) : 1883;
+        cfg.broker_port    = (raw_port > 0 && raw_port <= 65535) ? raw_port : 1883;
         cfg.tls            = db.account_settings.get_value(account.id, AccountKey.TLS) == "1";
         cfg.use_xmpp_auth  = db.account_settings.get_value(account.id, AccountKey.USE_XMPP_AUTH) != "0"; /* default true */
         cfg.username       = db.account_settings.get_value(account.id, AccountKey.USERNAME) ?? "";
@@ -277,10 +294,11 @@ public class Plugin : RootInterface, Object {
         cfg.topics         = db.account_settings.get_value(account.id, AccountKey.TOPICS) ?? "";
         cfg.server_type    = db.account_settings.get_value(account.id, AccountKey.SERVER_TYPE) ?? "unknown";
         cfg.bot_name       = db.account_settings.get_value(account.id, AccountKey.BOT_NAME) ?? "MQTT Bot";
-        cfg.alerts_json    = db.account_settings.get_value(account.id, AccountKey.ALERTS) ?? "[]";
-        cfg.bridges_json   = db.account_settings.get_value(account.id, AccountKey.BRIDGES) ?? "[]";
+        /* alerts_json and bridges_json are NOT loaded here — those are
+         * managed exclusively by AlertManager / BridgeManager via mqtt.db. */
         cfg.topic_qos_json = db.account_settings.get_value(account.id, AccountKey.TOPIC_QOS) ?? "{}";
         cfg.topic_priorities_json = db.account_settings.get_value(account.id, AccountKey.TOPIC_PRIORITIES) ?? "{}";
+        cfg.topic_aliases_json    = db.account_settings.get_value(account.id, AccountKey.TOPIC_ALIASES) ?? "{}";
         cfg.publish_presets_json  = db.account_settings.get_value(account.id, AccountKey.PUBLISH_PRESETS) ?? "[]";
         cfg.freetext_enabled       = db.account_settings.get_value(account.id, AccountKey.FREETEXT_ENABLED) == "1";
         cfg.freetext_publish_topic = db.account_settings.get_value(account.id, AccountKey.FREETEXT_PUBLISH_TOPIC) ?? "";
@@ -314,10 +332,11 @@ public class Plugin : RootInterface, Object {
         upsert_account(t, account.id, AccountKey.TOPICS,            cfg.topics);
         upsert_account(t, account.id, AccountKey.SERVER_TYPE,       cfg.server_type);
         upsert_account(t, account.id, AccountKey.BOT_NAME,          cfg.bot_name);
-        upsert_account(t, account.id, AccountKey.ALERTS,            cfg.alerts_json);
-        upsert_account(t, account.id, AccountKey.BRIDGES,           cfg.bridges_json);
+        /* NOTE: alerts_json and bridges_json are NOT saved here.
+         * AlertManager and BridgeManager own their data in mqtt.db. */
         upsert_account(t, account.id, AccountKey.TOPIC_QOS,         cfg.topic_qos_json);
         upsert_account(t, account.id, AccountKey.TOPIC_PRIORITIES,  cfg.topic_priorities_json);
+        upsert_account(t, account.id, AccountKey.TOPIC_ALIASES,     cfg.topic_aliases_json);
         upsert_account(t, account.id, AccountKey.PUBLISH_PRESETS,   cfg.publish_presets_json);
         upsert_account(t, account.id, AccountKey.FREETEXT_ENABLED,       cfg.freetext_enabled ? "1" : "0");
         upsert_account(t, account.id, AccountKey.FREETEXT_PUBLISH_TOPIC, cfg.freetext_publish_topic);
@@ -359,17 +378,19 @@ public class Plugin : RootInterface, Object {
         cfg.enabled     = get_db_setting(StandaloneKey.ENABLED) == "1";
         cfg.broker_host = get_db_setting(StandaloneKey.BROKER_HOST) ?? "";
         string? port_s  = get_db_setting(StandaloneKey.BROKER_PORT);
-        cfg.broker_port = port_s != null ? int.parse(port_s) : 1883;
+        int raw_port    = port_s != null ? int.parse(port_s) : 1883;
+        cfg.broker_port = (raw_port > 0 && raw_port <= 65535) ? raw_port : 1883;
         cfg.tls         = get_db_setting(StandaloneKey.TLS) == "1";
         cfg.username    = get_db_setting(StandaloneKey.USERNAME) ?? "";
         cfg.password    = get_db_setting(StandaloneKey.PASSWORD) ?? "";
         cfg.topics      = get_db_setting(StandaloneKey.TOPICS) ?? "";
         cfg.bot_enabled = get_db_setting(StandaloneKey.BOT_ENABLED) != "0";
         cfg.bot_name    = get_db_setting(StandaloneKey.BOT_NAME) ?? "MQTT Bot";
-        cfg.alerts_json = get_db_setting(StandaloneKey.ALERTS) ?? "[]";
-        cfg.bridges_json = get_db_setting(StandaloneKey.BRIDGES) ?? "[]";
+        /* alerts_json and bridges_json are NOT loaded here — those are
+         * managed exclusively by AlertManager / BridgeManager via mqtt.db. */
         cfg.topic_qos_json = get_db_setting(StandaloneKey.TOPIC_QOS) ?? "{}";
         cfg.topic_priorities_json = get_db_setting(StandaloneKey.TOPIC_PRIORITIES) ?? "{}";
+        cfg.topic_aliases_json    = get_db_setting(StandaloneKey.TOPIC_ALIASES) ?? "{}";
         cfg.publish_presets_json = get_db_setting(StandaloneKey.PUBLISH_PRESETS) ?? "[]";
         cfg.freetext_enabled       = get_db_setting(StandaloneKey.FREETEXT_ENABLED) == "1";
         cfg.freetext_publish_topic = get_db_setting(StandaloneKey.FREETEXT_PUBLISH_TOPIC) ?? "";
@@ -386,7 +407,7 @@ public class Plugin : RootInterface, Object {
         if (env_host != null && env_host != "") {
             cfg.broker_host = env_host;
             cfg.enabled = true;
-            message("MQTT: env override — DINOX_MQTT_HOST=%s", env_host);
+            debug("MQTT: env override — DINOX_MQTT_HOST=%s", env_host);
         }
         string? env_port = Environment.get_variable("DINOX_MQTT_PORT");
         if (env_port != null) {
@@ -415,10 +436,15 @@ public class Plugin : RootInterface, Object {
         save_db_setting(StandaloneKey.TOPICS,    standalone_config.topics);
         save_db_setting(StandaloneKey.BOT_ENABLED, standalone_config.bot_enabled ? "1" : "0");
         save_db_setting(StandaloneKey.BOT_NAME,  standalone_config.bot_name);
-        save_db_setting(StandaloneKey.ALERTS,    standalone_config.alerts_json);
-        save_db_setting(StandaloneKey.BRIDGES,   standalone_config.bridges_json);
+        /* NOTE: alerts_json and bridges_json are NOT saved here.
+         * AlertManager and BridgeManager persist their own data to
+         * mqtt.db tables (mqtt_alert_rules, mqtt_bridge_rules).
+         * The StandaloneKey.ALERTS / BRIDGES keys in the settings table
+         * are legacy dead fields — writing "[]" here would be misleading
+         * and risk data loss if anyone later reads from these keys. */
         save_db_setting(StandaloneKey.TOPIC_QOS, standalone_config.topic_qos_json);
         save_db_setting(StandaloneKey.TOPIC_PRIORITIES, standalone_config.topic_priorities_json);
+        save_db_setting(StandaloneKey.TOPIC_ALIASES, standalone_config.topic_aliases_json);
         save_db_setting(StandaloneKey.PUBLISH_PRESETS, standalone_config.publish_presets_json);
         save_db_setting(StandaloneKey.FREETEXT_ENABLED, standalone_config.freetext_enabled ? "1" : "0");
         save_db_setting(StandaloneKey.FREETEXT_PUBLISH_TOPIC, standalone_config.freetext_publish_topic);
@@ -473,7 +499,7 @@ public class Plugin : RootInterface, Object {
     public void reload_config() {
         load_standalone_config();
         load_legacy_config();
-        message("MQTT: Config reloaded — standalone=%s per_account=%s",
+        debug("[MQTT] Config reloaded — standalone.enabled=%s per_account=%s",
                 standalone_config.enabled.to_string(),
                 mode_per_account.to_string());
     }
@@ -487,49 +513,67 @@ public class Plugin : RootInterface, Object {
     public void apply_settings() {
         /* Snapshot old state */
         var old_sa = standalone_config.copy();
-        bool was_enabled = mqtt_enabled;
 
         /* Reload from DB */
         reload_config();
 
-        /* ── Standalone handling ─────────────────────────────────── */
+        debug("[STANDALONE] apply_settings: enabled=%s client=%s | [ACCOUNTS] per_account=%s",
+                standalone_config.enabled.to_string(),
+                (standalone_client != null).to_string(),
+                mode_per_account.to_string());
+
+        /* ── Standalone handling (independent of per-account) ────── */
         if (standalone_config.enabled) {
-            bool conn_changed = old_sa.connection_differs(standalone_config) || !was_enabled;
+            bool conn_changed = old_sa.connection_differs(standalone_config) || !old_sa.enabled;
 
             if (standalone_client != null && standalone_client.is_connected
                 && !conn_changed) {
                 /* Same connection params — just re-sync topics */
-                sync_topics_to_client_cfg(standalone_client, standalone_config);
-                return;
-            }
+                debug("[STANDALONE] No connection change — syncing topics only");
+                sync_topics_to_client_cfg(standalone_client, standalone_config, "standalone");
+                /* NOTE: Do NOT return here! Per-account handling follows below
+                 * and must not be skipped just because standalone didn't change. */
+            } else {
+                /* Need (re)connect */
+                debug("[STANDALONE] Connection change detected → (re)connecting");
+                if (standalone_client != null) {
+                    standalone_client.disconnect_sync();
+                    standalone_client = null;
+                }
 
-            /* Need (re)connect */
-            if (standalone_client != null) {
-                standalone_client.disconnect_sync();
-                standalone_client = null;
-            }
-
-            if (standalone_config.broker_host != "" && !standalone_connecting) {
-                standalone_connecting = true;
-                start_standalone.begin((obj, res) => {
-                    start_standalone.end(res);
-                    standalone_connecting = false;
-                    connection_changed("standalone",
-                        standalone_client != null && standalone_client.is_connected);
-                });
+                if (standalone_config.broker_host != "" && !standalone_connecting) {
+                    standalone_connecting = true;
+                    start_standalone.begin((obj, res) => {
+                        start_standalone.end(res);
+                        standalone_connecting = false;
+                        /* Note: connection_changed is already emitted by the
+                         * on_connection_changed handler wired in create_client().
+                         * No explicit emit needed here. */
+                    });
+                }
             }
         } else {
             /* Standalone disabled → disconnect if running */
             if (standalone_client != null) {
+                debug("[STANDALONE] Disabled → disconnecting");
                 standalone_client.disconnect_sync();
                 standalone_client = null;
                 /* Note: disconnect_sync() already fires connection_changed
                  * via the on_connection_changed handler in create_client.
                  * No explicit signal emit needed here (BUG-6 fix). */
             }
+            /* Remove the standalone bot conversation specifically.
+             * The old code only removed bots when ALL MQTT was disabled
+             * (!mqtt_enabled), but when per-account MQTT is still active
+             * the standalone bot stayed visible after standalone was
+             * toggled off. */
+            if (bot_conversation != null) {
+                bot_conversation.remove_conversation(
+                    MqttBotConversation.STANDALONE_KEY);
+            }
         }
 
-        /* ── Per-account handling ────────────────────────────────── */
+        /* ── Per-account handling (independent of standalone) ────── */
         var accounts = app.stream_interactor.get_accounts();
         foreach (var acct in accounts) {
             var acfg = get_account_config(acct);
@@ -539,6 +583,7 @@ public class Plugin : RootInterface, Object {
             if (acfg.enabled && state == ConnectionManager.ConnectionState.CONNECTED) {
                 if (!account_clients.has_key(jid) &&
                     !connecting_accounts.contains(jid)) {
+                    debug("[ACCT:%s] Enabled + XMPP online → connecting MQTT", jid);
                     connecting_accounts.add(jid);
                     start_per_account.begin(acct, (obj, res) => {
                         start_per_account.end(res);
@@ -546,19 +591,27 @@ public class Plugin : RootInterface, Object {
                     });
                 } else if (account_clients.has_key(jid)) {
                     /* Already connected — re-sync topics */
-                    sync_topics_to_client_cfg(account_clients[jid], acfg);
+                    sync_topics_to_client_cfg(account_clients[jid], acfg, jid);
                 }
             } else if (!acfg.enabled && account_clients.has_key(jid)) {
                 /* Disabled → disconnect */
+                debug("[ACCT:%s] Disabled → disconnecting MQTT", jid);
                 account_clients[jid].disconnect_sync();
                 account_clients.unset(jid);
+                /* Remove per-account bot conversation */
+                if (bot_conversation != null) {
+                    bot_conversation.remove_conversation(jid);
+                }
                 /* Note: disconnect_sync() already fires connection_changed
                  * via the on_connection_changed handler (BUG-6 fix). */
             }
         }
 
-        /* If nothing is enabled, clean up bot conversations */
-        if (!mqtt_enabled) {
+        /* Clean up bot conversations for modes that have no active connections.
+         * Each mode manages its own bot conversation independently.
+         * Only remove_all() if BOTH standalone and per-account are disabled. */
+        if (!standalone_config.enabled && !mode_per_account) {
+            debug("[MQTT] All modes disabled → removing all bot conversations");
             if (bot_conversation != null) {
                 bot_conversation.remove_all();
             }
@@ -566,16 +619,41 @@ public class Plugin : RootInterface, Object {
     }
 
     /**
-     * Sync topics from config to an active client — subscribe new, unsubscribe removed.
+     * Sync topics from config to a client — subscribe new, unsubscribe removed.
+     * Works even when the client is temporarily disconnected: subscribe()
+     * and unsubscribe() always update the subscribed_topics map, which is
+     * replayed on reconnect by handle_connect().  Without this, a topic
+     * deletion saved while the connection is briefly down would be lost.
      */
-    private void sync_topics_to_client_cfg(MqttClient client, MqttConnectionConfig cfg) {
-        if (!client.is_connected) return;
-
+    private void sync_topics_to_client_cfg(MqttClient client, MqttConnectionConfig cfg, string label) {
         /* Build set of wanted topics from the config's topic string */
         var wanted = new Gee.HashSet<string>();
         foreach (string t in cfg.get_topic_list()) {
             string trimmed = t.strip();
             if (trimmed != "") wanted.add(trimmed);
+        }
+
+        /* Preserve freetext response topic — subscribed separately by create_client */
+        if (cfg.freetext_enabled) {
+            string frt = cfg.freetext_response_topic.strip();
+            if (frt != "") wanted.add(frt);
+        }
+
+        /* Preserve HA Discovery system topics (status + command topics) */
+        foreach (var entry in discovery_managers.entries) {
+            wanted.add_all(entry.value.get_system_topics());
+        }
+
+        /* Preserve bridge rule topics — ensure forwarding survives reconnect.
+         * BUG-FIX: Bridge rules were never auto-subscribed, so messages
+         * on bridge-only topics were silently lost after reconnect.
+         * Only include rules belonging to THIS client (scoped by label). */
+        if (bridge_manager != null) {
+            foreach (var rule in bridge_manager.get_rules_for_client(label)) {
+                if (rule.enabled && rule.topic.strip() != "") {
+                    wanted.add(rule.topic.strip());
+                }
+            }
         }
 
         /* Unsubscribe topics that are no longer wanted.
@@ -589,7 +667,7 @@ public class Plugin : RootInterface, Object {
         }
         foreach (string t in to_remove) {
             client.unsubscribe(t);
-            message("MQTT: Unsubscribed removed topic '%s'", t);
+            debug("MQTT: Unsubscribed removed topic '%s'", t);
         }
 
         /* Subscribe new topics */
@@ -600,6 +678,32 @@ public class Plugin : RootInterface, Object {
                     qos = alert_manager.get_topic_qos(t);
                 }
                 client.subscribe(t, qos);
+            }
+        }
+    }
+
+    /**
+     * Immediately subscribe a bridge topic on the correct MQTT client.
+     * Called from dialog when a new bridge rule is added, so that
+     * forwarding works immediately without requiring Save & Apply.
+     *
+     * @param topic        The MQTT topic to subscribe
+     * @param client_label "standalone" or account bare JID
+     */
+    public void subscribe_bridge_topic(string topic, string client_label) {
+        string t = topic.strip();
+        if (t == "") return;
+
+        if (client_label == "standalone") {
+            if (standalone_client != null && standalone_client.is_connected) {
+                standalone_client.subscribe(t, 0);
+            }
+        } else {
+            if (account_clients.has_key(client_label)) {
+                var client = account_clients[client_label];
+                if (client.is_connected) {
+                    client.subscribe(t, 0);
+                }
             }
         }
     }
@@ -653,7 +757,9 @@ public class Plugin : RootInterface, Object {
                 string? existing = get_db_setting(new_key);
                 if (existing == null || existing == "") {
                     save_db_setting(new_key, val);
-                    message("MQTT: Migrated %s → %s = '%s'", old_key, new_key, val);
+                    bool is_secret = (old_key == KEY_PASS || old_key == KEY_USER);
+                    debug("MQTT: Migrated %s → %s = '%s'", old_key, new_key,
+                            is_secret ? "***" : val);
                 }
             }
         }
@@ -664,7 +770,7 @@ public class Plugin : RootInterface, Object {
          * the user can configure them in the new UI. */
         string? old_mode = get_db_setting(KEY_MODE);
         if (old_mode == "per_account") {
-            message("MQTT: Old mode was 'per_account' — no standalone migration needed");
+            debug("MQTT: Old mode was 'per_account' — no standalone migration needed");
             /* Don't enable standalone; user was in per-account mode */
             save_db_setting(StandaloneKey.ENABLED, "0");
         }
@@ -720,6 +826,82 @@ public class Plugin : RootInterface, Object {
     }
 
     /**
+     * Force a full disconnect → reconnect cycle for a per-account client.
+     * Used by the Reconnect button in the dialog.
+     */
+    public void force_reconnect_account(Account account) {
+        string jid = account.bare_jid.to_string();
+        var acfg = get_account_config(account);
+
+        if (!acfg.enabled) {
+            debug("[ACCT:%s] Reconnect ignored — MQTT disabled", jid);
+            return;
+        }
+
+        /* Tear down existing client */
+        if (account_clients.has_key(jid)) {
+            debug("[ACCT:%s] Reconnect → disconnecting…", jid);
+            account_clients[jid].disconnect_sync();
+            account_clients.unset(jid);
+        }
+
+        /* Reset connecting flag — a previous start_per_account may not have
+         * completed its async callback yet. */
+        connecting_accounts.remove(jid);
+
+        /* Re-connect */
+        var state = app.stream_interactor.connection_manager.get_state(account);
+        if (state == ConnectionManager.ConnectionState.CONNECTED) {
+            debug("[ACCT:%s] Reconnect → connecting…", jid);
+            connecting_accounts.add(jid);
+            start_per_account.begin(account, (obj, res) => {
+                start_per_account.end(res);
+                connecting_accounts.remove(jid);
+            });
+        } else {
+            debug("[ACCT:%s] Reconnect → XMPP not connected, will auto-connect later", jid);
+        }
+    }
+
+    /**
+     * Force a full disconnect → reconnect cycle for the standalone client.
+     * Used by the Reconnect button in the dialog.
+     */
+    public void force_reconnect_standalone() {
+        if (!standalone_config.enabled) {
+            debug("[STANDALONE] Reconnect ignored — disabled");
+            return;
+        }
+
+        /* Tear down existing client */
+        if (standalone_client != null) {
+            debug("[STANDALONE] Reconnect → disconnecting…");
+            standalone_client.disconnect_sync();
+            standalone_client = null;
+        }
+
+        /* Reset connecting flag — a previous start_standalone may not have
+         * completed its async callback yet (the Idle.add for standalone_connecting=false
+         * runs in a later main loop iteration).  Without this reset,
+         * the reconnect is silently skipped. */
+        standalone_connecting = false;
+
+        /* Re-connect */
+        if (standalone_config.broker_host != "") {
+            debug("[STANDALONE] Reconnect → connecting to %s:%d…",
+                    standalone_config.broker_host, standalone_config.broker_port);
+            standalone_connecting = true;
+            start_standalone.begin((obj, res) => {
+                start_standalone.end(res);
+                standalone_connecting = false;
+            });
+        } else {
+            debug("[STANDALONE] Reconnect failed — no broker host configured");
+            connection_changed("standalone", false);
+        }
+    }
+
+    /**
      * Apply a config change from the UI — connect/disconnect/reconnect as needed.
      * Called by MqttBotManagerDialog after saving config.
      */
@@ -731,7 +913,7 @@ public class Plugin : RootInterface, Object {
             if (account_clients.has_key(acct_jid)) {
                 account_clients[acct_jid].disconnect_sync();
                 account_clients.unset(acct_jid);
-                message("MQTT: Disabled per-account for %s (disconnected)", acct_jid);
+                debug("[ACCT:%s] Disabled → disconnected", acct_jid);
             }
             /* Remove bot conversation */
             if (bot_conversation != null) {
@@ -743,8 +925,36 @@ public class Plugin : RootInterface, Object {
             if (state == ConnectionManager.ConnectionState.CONNECTED) {
                 /* Already online — connect MQTT now */
                 string jid = account.bare_jid.to_string();
-                if (!account_clients.has_key(jid) &&
-                    !connecting_accounts.contains(jid)) {
+                if (account_clients.has_key(jid)) {
+                    /* Already connected — re-sync topics (subscribe new, unsubscribe removed) */
+                    sync_topics_to_client_cfg(account_clients[jid], cfg, jid);
+
+                    /* HA Discovery: live start/stop without requiring reconnect */
+                    bool is_xmpp_mode = cfg.use_xmpp_auth || cfg.broker_host.strip() == "";
+                    if (cfg.discovery_enabled && !is_xmpp_mode) {
+                        if (!discovery_managers.has_key(jid)) {
+                            /* Start discovery on already-connected client */
+                            var dm = new MqttDiscoveryManager(this, account_clients[jid], jid, cfg.discovery_prefix);
+                            discovery_managers[jid] = dm;
+                            dm.publish_birth();
+                            dm.publish_discovery_config();
+                            dm.publish_all_states();
+                            dm.subscribe_ha_status();
+                            debug("[ACCT:%s] HA Discovery started (live)", jid);
+                        }
+                    } else {
+                        if (discovery_managers.has_key(jid)) {
+                            /* Stop discovery — remove configs from broker */
+                            discovery_managers[jid].remove_discovery_configs();
+                            discovery_managers.unset(jid);
+                            debug("[ACCT:%s] HA Discovery stopped (live)", jid);
+                        }
+                    }
+
+                    /* Notify UI — no connect/disconnect happened so no signal would fire,
+                     * but the dialog needs to update status from "Connecting…" to "Connected". */
+                    connection_changed(jid, account_clients[jid].is_connected);
+                } else if (!connecting_accounts.contains(jid)) {
                     connecting_accounts.add(jid);
                     start_per_account.begin(account, (obj, res) => {
                         start_per_account.end(res);
@@ -774,22 +984,21 @@ public class Plugin : RootInterface, Object {
             /* Run server detection in background (non-blocking) */
             run_server_detection.begin(account);
 
-            /* Standalone: connect once (first XMPP account triggers it) */
-            if (standalone_config.enabled) {
-                if (standalone_client == null && !standalone_connecting) {
-                    standalone_connecting = true;
-                    start_standalone.begin((obj, res) => {
-                        start_standalone.end(res);
-                        standalone_connecting = false;
-                    });
-                }
+            /* Flush pending bridge messages — MQTT may have queued messages
+             * while waiting for an XMPP account to come online. */
+            if (bridge_manager != null) {
+                bridge_manager.flush_pending();
             }
+
+            /* NOTE: Standalone MQTT auto-connects at startup in registered(),
+             * completely independent of XMPP accounts. No standalone logic here. */
 
             /* Per-account: connect MQTT for this specific account if enabled */
             var acfg = get_account_config(account);
             if (acfg.enabled) {
                 if (!account_clients.has_key(jid) &&
                     !connecting_accounts.contains(jid)) {
+                    debug("[ACCT:%s] XMPP online → starting per-account MQTT", jid);
                     connecting_accounts.add(jid);
                     start_per_account.begin(account, (obj, res) => {
                         start_per_account.end(res);
@@ -800,12 +1009,13 @@ public class Plugin : RootInterface, Object {
         } else if (state == ConnectionManager.ConnectionState.DISCONNECTED) {
             /* Per-account: disconnect MQTT when XMPP goes offline */
             if (account_clients.has_key(jid)) {
-                message("MQTT: Account %s offline — disconnecting MQTT", jid);
+                debug("[ACCT:%s] XMPP offline → disconnecting per-account MQTT", jid);
                 account_clients[jid].disconnect_sync();
                 account_clients.unset(jid);
-                connection_changed(jid, false);
+                /* Note: disconnect_sync() already fires connection_changed
+                 * via the on_connection_changed handler in create_client(). */
             }
-            /* Standalone mode: keep MQTT connected regardless */
+            /* NOTE: Standalone MQTT is NOT affected by XMPP disconnect */
         }
     }
 
@@ -815,25 +1025,59 @@ public class Plugin : RootInterface, Object {
         /* Only run detection if no type is set yet */
         string? existing = get_db_setting(KEY_SERVER_TYPE);
         if (existing != null && existing != "" && existing != "unknown") {
+            /* Global detection already ran — propagate result to
+             * per-account config if it still shows "unknown". */
+            var acfg_prop = get_account_config(account);
+            if (acfg_prop.server_type == "unknown" || acfg_prop.server_type == "") {
+                acfg_prop.server_type = existing;
+                save_account_config(account, acfg_prop);
+                debug("MQTT: Propagated server_type '%s' to account %s",
+                        existing, account.bare_jid.to_string());
+            }
             return;
         }
 
-        message("MQTT: Running server type detection for %s…",
+        debug("MQTT: Running server type detection for %s…",
                 account.bare_jid.to_string());
 
         DetectionResult result = yield ServerDetector.detect(
             app.stream_interactor, account);
+
+        /* Re-check after yield: account may have been removed or
+         * disconnected while detection was running (Coding Guidelines §9). */
+        var post_state = app.stream_interactor.connection_manager.get_state(account);
+        if (post_state != ConnectionManager.ConnectionState.CONNECTED) {
+            debug("MQTT: Server detection finished but account %s no longer connected — discarding",
+                    account.bare_jid.to_string());
+            return;
+        }
 
         if (result.server_type != ServerType.UNKNOWN) {
             app.db.settings.upsert()
                 .value(app.db.settings.key, KEY_SERVER_TYPE, true)
                 .value(app.db.settings.value, result.server_type.to_string_key())
                 .perform();
-            message("MQTT: Server type saved: %s", result.server_type.to_label());
+            debug("MQTT: Server type saved: %s", result.server_type.to_label());
 
             /* Also save detection result in the per-account config */
             var acfg = get_account_config(account);
             acfg.server_type = result.server_type.to_string_key();
+
+            /* Auto-configure port/TLS for ejabberd if still at defaults.
+             * Only touch use_xmpp_auth when the user hasn't explicitly
+             * chosen Custom Broker mode (broker_host == "" means
+             * no custom broker was configured yet). */
+            if (result.server_type == ServerType.EJABBERD) {
+                if (acfg.broker_port == 1883 && !acfg.tls) {
+                    acfg.broker_port = 8883;
+                    acfg.tls = true;
+                    if (acfg.broker_host == "") {
+                        acfg.use_xmpp_auth = true;
+                    }
+                    debug("MQTT: Auto-configured port=8883 tls=true for ejabberd");
+                }
+            }
+
             save_account_config(account, acfg);
 
             /* Inject server-specific hints into bot conversation */
@@ -881,11 +1125,17 @@ public class Plugin : RootInterface, Object {
 
     private async void start_standalone() {
         var cfg = standalone_config;
-        message("MQTT: Connecting standalone to %s:%d…", cfg.broker_host, cfg.broker_port);
+        debug("[STANDALONE] Connecting to %s:%d (tls=%s)…",
+                cfg.broker_host, cfg.broker_port, cfg.tls.to_string());
 
-        standalone_client = create_client("standalone", cfg);
+        /* Register BEFORE connect_async — the CONNACK handler fires
+         * on_connection_changed during connect_async (before it returns),
+         * and is_standalone_connected() needs standalone_client set for
+         * the dialog status display to work. */
+        var client = create_client("standalone", cfg);
+        standalone_client = client;
 
-        bool ok = yield standalone_client.connect_async(
+        bool ok = yield client.connect_async(
             cfg.broker_host, cfg.broker_port, cfg.tls, cfg.username, cfg.password);
 
         if (!ok) {
@@ -898,7 +1148,11 @@ public class Plugin : RootInterface, Object {
                     "Connect failed (host=%s port=%d)".printf(
                         cfg.broker_host, cfg.broker_port));
             }
-            standalone_client = null;
+            client.disconnect_sync();
+            /* Only null out if nobody replaced us during the yield */
+            if (standalone_client == client) {
+                standalone_client = null;
+            }
         }
     }
 
@@ -927,15 +1181,20 @@ public class Plugin : RootInterface, Object {
             pass = acfg.password;
         }
 
-        message("MQTT: Connecting per-account for %s → %s:%d…", jid, host, port);
+        debug("[ACCT:%s] Connecting to %s:%d (tls=%s, xmpp_auth=%s)…",
+                jid, host, port, tls.to_string(), acfg.use_xmpp_auth.to_string());
 
         var client = create_client(jid, acfg);
 
+        /* Register client BEFORE connect_async — the CONNACK handler fires
+         * on_connection_changed during connect_async (before it returns),
+         * and is_account_connected() needs the client in account_clients
+         * for the dialog status display to work. */
+        account_clients[jid] = client;
+
         bool ok = yield client.connect_async(host, port, tls, user, pass);
 
-        if (ok) {
-            account_clients[jid] = client;
-        } else {
+        if (!ok) {
             warning("MQTT: Per-account connect failed for %s (host=%s port=%d)",
                     jid, host, port);
             /* Record failed connection event */
@@ -944,6 +1203,10 @@ public class Plugin : RootInterface, Object {
                     "Connect failed (host=%s port=%d)".printf(host, port));
             }
             client.disconnect_sync();
+            /* Only remove from map if nobody replaced us during the yield */
+            if (account_clients.has_key(jid) && account_clients[jid] == client) {
+                account_clients.unset(jid);
+            }
         }
     }
 
@@ -969,7 +1232,7 @@ public class Plugin : RootInterface, Object {
             client.set_will(disc_mgr.get_availability_topic(), disc_mgr.get_lwt_payload());
             discovery_managers[label] = disc_mgr;
         } else if (cfg.discovery_enabled && is_xmpp_mode) {
-            message("MQTT [%s]: HA Discovery skipped — XMPP server MQTT does not support retained messages/LWT", label);
+            debug("MQTT [%s]: HA Discovery skipped — XMPP server MQTT does not support retained messages/LWT", label);
         }
 
         /* Fix #6: Subscribe topics BEFORE connect — handle_connect() will
@@ -993,6 +1256,19 @@ public class Plugin : RootInterface, Object {
             }
         }
 
+        /* BUG-FIX: Auto-subscribe bridge rule topics so that MQTT→XMPP
+         * forwarding works even if the bridge topic isn't in the user's
+         * explicit topic list.  Without this, bridge rules on topics not
+         * in the config are silently inactive.
+         * Only subscribe rules belonging to THIS client (scoped by label). */
+        if (bridge_manager != null) {
+            foreach (var rule in bridge_manager.get_rules_for_client(label)) {
+                if (rule.enabled && rule.topic.strip() != "") {
+                    client.subscribe(rule.topic.strip(), 0);
+                }
+            }
+        }
+
         client.on_connection_changed.connect((connected) => {
             connection_changed(label, connected);
 
@@ -1004,8 +1280,9 @@ public class Plugin : RootInterface, Object {
             }
 
             if (connected) {
-                message("MQTT [%s]: Connected — %d topics pre-subscribed",
-                        label, topics_snapshot.length);
+                string prefix = (label == "standalone") ? "[STANDALONE]" : "[ACCT:%s]".printf(label);
+                debug("%s Connected — %d topics pre-subscribed",
+                        prefix, topics_snapshot.length);
 
                 /* HA Discovery: publish birth + configs + states */
                 var dm = discovery_managers.has_key(label) ?
@@ -1050,6 +1327,8 @@ public class Plugin : RootInterface, Object {
         client.on_message.connect((topic, payload, qos, retained) => {
             /* BUG-7 fix: validate UTF-8 — payload may contain arbitrary bytes */
             string payload_str = ((string) payload).make_valid();
+            debug("MQTT on_message: label='%s' topic='%s' payload='%.120s' qos=%d retained=%s",
+                  label, topic, payload_str, qos, retained ? "true" : "false");
             message_received(label, topic, payload_str);
 
             /* HA Discovery: route HA status messages and command topics */
@@ -1064,9 +1343,40 @@ public class Plugin : RootInterface, Object {
                 return;
             }
 
-            /* Phase 4: Evaluate bridge rules (MQTT → XMPP forwarding) */
-            if (bridge_manager != null) {
-                bridge_manager.evaluate(label, topic, payload_str);
+            /* Skip bridge evaluation for self-published freetext messages.
+             * When the user types e.g. "e5" in the bot chat it is published
+             * to freetext_publish_topic. If the bridge rule uses a wildcard
+             * that matches that topic, the broker echoes the user's own
+             * command back and the bridge would forward it — which is wrong.
+             * Only the *response* on a different topic should be bridged. */
+            bool is_own_freetext = false;
+            {
+                MqttConnectionConfig? msg_cfg = null;
+                if (label == "standalone") {
+                    msg_cfg = standalone_config;
+                } else {
+                    var accounts = app.stream_interactor.get_accounts();
+                    foreach (var acct in accounts) {
+                        if (acct.bare_jid.to_string() == label) {
+                            msg_cfg = get_account_config(acct);
+                            break;
+                        }
+                    }
+                }
+                if (msg_cfg != null && msg_cfg.freetext_enabled
+                        && msg_cfg.freetext_publish_topic.strip() != ""
+                        && topic == msg_cfg.freetext_publish_topic.strip()) {
+                    is_own_freetext = true;
+                    debug("MQTT Bridge: skipping bridge for self-published freetext topic '%s'", topic);
+                }
+            }
+
+            /* Phase 4: Evaluate bridge rules (MQTT → XMPP forwarding).
+             * If a bridge rule matched, the message goes to the configured
+             * MUC/chat — do NOT also show it in the bot conversation. */
+            bool bridged = false;
+            if (bridge_manager != null && !is_own_freetext) {
+                bridged = bridge_manager.evaluate(label, topic, payload_str);
             }
 
             /* Phase 3: Evaluate alert rules and determine priority */
@@ -1089,7 +1399,7 @@ public class Plugin : RootInterface, Object {
 
                 /* Log triggered alerts */
                 if (result.triggered_rules.size > 0) {
-                    message("MQTT [%s]: Alert triggered on %s (%d rules, priority=%s)",
+                    debug("MQTT [%s]: Alert triggered on %s (%d rules, priority=%s)",
                             label, topic, result.triggered_rules.size,
                             priority.to_string_key());
                 }
@@ -1102,7 +1412,9 @@ public class Plugin : RootInterface, Object {
                                        priority.to_string_key());
             }
 
-            /* Inject into bot conversation with priority */
+            /* Inject into bot conversation with priority.
+             * Always show in bot — even if also forwarded by a bridge rule,
+             * so the user sees the full MQTT traffic in the bot chat. */
             if (bot_conversation != null) {
                 Conversation? conv = bot_conversation.get_conversation(label);
                 if (conv == null) conv = bot_conversation.get_any_conversation();
@@ -1231,6 +1543,9 @@ public class Plugin : RootInterface, Object {
             return true;
         }
 
+        /* Clamp port to valid range before any use (Audit Finding 3) */
+        int safe_port = port.clamp(1, 65535);
+
         string broker_host = host ?? "";
         if (broker_host == "") {
             var accounts = app.stream_interactor.get_accounts();
@@ -1246,14 +1561,14 @@ public class Plugin : RootInterface, Object {
             /* Build a temporary config for this programmatic connect */
             var tmp_cfg = new MqttConnectionConfig();
             tmp_cfg.broker_host = broker_host;
-            tmp_cfg.broker_port = port;
+            tmp_cfg.broker_port = safe_port;
             tmp_cfg.tls = use_tls;
             tmp_cfg.topics = standalone_config.topics;
             standalone_client = create_client("standalone", tmp_cfg);
         }
 
         return yield standalone_client.connect_async(
-            broker_host, port, use_tls, username, password);
+            broker_host, safe_port, use_tls, username, password);
     }
 
     /**
@@ -1411,6 +1726,26 @@ public class Plugin : RootInterface, Object {
      */
     public HashMap<string, MqttDiscoveryManager> get_discovery_managers() {
         return discovery_managers;
+    }
+
+    /* ── App-DB settings helpers (shared by AlertManager, BridgeManager) ── */
+
+    public string? get_app_db_setting(string key) {
+        var row_opt = app.db.settings.select(
+                {app.db.settings.value})
+            .with(app.db.settings.key, "=", key)
+            .single()
+            .row();
+        if (row_opt.is_present())
+            return row_opt[app.db.settings.value];
+        return null;
+    }
+
+    public void set_app_db_setting(string key, string val) {
+        app.db.settings.upsert()
+            .value(app.db.settings.key, key, true)
+            .value(app.db.settings.value, val)
+            .perform();
     }
 
     /* ── Signals ───────────────────────────────────────────────────── */

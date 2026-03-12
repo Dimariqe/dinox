@@ -12,11 +12,26 @@ public class BotfatherHandler : Object {
     private TokenManager token_manager;
     private EjabberdApi? ejabberd_api;
 
+    // Signal for deferred async responses (e.g. after ejabberd API calls)
+    public signal void deferred_response(string owner_jid, string text);
+
     public BotfatherHandler(Dino.Application app, BotRegistry registry, TokenManager token_manager, EjabberdApi? ejabberd_api = null) {
         this.app = app;
         this.registry = registry;
         this.token_manager = token_manager;
         this.ejabberd_api = ejabberd_api;
+    }
+
+    // Validate bot ID + ownership. Returns null if invalid. (Clone removal)
+    private BotInfo? require_owned_bot(string owner_jid, string id_str, out int bot_id) {
+        bot_id = int.parse(id_str.strip());
+        BotInfo? bot = registry.get_bot_by_id(bot_id);
+        if (bot == null || bot.owner_jid != owner_jid) return null;
+        return bot;
+    }
+
+    private static string bot_not_found(int bot_id) {
+        return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
     }
 
     // Process a Botmother command from a user. Returns a response string.
@@ -124,35 +139,45 @@ public class BotfatherHandler : Object {
                 _("See your bots:") + " /mybots";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         string bot_name = bot.name ?? "?";
 
-        // For dedicated bots: unregister from ejabberd
+        // For dedicated bots: unregister from ejabberd FIRST, then delete
+        // BUG-22 fix: delete_bot() only runs after ejabberd confirms unregister
         if (bot.mode == "dedicated" && bot.jid != null && bot.jid.contains("@")) {
             string username = bot.jid.split("@")[0];
             if (ejabberd_api != null) {
-                // BUG-22 fix: Await the result and log failures instead of fire-and-forget
                 ejabberd_api.unregister_account.begin(username, (obj, res) => {
                     var result = ejabberd_api.unregister_account.end(res);
                     if (!result.success) {
-                        warning("Botfather: Failed to unregister %s from ejabberd: %s - account may be orphaned",
+                        warning("Botfather: Failed to unregister %s from ejabberd: %s",
                             username, result.error_message ?? "unknown");
+                        // Delete anyway — better than leaving bot in limbo
+                        // User is warned about the orphaned ejabberd account
+                        registry.delete_bot(bot_id);
+                        registry.log_action(bot_id, "deleted", "owner=%s ejabberd_unregister=FAILED".printf(owner_jid));
+                        deferred_response(owner_jid,
+                            _("Bot '%s' deleted, but ejabberd account '%s' could not be removed: %s\nManual cleanup may be needed.").printf(
+                                bot_name, username, result.error_message ?? "unknown"));
                     } else {
                         message("Botfather: ejabberd unregister %s: OK", username);
+                        registry.delete_bot(bot_id);
+                        registry.log_action(bot_id, "deleted", "owner=%s ejabberd_unregister=OK".printf(owner_jid));
                     }
                 });
             } else {
                 warning("Botfather: ejabberd API not available, cannot unregister %s", username);
+                registry.delete_bot(bot_id);
+                registry.log_action(bot_id, "deleted", "owner=%s ejabberd_api=unavailable".printf(owner_jid));
             }
+        } else {
+            // Non-dedicated bots: delete immediately
+            registry.delete_bot(bot_id);
+            registry.log_action(bot_id, "deleted", "owner=%s".printf(owner_jid));
         }
-
-        registry.delete_bot(bot_id);
-        registry.log_action(bot_id, "deleted", "owner=%s".printf(owner_jid));
 
         return "✅ " + _("Bot '%s' (ID: %d) deleted.").printf(bot_name, bot_id) + "\n" +
             _("Token is now invalid.");
@@ -165,11 +190,9 @@ public class BotfatherHandler : Object {
                 _("Usage:") + " /token <ID>";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         string raw_token = token_manager.regenerate_token(bot_id);
         return "🔑 " + _("New Token for '%s'").printf(bot.name ?? "?") + "\n\n" +
@@ -189,11 +212,9 @@ public class BotfatherHandler : Object {
                 _("Usage:") + " /revoke <ID>";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         token_manager.revoke_token(bot_id);
         registry.update_bot_status(bot_id, "disabled");
@@ -203,32 +224,20 @@ public class BotfatherHandler : Object {
             _("Generate a new token:") + " /token %d".printf(bot_id);
     }
 
-    // /showtoken <id> -- Show current token for a bot
+    // /showtoken <id> -- Explain that tokens are not stored
     private string cmd_showtoken(string owner_jid, string? id_str) {
         if (id_str == null) {
             return "🔑 " + _("Show Token") + "\n\n" +
                 _("Usage:") + " /showtoken <ID>";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
-        string? raw = bot.token_raw;
-        if (raw == null || raw.strip().length == 0) {
-            return "⚠️ " + _("No token stored for '%s' (ID: %d).").printf(bot.name ?? "?", bot_id) + "\n\n" +
-                _("Generate a new token:") + " /token %d".printf(bot_id);
-        }
-
-        return "🔑 " + _("Token for '%s'").printf(bot.name ?? "?") + "\n\n" +
-            "──────────\n" +
-            "%s\n".printf(raw) +
-            "──────────\n\n" +
-            "📋 " + _("Usage:") + "\n" +
-            "curl -H \"Authorization: Bearer %s\" \\\n".printf(raw) +
-            "  http://localhost:7842/bot/getMe";
+        return "🔑 " + _("Token for '%s' (ID: %d)").printf(bot.name ?? "?", bot_id) + "\n\n" +
+            "⚠️ " + _("Tokens are shown only once at creation and not stored.") + "\n\n" +
+            _("Generate a new token:") + " /token %d".printf(bot_id);
     }
 
     // /activate <id> -- Activate a bot
@@ -239,11 +248,9 @@ public class BotfatherHandler : Object {
                 _("See your bots:") + " /mybots";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         if (bot.status == "active") {
             return "🟢 " + _("Bot '%s' (ID: %d) is already active.").printf(bot.name ?? "?", bot_id);
@@ -264,11 +271,9 @@ public class BotfatherHandler : Object {
                 _("See your bots:") + " /mybots";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         if (bot.status == "disabled" || bot.status == "inactive") {
             return "🔴 " + _("Bot '%s' (ID: %d) is already inactive.").printf(bot.name ?? "?", bot_id);
@@ -299,11 +304,9 @@ public class BotfatherHandler : Object {
                 "/setcommands <ID> /cmd1 - desc, /cmd2 - desc";
         }
 
-        int bot_id = int.parse(tokens[0].strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, tokens[0], out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         string commands_str = tokens[1].strip();
         var commands = new ArrayList<CommandInfo>();
@@ -343,11 +346,9 @@ public class BotfatherHandler : Object {
                 "/setdescription <ID> <text>";
         }
 
-        int bot_id = int.parse(tokens[0].strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, tokens[0], out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         // Update description directly via SQL
         registry.bot.update()
@@ -374,11 +375,9 @@ public class BotfatherHandler : Object {
                 "───────────────";
         }
 
-        int bot_id = int.parse(id_str.strip());
-        BotInfo? bot = registry.get_bot_by_id(bot_id);
-        if (bot == null || bot.owner_jid != owner_jid) {
-            return "❌ " + _("Bot #%d not found or does not belong to you.").printf(bot_id);
-        }
+        int bot_id;
+        BotInfo? bot = require_owned_bot(owner_jid, id_str, out bot_id);
+        if (bot == null) return bot_not_found(bot_id);
 
         string status_icon = (bot.status == "active") ? "🟢" : "🔴";
 

@@ -4,6 +4,10 @@ set -e
 # ============================================================================
 # Custom dependency builder for CI
 #
+# Usage:
+#   ./scripts/ci-build-deps.sh           Build & install all dependencies
+#   ./scripts/ci-build-deps.sh --clean   Remove previously installed dependencies
+#
 # TODO: Check periodically for newer versions!
 # Current versions (last checked/verified: 2025-06-25):
 #   SQLCipher              4.6.1   https://github.com/sqlcipher/sqlcipher/releases
@@ -23,6 +27,64 @@ if [ "$(id -u)" != "0" ]; then
     SUDO="sudo"
 fi
 
+# ---------------------------------------------------------------------------
+# --clean mode: remove all previously installed custom dependencies
+# ---------------------------------------------------------------------------
+if [[ "${1:-}" == "--clean" ]]; then
+    echo "Cleaning custom-built dependencies..."
+
+    # SQLCipher
+    $SUDO rm -f  /usr/bin/sqlcipher
+    $SUDO rm -f  /usr/lib/libsqlcipher*
+    $SUDO rm -rf /usr/include/sqlcipher
+    $SUDO rm -f  /usr/lib/pkgconfig/sqlcipher.pc
+
+    # webrtc-audio-processing
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/libwebrtc-audio-processing-1*
+    $SUDO rm -f  /usr/lib/libwebrtc-audio-processing-1*
+    $SUDO rm -rf /usr/include/webrtc-audio-processing-1
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/pkgconfig/webrtc-audio-processing-1.pc
+    $SUDO rm -f  /usr/lib/pkgconfig/webrtc-audio-processing-1.pc
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/libwebrtc-audio-coding-1*
+    $SUDO rm -f  /usr/lib/libwebrtc-audio-coding-1*
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/pkgconfig/webrtc-audio-coding-1.pc
+    $SUDO rm -f  /usr/lib/pkgconfig/webrtc-audio-coding-1.pc
+
+    # libnice
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/libnice*
+    $SUDO rm -f  /usr/lib/libnice*
+    $SUDO rm -rf /usr/include/nice
+    $SUDO rm -rf /usr/include/stun
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/pkgconfig/nice.pc
+    $SUDO rm -f  /usr/lib/pkgconfig/nice.pc
+    $SUDO rm -f  /usr/lib/x86_64-linux-gnu/girepository-1.0/Nice-0.1.typelib
+    $SUDO rm -f  /usr/lib/girepository-1.0/Nice-0.1.typelib
+    $SUDO rm -f  /usr/share/gir-1.0/Nice-0.1.gir
+
+    # protobuf-c
+    $SUDO rm -f  /usr/lib/libprotobuf-c*
+    $SUDO rm -rf /usr/include/protobuf-c
+    $SUDO rm -f  /usr/lib/pkgconfig/libprotobuf-c.pc
+    $SUDO rm -f  /usr/include/google/protobuf-c/protobuf-c.h
+
+    # libomemo-c
+    $SUDO rm -f  /usr/lib/libomemo-c*
+    $SUDO rm -rf /usr/include/omemo
+
+    # mosquitto
+    $SUDO rm -f  /usr/lib/libmosquitto*
+    $SUDO rm -f  /usr/include/mosquitto.h
+    $SUDO rm -f  /usr/include/mosquitto_broker.h
+    $SUDO rm -f  /usr/include/mosquitto_plugin.h
+    $SUDO rm -f  /usr/include/mqtt_protocol.h
+    $SUDO rm -f  /usr/lib/pkgconfig/libmosquitto.pc
+    $SUDO rm -f  /usr/lib/pkgconfig/libmosquittopp.pc
+
+    $SUDO ldconfig
+    echo "Custom dependencies removed."
+    exit 0
+fi
+
 # Build parallelism
 NINJA_ARGS=""
 MAKE_ARGS="-j$(nproc)"
@@ -40,9 +102,7 @@ if [[ "${1:-}" == "--clean" || "${1:-}" == "clean" ]]; then
 fi
 
 echo "Running Unicode Security Scan..."
-python3 scripts/scan_unicode.py
-
-if [ $? -ne 0 ]; then
+if ! python3 scripts/scan_unicode.py; then
     echo "Unicode scan failed! Potential unsafe hidden chars found."
     exit 1
 fi
@@ -72,6 +132,13 @@ WEBRTC_VER=master
 wget -O "webrtc-audio-processing-${WEBRTC_VER}.tar.gz" "https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/archive/${WEBRTC_VER}/webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
 tar xf "webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
 cd "webrtc-audio-processing-${WEBRTC_VER}"
+# Fix for abseil-cpp >= 20250814: removed deprecated Nullability template aliases.
+# Only apply when the system abseil is new enough to cause the build failure.
+ABSEIL_VER=$(pkg-config --modversion absl_base 2>/dev/null || echo "0")
+if [[ "$ABSEIL_VER" > "20250813" ]]; then
+    echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
+    patch -p1 < "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
+fi
 meson setup build --prefix=/usr $MESON_OPTS
 ninja -C build $NINJA_ARGS
 $SUDO ninja -C build install

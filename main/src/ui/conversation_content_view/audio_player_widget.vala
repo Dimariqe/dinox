@@ -213,37 +213,16 @@ public class AudioPlayerWidget : Box {
     private async void scan_waveform() {
         File? audio_file = null;
 
-        var file = file_transfer.get_file();
-        if (file == null) return;
-
-        // Decrypt if needed (reuse temp file for later playback)
-        try {
-            var app = (Dino.Application) GLib.Application.get_default();
-            var enc = app.file_encryption;
-
-            string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_audio");
-            DirUtils.create_with_parents(temp_dir, 0700);
-
-            string ext = "";
-            if ("." in file_transfer.file_name) {
-                string[] parts = file_transfer.file_name.split(".");
-                ext = "." + parts[parts.length - 1];
-            }
-            string random_name = GLib.Uuid.string_random() + ext;
-            string temp_path = Path.build_filename(temp_dir, random_name);
-
-            temp_play_file = File.new_for_path(temp_path);
-
-            var source_stream = file.read();
-            var target_stream = temp_play_file.replace(null, false, GLib.FileCreateFlags.NONE);
-            yield enc.decrypt_stream(source_stream, target_stream);
-            try { source_stream.close(); } catch (Error e) {}
-            try { target_stream.close(); } catch (Error e) {}
-
+        // Reuse already-decrypted temp file from setup_pipeline if available
+        if (temp_play_file != null) {
             audio_file = temp_play_file;
-        } catch (Error e) {
-            warning("Waveform scan: decrypt failed: %s", e.message);
-            audio_file = file;
+        } else {
+            if (file_transfer == null) return;
+            var file = file_transfer.get_file();
+            if (file == null) return;
+
+            // Decrypt if needed (reuse temp file for later playback)
+            audio_file = yield decrypt_to_temp(file, file_transfer.file_name);
         }
 
         if (audio_file == null) return;
@@ -422,7 +401,7 @@ public class AudioPlayerWidget : Box {
         if (pipeline == null) {
             setup_pipeline.begin((obj, res) => {
                 // After pipeline is set up, seek to saved position if we have one
-                if (pipeline != null && saved_position > 0 && duration > 0) {
+                if (pipeline != null && saved_position > 0) {
                     seek_to(saved_position);
                     saved_position = 0;
                 }
@@ -490,7 +469,40 @@ public class AudioPlayerWidget : Box {
             update_id = 0;
         }
     }
-    
+
+    // Decrypt an encrypted file to a random temp file in the audio cache dir.
+    // Returns the decrypted temp file, or the original file on error.
+    private async File decrypt_to_temp(File source_file, string filename) {
+        try {
+            var app = (Dino.Application) GLib.Application.get_default();
+            var enc = app.file_encryption;
+
+            string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_audio");
+            DirUtils.create_with_parents(temp_dir, 0700);
+
+            string ext = "";
+            if ("." in filename) {
+                string[] parts = filename.split(".");
+                ext = "." + parts[parts.length - 1];
+            }
+            string random_name = GLib.Uuid.string_random() + ext;
+            string temp_path = Path.build_filename(temp_dir, random_name);
+
+            temp_play_file = File.new_for_path(temp_path);
+
+            var source_stream = source_file.read();
+            var target_stream = temp_play_file.replace(null, false, GLib.FileCreateFlags.NONE);
+            yield enc.decrypt_stream(source_stream, target_stream);
+            try { source_stream.close(); } catch (Error e) {}
+            try { target_stream.close(); } catch (Error e) {}
+
+            return temp_play_file;
+        } catch (Error e) {
+            warning("AudioPlayerWidget: decrypt failed: %s", e.message);
+            return source_file;
+        }
+    }
+
     private async void setup_pipeline() {
         File file_to_play;
 
@@ -498,6 +510,7 @@ public class AudioPlayerWidget : Box {
         if (temp_play_file != null) {
             file_to_play = temp_play_file;
         } else {
+            if (file_transfer == null) return;
             var file = file_transfer.get_file();
             if (file == null) {
                 // Already failed or download error? Don't wait
@@ -546,6 +559,7 @@ public class AudioPlayerWidget : Box {
                 yield;
 
                 Source.remove(timeout_id);
+                if (file_transfer == null) return;
                 file_transfer.disconnect(notify_path_id);
                 file_transfer.disconnect(notify_state_id);
 
@@ -570,32 +584,7 @@ public class AudioPlayerWidget : Box {
             }
 
             file_to_play = file;
-            try {
-                var app = (Dino.Application) GLib.Application.get_default();
-                var enc = app.file_encryption;
-
-                string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_audio");
-                DirUtils.create_with_parents(temp_dir, 0700);
-
-                string ext = "";
-                if ("." in file_transfer.file_name) {
-                    string[] parts = file_transfer.file_name.split(".");
-                    ext = "." + parts[parts.length - 1];
-                }
-                string random_name = GLib.Uuid.string_random() + ext;
-                string temp_path = Path.build_filename(temp_dir, random_name);
-                temp_play_file = File.new_for_path(temp_path);
-
-                var source_stream = file.read();
-                var target_stream = temp_play_file.replace(null, false, GLib.FileCreateFlags.NONE);
-                yield enc.decrypt_stream(source_stream, target_stream);
-                try { source_stream.close(); } catch (Error e) {}
-                try { target_stream.close(); } catch (Error e) {}
-
-                file_to_play = temp_play_file;
-            } catch (Error e) {
-                warning("AudioPlayerWidget: Failed to decrypt audio: %s", e.message);
-            }
+            file_to_play = yield decrypt_to_temp(file, file_transfer.file_name);
         }
 
         // Use Pipeline + uridecodebin — NO playbin, NO autovideosink

@@ -218,6 +218,20 @@ public class MessageRouter : Object {
 
     public void set_botfather(BotfatherHandler handler) {
         this.botfather = handler;
+        // BUG-22: Connect deferred responses (async follow-ups after ejabberd API calls)
+        handler.deferred_response.connect((owner_jid, text) => {
+            // Find the self-chat conversation for this owner
+            var conversation_manager = app.stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY);
+            foreach (var account in app.stream_interactor.get_accounts()) {
+                if (account.bare_jid.to_string() == owner_jid) {
+                    var conv = conversation_manager.get_conversation(account.bare_jid, account, Conversation.Type.CHAT);
+                    if (conv != null) {
+                        send_chat_reply(conv, text);
+                    }
+                    break;
+                }
+            }
+        });
     }
 
     public void set_ejabberd_api(EjabberdApi api) {
@@ -701,7 +715,7 @@ public class MessageRouter : Object {
             switch (action.down()) {
                 case "on":
                     if (!telegram.is_enabled(bot.id)) {
-                        string? token = registry.get_setting("bot_%d_tg_token".printf(bot.id));
+                        string? token = registry.get_secret_setting("bot_%d_tg_token".printf(bot.id));
                         if (token == null) {
                             response = _("Telegram not configured.") + "\n\n" + build_telegram_setup_menu(bot.jid ?? "");
                         } else {
@@ -777,7 +791,7 @@ public class MessageRouter : Object {
     // Build the Telegram main menu
     private string build_telegram_menu(int bot_id, string jid = "") {
         bool enabled = telegram.is_enabled(bot_id);
-        bool configured = registry.get_setting("bot_%d_tg_token".printf(bot_id)) != null;
+        bool configured = registry.get_secret_setting("bot_%d_tg_token".printf(bot_id)) != null;
         string? mode = registry.get_setting("bot_%d_tg_mode".printf(bot_id));
 
         var sb = new StringBuilder();
@@ -969,7 +983,7 @@ public class MessageRouter : Object {
         bool ki_on = ai.is_enabled(bot.id);
         bool tg_on = telegram.is_enabled(bot.id);
         bool ki_configured = registry.get_setting("bot_%d_ai_endpoint".printf(bot.id)) != null;
-        bool tg_configured = registry.get_setting("bot_%d_tg_token".printf(bot.id)) != null;
+        bool tg_configured = registry.get_secret_setting("bot_%d_tg_token".printf(bot.id)) != null;
 
         sb.append(_("Status:") + "\n");
         if (ki_configured) {
@@ -1107,11 +1121,6 @@ public class MessageRouter : Object {
 
     // API main menu
     private string build_api_menu(BotInfo bot) {
-        string? token = bot.token_raw;
-        string token_display = (token != null && token.length > 10)
-            ? token.substring(0, 8) + "..."
-            : _("(no token)");
-
         var sb = new StringBuilder();
         sb.append("HTTP API\n");
         sb.append("════════════════════\n\n");
@@ -1119,7 +1128,6 @@ public class MessageRouter : Object {
             app.settings.api_mode == "network" ? "https" : "http",
             app.settings.api_port) + "\n");
         sb.append("Bot-ID: %d\n".printf(bot.id));
-        sb.append("Token: %s\n".printf(token_display));
         sb.append("JID: %s\n".printf(bot.jid ?? "?"));
 
         string jid = bot.jid ?? "";
@@ -1155,8 +1163,6 @@ public class MessageRouter : Object {
 
     // API: Authentication
     private string build_api_auth_menu(BotInfo bot) {
-        string? token = bot.token_raw;
-
         var sb = new StringBuilder();
         sb.append(_("API: Authentication") + "\n");
         sb.append("════════════════════\n\n");
@@ -1165,16 +1171,12 @@ public class MessageRouter : Object {
         sb.append("Header:\n");
         sb.append("  Authorization: Bearer <TOKEN>\n\n");
 
-        if (token != null) {
-            sb.append(_("Your token:") + "\n");
-            sb.append("  %s\n\n".printf(token));
-        } else {
-            sb.append(_("(No token available - use /api token to generate)") + "\n\n");
-        }
+        sb.append(_("Tokens are shown only once at creation.") + "\n");
+        sb.append(_("Regenerate: /token %d").printf(bot.id) + "\n\n");
 
         sb.append("────────────────────\n");
         sb.append(_("Example:") + "\n\n");
-        sb.append("curl -H \"Authorization: Bearer %s\" \\\n".printf(token ?? "<TOKEN>"));
+        sb.append("curl -H \"Authorization: Bearer <TOKEN>\" \\\n");
         sb.append("  http://localhost:7842/bot/getMe\n\n");
 
         sb.append("────────────────────\n");
@@ -1197,7 +1199,7 @@ public class MessageRouter : Object {
 
     // API: Messages (send/receive)
     private string build_api_messages_menu(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
 
         var sb = new StringBuilder();
         sb.append(_("API: Messages") + "\n");
@@ -1254,7 +1256,7 @@ public class MessageRouter : Object {
 
     // API: Webhooks
     private string build_api_webhook_menu(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
         bool wh_enabled = bot.webhook_enabled;
         string? wh_url = bot.webhook_url;
 
@@ -1372,7 +1374,7 @@ public class MessageRouter : Object {
 
     // API: Advanced features (files, reactions, rooms, commands)
     private string build_api_advanced_menu(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
 
         var sb = new StringBuilder();
         sb.append(_("API: Advanced Features") + "\n");
@@ -1657,7 +1659,7 @@ public class MessageRouter : Object {
     }
 
     private string build_api_quick_examples(BotInfo bot) {
-        string tok = bot.token_raw ?? "<TOKEN>";
+        string tok = "<TOKEN>";
 
         var sb = new StringBuilder();
         sb.append(_("API: Quick Start") + "\n");
@@ -1744,20 +1746,9 @@ public class MessageRouter : Object {
         Dino.send_message(conversation, text, 0, null, new Gee.ArrayList<Xmpp.Xep.MessageMarkup.Span>());
     }
 
-    // RFC 8259 compliant JSON string escaping (BUG-05 fix)
+    // Delegate to shared BotUtils (BUG-05 fix)
     private static string escape_json(string s) {
-        var sb = new StringBuilder.sized(s.length);
-        for (int i = 0; i < s.length; i++) {
-            unichar c = s[i];
-            if (c == '\\') sb.append("\\\\");
-            else if (c == '"') sb.append("\\\"");
-            else if (c == '\n') sb.append("\\n");
-            else if (c == '\r') sb.append("\\r");
-            else if (c == '\t') sb.append("\\t");
-            else if (c < 0x20) sb.append("\\u%04x".printf(c));
-            else sb.append_unichar(c);
-        }
-        return sb.str;
+        return BotUtils.escape_json(s);
     }
 
     // Listener for the message pipeline

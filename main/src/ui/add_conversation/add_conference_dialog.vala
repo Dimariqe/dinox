@@ -163,16 +163,21 @@ public class AddConferenceDialog : Adw.Dialog {
 
     private void animate_window_resize(Widget widget) {
         int curr_height = content_height;
+        var min_size = Requisition();
         var natural_size = Requisition();
-        widget.get_preferred_size(null, out natural_size);
-        int difference = natural_size.height - curr_height;
+        widget.get_preferred_size(out min_size, out natural_size);
+        // Target must be at least the minimum to avoid GTK measurement warnings
+        // (AdwBreakpointBin requires natural >= min)
+        int target_height = int.max(natural_size.height, min_size.height);
+        int difference = target_height - curr_height;
+        int floor_height = min_size.height;
         Timer timer = new Timer();
         Timeout.add((int) (stack.transition_duration / 30), () => {
             ulong microsec;
             timer.elapsed(out microsec);
             ulong millisec = microsec / 1000;
             double partial = double.min(1, (double) millisec / stack.transition_duration);
-            content_height = (int) (curr_height + difference * partial);
+            content_height = int.max(floor_height, (int) (curr_height + difference * partial));
             return millisec < stack.transition_duration;
         });
     }

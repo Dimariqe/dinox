@@ -24,6 +24,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
 
     private const int MESSAGE_MENU_BOX_OFFSET = 0;
     private const int DISPLAY_LATEST_BATCH_BUDGET_US = 2000;
+    private const int MAX_CONTENT_ITEMS = 200;
 
     public Conversation? conversation { get; private set; }
 
@@ -65,6 +66,14 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     private int64 pending_init_init_work_us = 0;
 
     private bool bulk_inserting_latest = false;
+    private bool new_item_during_bulk = false;
+
+    // Signal handler IDs for proper cleanup in dispose()
+    private ulong vadjust_upper_handler_id;
+    private ulong vadjust_page_size_handler_id;
+    private ulong vadjust_value_handler_id;
+    private ulong add_meta_notification_handler_id;
+    private ulong remove_meta_notification_handler_id;
 
     construct {
         this.layout_manager = new BinLayout();
@@ -131,16 +140,16 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     public ConversationView init(StreamInteractor stream_interactor) {
         this.stream_interactor = stream_interactor;
         stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY).item_deleted.connect(on_item_deleted);
-        scrolled.vadjustment.notify["upper"].connect_after(on_upper_notify);
-        scrolled.vadjustment.notify["page-size"].connect(on_upper_notify);
-        scrolled.vadjustment.notify["value"].connect(on_value_notify);
+        vadjust_upper_handler_id = scrolled.vadjustment.notify["upper"].connect_after(on_upper_notify);
+        vadjust_page_size_handler_id = scrolled.vadjustment.notify["page-size"].connect(on_upper_notify);
+        vadjust_value_handler_id = scrolled.vadjustment.notify["value"].connect(on_value_notify);
 
         content_populator = new ContentProvider(stream_interactor);
         subscription_notification = new SubscriptionNotitication(stream_interactor);
         expiry_notification = new ExpiryNotification(stream_interactor);
 
-        add_meta_notification.connect(on_add_meta_notification);
-        remove_meta_notification.connect(on_remove_meta_notification);
+        add_meta_notification_handler_id = add_meta_notification.connect(on_add_meta_notification);
+        remove_meta_notification_handler_id = remove_meta_notification.connect(on_remove_meta_notification);
 
         Application app = GLib.Application.get_default() as Application;
         app.plugin_registry.register_conversation_addition_populator(new ChatStatePopulator(stream_interactor));
@@ -264,6 +273,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         foreach (Plugins.MetaConversationItem item in item_item_skeletons.keys) {
             if (item_item_skeletons[item].get_widget() == w) {
                 current_meta_item = item as ContentMetaItem;
+                break;
             }
         }
 
@@ -352,6 +362,24 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         pending_init_clear_work_us = Dino.Ui.UiTiming.now_us() - t_clear_us;
         Dino.Ui.UiTiming.log_ms("ConversationView.initialize_for_conversation: clear", t_clear_us);
 
+        if (conversation == null) {
+            // Close old populators before unsetting conversation —
+            // otherwise they remain active and may call insert_item()
+            // with this.conversation == null, causing NULL assertions.
+            Dino.Application app = Dino.Application.get_default();
+            if (this.conversation != null) {
+                foreach (Plugins.ConversationItemPopulator populator in app.plugin_registry.conversation_addition_populators) {
+                    populator.close(this.conversation);
+                }
+                foreach (Plugins.NotificationPopulator populator in app.plugin_registry.notification_populators) {
+                    populator.close(this.conversation);
+                }
+            }
+            clear_notifications();
+            this.conversation = null;
+            return;
+        }
+
         int64 t_init_us = Dino.Ui.UiTiming.now_us();
         initialize_for_conversation_(conversation);
         pending_init_init_work_us = Dino.Ui.UiTiming.now_us() - t_init_us;
@@ -416,9 +444,10 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             do_insert_item(item);
         }
         ContentMetaItem meta_item = content_populator.get_content_meta_item(content_item);
-        insert_new(meta_item);
-        content_items.add(meta_item);
-        meta_items.add(meta_item);
+        if (insert_new(meta_item) != null) {
+            content_items.add(meta_item);
+            meta_items.add(meta_item);
+        }
 
         Gee.List<ContentMetaItem> after_items = content_populator.populate_after(conversation, content_item, 40);
         foreach (ContentMetaItem item in after_items) {
@@ -445,10 +474,10 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         Dino.Application app = Dino.Application.get_default();
         if (this.conversation != null) {
             foreach (Plugins.ConversationItemPopulator populator in app.plugin_registry.conversation_addition_populators) {
-                populator.close(conversation);
+                populator.close(this.conversation);
             }
             foreach (Plugins.NotificationPopulator populator in app.plugin_registry.notification_populators) {
-                populator.close(conversation);
+                populator.close(this.conversation);
             }
         }
 
@@ -523,6 +552,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             }
 
             bulk_inserting_latest = false;
+            new_item_during_bulk = false;
 
             // Finished inserting.
             display_latest_source_id = 0;
@@ -564,6 +594,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     public void insert_item(Plugins.MetaConversationItem item) {
+        if (conversation == null) return;
         if (meta_items.size > 0) {
             bool after_last = meta_items.last().time.compare(item.time) <= 0;
             bool within_range = meta_items.last().time.compare(item.time) > 0 && meta_items.first().time.compare(item.time) < 0;
@@ -574,11 +605,17 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         }
 
         do_insert_item(item);
+
+        // If a new message arrives while batch-loading, mark it so display_latest()
+        // scrolls to bottom after all batches complete.
+        if (bulk_inserting_latest) {
+            new_item_during_bulk = true;
+        }
     }
 
     public void do_insert_item(Plugins.MetaConversationItem item) {
         lock (meta_items) {
-            insert_new(item);
+            if (insert_new(item) == null) return;
             if (item is ContentMetaItem) {
                 content_items.add((ContentMetaItem)item);
             }
@@ -601,6 +638,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             }
             meta_items.remove(item);
             skeleton.dispose();
+            item.dispose();
         }
 
         removed_item(item);
@@ -637,7 +675,8 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         }
     }
 
-    private Widget insert_new(Plugins.MetaConversationItem item) {
+    private Widget? insert_new(Plugins.MetaConversationItem item) {
+        if (conversation == null) return null;
         int64 t0_us = Dino.Ui.UiTiming.now_us();
         Plugins.MetaConversationItem? lower_item = meta_items.lower(item);
 
@@ -713,6 +752,14 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     private void on_upper_notify() {
+        // During initial batch loading, suppress per-batch scrolling.
+        // The final scroll-to-bottom happens in display_latest() after all batches.
+        if (bulk_inserting_latest) {
+            was_upper = scrolled.vadjustment.upper;
+            was_page_size = scrolled.vadjustment.page_size;
+            return;
+        }
+
         if (was_upper == null || scrolled.vadjustment.value >  was_upper - was_page_size - 1) { // scrolled down or content smaller than page size
             if (at_current_content) {
                 Idle.add(() => {
@@ -747,6 +794,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             foreach (ContentMetaItem item in items) {
                 do_insert_item(item);
             }
+            prune_newest_items();
         } else {
             reloading_mutex.unlock();
         }
@@ -762,8 +810,28 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             foreach (ContentMetaItem item in items) {
                 do_insert_item(item);
             }
+            prune_oldest_items();
         } else {
             reloading_mutex.unlock();
+        }
+    }
+
+    /** Remove oldest items (top) when user scrolled down and loaded newer messages. */
+    private void prune_oldest_items() {
+        while (content_items.size > MAX_CONTENT_ITEMS) {
+            ContentMetaItem oldest = content_items.first();
+            remove_item(oldest);
+        }
+    }
+
+    /** Remove newest items (bottom) when user scrolled up and loaded older messages. */
+    private void prune_newest_items() {
+        if (content_items.size > MAX_CONTENT_ITEMS) {
+            at_current_content = false;
+        }
+        while (content_items.size > MAX_CONTENT_ITEMS) {
+            ContentMetaItem newest = content_items.last();
+            remove_item(newest);
         }
     }
 
@@ -786,6 +854,11 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
         }
         was_upper = null;
         was_page_size = null;
+        new_item_during_bulk = false;
+
+        // Guard against clear() being called after dispose() has nullified fields
+        if (content_items == null) return;
+
         foreach (var item in content_items) {
             item.dispose();
         }
@@ -796,11 +869,20 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
             skeleton.dispose();
         }
         item_item_skeletons.clear();
+        // widgets[] contains skeleton.get_widget() (= main_grid) which is already
+        // disposed by skeleton.dispose() above — just clear the map, don't re-dispose.
         foreach (Widget widget in widgets.values) {
             widget.unparent();
-            widget.dispose();
         }
         widgets.clear();
+
+        // Clear static image caches to release textures
+        FileImageWidget.clear_frame_cache();
+
+#if HAVE_MALLOC_TRIM
+        // Force glibc to return freed memory to OS after clearing all widgets
+        malloc_trim(0);
+#endif
 
         Widget? notification = notifications.get_first_child();
         while (notification != null) {
@@ -816,6 +898,33 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     public override void dispose() {
+        // Disconnect vadjustment signals
+        if (scrolled != null) {
+            var adj = scrolled.vadjustment;
+            if (adj != null) {
+                if (vadjust_upper_handler_id != 0) {
+                    SignalHandler.disconnect(adj, vadjust_upper_handler_id);
+                    vadjust_upper_handler_id = 0;
+                }
+                if (vadjust_page_size_handler_id != 0) {
+                    SignalHandler.disconnect(adj, vadjust_page_size_handler_id);
+                    vadjust_page_size_handler_id = 0;
+                }
+                if (vadjust_value_handler_id != 0) {
+                    SignalHandler.disconnect(adj, vadjust_value_handler_id);
+                    vadjust_value_handler_id = 0;
+                }
+            }
+        }
+        // Disconnect self-signals
+        if (add_meta_notification_handler_id != 0) {
+            SignalHandler.disconnect(this, add_meta_notification_handler_id);
+            add_meta_notification_handler_id = 0;
+        }
+        if (remove_meta_notification_handler_id != 0) {
+            SignalHandler.disconnect(this, remove_meta_notification_handler_id);
+            remove_meta_notification_handler_id = 0;
+        }
         if (stream_interactor != null) {
             stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY).item_deleted.disconnect(on_item_deleted);
             stream_interactor = null;

@@ -25,6 +25,20 @@ int main(string[] args) {
     TestSuite.get_root().add_suite(new Xmpp.Test.Socks5Audit().get_suite());
     // MUJI Group Call Security Audit (XEP-0272, XEP-0482, XEP-0167)
     TestSuite.get_root().add_suite(new Xmpp.Test.MujiAudit().get_suite());
+    // Phase 10: Test Suite Expansion
+    TestSuite.get_root().add_suite(new Xmpp.Test.MalformedStanzaAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.NullSafetyAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.AdversarialAudit().get_suite());
+    // Phase 10b: Priority 1 XEP tests
+    TestSuite.get_root().add_suite(new Xmpp.Test.CarbonsForwardingAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.PubSubAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.HttpUploadAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.BlockingAudit().get_suite());
+    // Phase 10c: Remaining priority XEP tests
+    TestSuite.get_root().add_suite(new Xmpp.Test.SceAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.JingleFileTransferAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.RegistrationCommandsAudit().get_suite());
+    TestSuite.get_root().add_suite(new Xmpp.Test.MamJmiModerationAudit().get_suite());
     return GLib.Test.run();
 }
 
@@ -95,7 +109,7 @@ bool fail_if_not_eq_double(double left, double right, float accuracy = 3, string
 }
 
 bool fail_if_not_eq_str(string? left, string? right, string? reason = null) {
-    bool nullcheck = (left == null || right == null) && (left != null && right != null);
+    bool nullcheck = (left == null) != (right == null);
     if (left == null) left = "(null)";
     if (right == null) right = "(null)";
     return fail_if_not(!nullcheck && left == right, @"$(reason + ": " ?? "")'$left' != '$right'");

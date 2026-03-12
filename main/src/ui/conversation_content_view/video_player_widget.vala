@@ -17,6 +17,11 @@ using Xmpp;
 using Dino.Entities;
 using Dino.Security;
 
+#if HAVE_MALLOC_TRIM
+[CCode (cname = "malloc_trim", cheader_filename = "malloc.h")]
+extern int malloc_trim (size_t pad);
+#endif
+
 namespace Dino.Ui.ConversationSummary {
 
 public class VideoFileMetaItem : FileMetaItem {
@@ -80,12 +85,13 @@ public class VideoPlayerWidget : Widget {
     private Gtk.Widget? video_container = null;
     private FixedRatioPicture? preview_image = null;
 
-    // Raw GStreamer playback (replaces Gtk.MediaFile for full PipeWire control)
+    // GStreamer playback with deterministic cleanup
     private Gst.Element? playback_pipeline = null;
-    private Gst.Element? playback_vsink = null;   // fakesink with enable-last-sample
+    private Gst.Element? playback_vsink = null;
     private uint playback_bus_watch = 0;
     private uint frame_update_timer = 0;
     private bool is_video_playing = false;
+    private int64 last_frame_pts = -1;
 
     // Video player controls
     private Gtk.Box? controls_bar = null;
@@ -102,6 +108,9 @@ public class VideoPlayerWidget : Widget {
     private bool preview_initialized = false;
     private bool preview_generating = false;
     private bool pipeline_active = false;
+    private bool _disposed = false;
+    private ulong notify_mapped_handler_id = 0;
+    private ulong notify_ft_state_handler_id = 0;
 
     private Button? start_play_button = null;
 
@@ -133,10 +142,7 @@ public class VideoPlayerWidget : Widget {
         start_play_button.clicked.connect(() => {
             // Resume if paused
             if (playback_pipeline != null && !is_video_playing) {
-                playback_pipeline.set_state(Gst.State.PLAYING);
-                is_video_playing = true;
-                start_play_button.visible = false;
-                if (play_pause_btn != null) play_pause_btn.icon_name = "media-playback-pause-symbolic";
+                resume_playback();
                 return;
             }
             if (pipeline_active) return; // guard against double-click
@@ -148,7 +154,8 @@ public class VideoPlayerWidget : Widget {
         });
         overlay.add_overlay(start_play_button);
 
-        this.notify["mapped"].connect(() => {
+        notify_mapped_handler_id = this.notify["mapped"].connect(() => {
+            if (_disposed) return;
             if (!this.get_mapped()) {
                 // Synchronously destroy pipeline on unmap (conversation switch, window close)
                 cleanup_playback();
@@ -197,15 +204,9 @@ public class VideoPlayerWidget : Widget {
         play_pause_btn.clicked.connect(() => {
             if (playback_pipeline == null) return;
             if (is_video_playing) {
-                playback_pipeline.set_state(Gst.State.PAUSED);
-                is_video_playing = false;
-                play_pause_btn.icon_name = "media-playback-start-symbolic";
-                if (start_play_button != null) start_play_button.visible = true;
+                pause_playback();
             } else {
-                playback_pipeline.set_state(Gst.State.PLAYING);
-                is_video_playing = true;
-                play_pause_btn.icon_name = "media-playback-pause-symbolic";
-                if (start_play_button != null) start_play_button.visible = false;
+                resume_playback();
             }
         });
         controls_bar.append(play_pause_btn);
@@ -214,18 +215,22 @@ public class VideoPlayerWidget : Widget {
         seek_scale.hexpand = true;
         seek_scale.draw_value = false;
         seek_scale.valign = Align.CENTER;
-
-        // Drag-start: pause seeking so timer doesn't override
-        seek_scale.change_value.connect((scroll, val) => {
+        seek_scale.change_value.connect((scroll_type, new_value) => {
+            if (playback_pipeline == null || playback_duration <= 0) return false;
             seeking = true;
-            if (playback_pipeline != null && playback_duration > 0) {
-                int64 pos = (int64)(val * playback_duration);
-                playback_pipeline.seek_simple(Gst.Format.TIME,
-                    Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE, pos);
-                update_time_label(pos, playback_duration);
-            }
-            // Release seek lock after a short delay so timer resumes
-            Timeout.add(100, () => { seeking = false; return false; });
+            double val = new_value.clamp(0.0, 1.0);
+            int64 target = (int64)(val * (double)playback_duration);
+            playback_pipeline.seek_simple(
+                Gst.Format.TIME,
+                Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                target
+            );
+            // Allow position updates again after a short delay
+            Timeout.add(200, () => {
+                if (_disposed) return false;
+                seeking = false;
+                return false;
+            });
             return false;
         });
         controls_bar.append(seek_scale);
@@ -274,7 +279,7 @@ public class VideoPlayerWidget : Widget {
         update_widget.begin();
 
         ft_state_binding = file_transfer.bind_property("state", this, "file-transfer-state");
-        this.notify["file-transfer-state"].connect(update_widget);
+        notify_ft_state_handler_id = this.notify["file-transfer-state"].connect(update_widget);
         
         ft_size_binding1 = this.file_transfer.bind_property("size", file_size_label, "label", BindingFlags.SYNC_CREATE, file_size_label_transform);
         ft_size_binding2 = this.file_transfer.bind_property("size", transmission_progress, "file-size", BindingFlags.SYNC_CREATE);
@@ -286,10 +291,12 @@ public class VideoPlayerWidget : Widget {
         // Use short timeout (200ms) rather than Idle.add because GTK may not have
         // mapped the widget yet during the same main loop iteration.
         Timeout.add(200, () => {
+            if (_disposed) return false;
             try_lazy_preview_init();
             // If still not initialized and widget exists, try once more after 1s
             if (!preview_initialized && !preview_generating) {
                 Timeout.add(800, () => {
+                    if (_disposed) return false;
                     try_lazy_preview_init();
                     return false;
                 });
@@ -491,6 +498,13 @@ public class VideoPlayerWidget : Widget {
             pipe.set_state(Gst.State.PAUSED);
             yield;
 
+            // After yield, the widget may have been disposed — bail out safely
+            if (_disposed) {
+                pipe.set_state(Gst.State.NULL);
+                preview_generating = false;
+                return;
+            }
+
             Source.remove(thumb_bus_watch);
             // timeout may have already fired, try removing anyway
             Source.remove(timeout_id);
@@ -502,9 +516,7 @@ public class VideoPlayerWidget : Widget {
             if (cur_state == Gst.State.PAUSED) {
                 // Get last-sample from the fakesink directly
                 Gst.Sample? sample = null;
-                var sink_val = GLib.Value(typeof(Gst.Sample));
-                vsink.get_property("last-sample", ref sink_val);
-                sample = (Gst.Sample?) sink_val.dup_boxed();
+                vsink.get("last-sample", out sample);
 
                 if (sample != null) {
                     var buf = sample.get_buffer();
@@ -567,33 +579,59 @@ public class VideoPlayerWidget : Widget {
         }
     }
 
-    // Deterministic cleanup: synchronously destroy GStreamer pipeline → PipeWire released immediately
-    private void cleanup_playback() {
+    private void pause_playback() {
+        if (playback_pipeline == null) return;
+        playback_pipeline.set_state(Gst.State.PAUSED);
         is_video_playing = false;
-        // 1. Stop frame rendering timer
         if (frame_update_timer != 0) {
             Source.remove(frame_update_timer);
             frame_update_timer = 0;
         }
-        // 2. Remove bus watch BEFORE pipeline teardown (prevents callbacks during destruction)
+        if (play_pause_btn != null) play_pause_btn.icon_name = "media-playback-start-symbolic";
+        if (start_play_button != null) start_play_button.visible = true;
+    }
+
+    private void resume_playback() {
+        if (playback_pipeline == null) return;
+        playback_pipeline.set_state(Gst.State.PLAYING);
+        is_video_playing = true;
+        if (frame_update_timer == 0) {
+            frame_update_timer = Timeout.add(66, () => {
+                if (_disposed) { frame_update_timer = 0; return false; }
+                update_video_frame();
+                return true;
+            });
+        }
+        if (play_pause_btn != null) play_pause_btn.icon_name = "media-playback-pause-symbolic";
+        if (start_play_button != null) start_play_button.visible = false;
+    }
+
+    private void cleanup_playback() {
+        is_video_playing = false;
+        if (frame_update_timer != 0) {
+            Source.remove(frame_update_timer);
+            frame_update_timer = 0;
+        }
         if (playback_bus_watch != 0) {
             Source.remove(playback_bus_watch);
             playback_bus_watch = 0;
         }
-        // 3. Set pipeline to NULL — this is SYNCHRONOUS and immediately releases PipeWire
         if (playback_pipeline != null) {
             playback_pipeline.set_state(Gst.State.NULL);
             playback_pipeline = null;
         }
         playback_vsink = null;
-        // 4. Clear Picture paintable
+        last_frame_pts = -1;
         if (video_picture != null) {
             video_picture.set_paintable(null);
         }
-        // 5. Reset controls state
         playback_duration = -1;
         seeking = false;
         pipeline_active = false;
+#if HAVE_MALLOC_TRIM
+        // Force glibc to return freed memory to OS
+        malloc_trim(0);
+#endif
     }
 
     private File? temp_play_file = null;
@@ -662,15 +700,9 @@ public class VideoPlayerWidget : Widget {
             var click = new GestureClick();
             click.pressed.connect((n, x, y) => {
                 if (playback_pipeline != null && is_video_playing) {
-                    playback_pipeline.set_state(Gst.State.PAUSED);
-                    is_video_playing = false;
-                    if (start_play_button != null) start_play_button.visible = true;
-                    if (play_pause_btn != null) play_pause_btn.icon_name = "media-playback-start-symbolic";
+                    pause_playback();
                 } else if (playback_pipeline != null && !is_video_playing) {
-                    playback_pipeline.set_state(Gst.State.PLAYING);
-                    is_video_playing = true;
-                    if (start_play_button != null) start_play_button.visible = false;
-                    if (play_pause_btn != null) play_pause_btn.icon_name = "media-playback-pause-symbolic";
+                    resume_playback();
                 }
             });
             video_picture.add_controller(click);
@@ -696,19 +728,13 @@ public class VideoPlayerWidget : Widget {
             stack.add_child(video_container);
         }
 
-        // Pipeline + uridecodebin — NO playbin, no internal autoaudiosink/autovideosink
-        // Video: uridecodebin → videoconvert → capsfilter(RGBA) → fakesink (frame polling)
-        // Audio: uridecodebin → audioconvert → audioresample → autoaudiosink
-        var play_pipe = new Gst.Pipeline("video-playback");
-        var play_src = ElementFactory.make("uridecodebin", "play-src");
+        // GStreamer playbin with fakesink for video, autoaudiosink for audio
+        var playbin = ElementFactory.make("playbin", "video-playback");
         var vconv = ElementFactory.make("videoconvert", "play-vc");
         var vcaps = ElementFactory.make("capsfilter", "play-vcaps");
         playback_vsink = ElementFactory.make("fakesink", "play-vs");
-        var aconv = ElementFactory.make("audioconvert", "play-ac");
-        var aresample = ElementFactory.make("audioresample", "play-ar");
-        var asink = ElementFactory.make("autoaudiosink", "play-as");
 
-        if (play_src == null || vconv == null || vcaps == null || playback_vsink == null || aconv == null || aresample == null || asink == null) {
+        if (playbin == null || vconv == null || vcaps == null || playback_vsink == null) {
             warning("VideoPlayerWidget: missing playback elements");
             pipeline_active = false;
             if (start_play_button != null) start_play_button.visible = true;
@@ -718,42 +744,26 @@ public class VideoPlayerWidget : Widget {
         vcaps.set("caps", Gst.Caps.from_string("video/x-raw,format=RGBA"));
         playback_vsink.set("enable-last-sample", true);
         playback_vsink.set("sync", true);
+        playback_vsink.set("qos", false);
 
-        play_src.set("uri", file_to_play.get_uri());
-
-        play_pipe.add_many(play_src, vconv, vcaps, playback_vsink, aconv, aresample, asink);
+        var vbin = new Gst.Bin("video-sink-bin");
+        vbin.add_many(vconv, vcaps, playback_vsink);
         vconv.link(vcaps);
         vcaps.link(playback_vsink);
-        aconv.link(aresample);
-        aresample.link(asink);
+        var ghost = new Gst.GhostPad("sink", vconv.get_static_pad("sink"));
+        vbin.add_pad(ghost);
 
-        // Dynamic pad linking: audio pads → audioconvert, video pads → videoconvert
-        play_src.pad_added.connect((pad) => {
-            var pad_caps = pad.get_current_caps();
-            if (pad_caps == null) pad_caps = pad.query_caps(null);
-            if (pad_caps == null || pad_caps.get_size() == 0) return;
-            unowned Gst.Structure st = pad_caps.get_structure(0);
-            string pad_type = st.get_name();
-            if (pad_type.has_prefix("video/")) {
-                var sink_pad = vconv.get_static_pad("sink");
-                if (sink_pad != null && !sink_pad.is_linked()) {
-                    pad.link(sink_pad);
-                }
-            } else if (pad_type.has_prefix("audio/")) {
-                var sink_pad = aconv.get_static_pad("sink");
-                if (sink_pad != null && !sink_pad.is_linked()) {
-                    pad.link(sink_pad);
-                }
-            }
-        });
+        playbin.set("uri", file_to_play.get_uri());
+        playbin.set("video-sink", vbin);
 
-        playback_pipeline = play_pipe;
+        playback_pipeline = playbin;
 
         // Bus watch for EOS/Error
         Gst.Bus bus = playback_pipeline.get_bus();
         playback_bus_watch = bus.add_watch(0, (b, msg) => {
+            if (_disposed) return false;
             if (msg.type == Gst.MessageType.EOS) {
-                debug("VideoPlayerWidget: EOS, releasing pipeline");
+                debug("VideoPlayerWidget: EOS");
                 cleanup_playback();
                 if (controls_bar != null) controls_bar.visible = false;
                 if (start_play_button != null) start_play_button.visible = true;
@@ -775,38 +785,46 @@ public class VideoPlayerWidget : Widget {
             stack.set_visible_child(video_container);
         }
 
-        // Start playing — PipeWire audio entry opens NOW
         playback_pipeline.set_state(Gst.State.PLAYING);
         is_video_playing = true;
         playback_duration = -1;
 
-        // Show controls bar
         if (controls_bar != null) controls_bar.visible = true;
         if (play_pause_btn != null) play_pause_btn.icon_name = "media-playback-pause-symbolic";
         if (time_label != null) time_label.label = "0:00 / 0:00";
         if (seek_scale != null) seek_scale.set_value(0.0);
 
-        // Frame rendering timer: poll fakesink at ~30fps and paint to Picture + update controls
-        frame_update_timer = Timeout.add(33, () => {
+        // Frame rendering at ~15fps (sufficient for playback, halves RAM pressure vs 30fps)
+        frame_update_timer = Timeout.add(66, () => {
+            if (_disposed) { frame_update_timer = 0; return false; }
             update_video_frame();
             return true;
         });
 
-        debug("VideoPlayerWidget: playback started (raw GStreamer, no Gtk.MediaFile)");
+        debug("VideoPlayerWidget: playback started (GStreamer playbin)");
     }
 
-    // Pull the latest video frame from fakesink and render it as a texture
+    // Pull latest frame from fakesink — only create new texture when PTS changes
     private void update_video_frame() {
+        if (_disposed) return;
         if (playback_vsink == null || video_picture == null) return;
+        if (!this.get_mapped()) return;
 
-        var sink_val = GLib.Value(typeof(Gst.Sample));
-        playback_vsink.get_property("last-sample", ref sink_val);
-        Gst.Sample? sample = (Gst.Sample?) sink_val.dup_boxed();
+        // Use g_object_get() directly — avoids GLib.Value leak
+        // (stack-allocated GLib.Value never gets g_value_unset, leaking GstSample refs)
+        Gst.Sample? sample = null;
+        playback_vsink.get("last-sample", out sample);
         if (sample == null) return;
 
         var buf = sample.get_buffer();
+        if (buf == null) return;
+
+        // Skip if same frame as last rendered (compare PTS, not pointer)
+        int64 pts = (int64) buf.pts;
+        if (pts == last_frame_pts && last_frame_pts >= 0) return;
+
         var caps = sample.get_caps();
-        if (buf == null || caps == null || caps.get_size() == 0) return;
+        if (caps == null || caps.get_size() == 0) return;
 
         unowned Gst.Structure st = caps.get_structure(0);
         int width = 0, height = 0;
@@ -816,33 +834,33 @@ public class VideoPlayerWidget : Widget {
 
         Gst.MapInfo map;
         if (buf.map(out map, Gst.MapFlags.READ)) {
+            // Release old paintable before creating new one
+            video_picture.set_paintable(null);
+
             var bytes = new GLib.Bytes(map.data);
+            buf.unmap(map);
+
             size_t row_stride = (size_t)(width * 4);
             var texture = new Gdk.MemoryTexture(width, height,
                 Gdk.MemoryFormat.R8G8B8A8, bytes, row_stride);
             video_picture.set_paintable(texture);
-            buf.unmap(map);
+            last_frame_pts = pts;
         }
 
-        // Update seek bar and time label (skip while user is dragging)
+        // Update seek bar and time label
         if (!seeking && playback_pipeline != null) {
-            // Query duration once
             if (playback_duration <= 0) {
                 playback_pipeline.query_duration(Gst.Format.TIME, out playback_duration);
             }
-
             int64 position = 0;
             if (playback_pipeline.query_position(Gst.Format.TIME, out position) && playback_duration > 0) {
                 double frac = (double)position / (double)playback_duration;
                 if (seek_scale != null) seek_scale.set_value(frac.clamp(0.0, 1.0));
-                update_time_label(position, playback_duration);
+                if (time_label != null) {
+                    time_label.label = "%s / %s".printf(format_time(position), format_time(playback_duration));
+                }
             }
         }
-    }
-
-    private void update_time_label(int64 position_ns, int64 duration_ns) {
-        if (time_label == null) return;
-        time_label.label = "%s / %s".printf(format_time(position_ns), format_time(duration_ns));
     }
 
     private string format_time(int64 ns) {
@@ -862,7 +880,9 @@ public class VideoPlayerWidget : Widget {
                 string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_open");
                 DirUtils.create_with_parents(temp_dir, 0700);
 
-                string temp_path = Path.build_filename(temp_dir, file_transfer.file_name);
+                string safe_name = Path.get_basename(file_transfer.file_name);
+                if (safe_name == "" || safe_name == "." || safe_name == "..") safe_name = "file";
+                string temp_path = Path.build_filename(temp_dir, safe_name);
                 File temp_file = File.new_for_path(temp_path);
 
                 var source_stream = file.read();
@@ -873,12 +893,7 @@ public class VideoPlayerWidget : Widget {
                 try { source_stream.close(); } catch (Error e) {}
                 try { target_stream.close(); } catch (Error e) {}
 
-#if WINDOWS
-                string win_path = temp_file.get_path().replace("/", "\\");
-                Process.spawn_command_line_async("cmd.exe /c start \"\" \"" + win_path + "\"");
-#else
                 AppInfo.launch_default_for_uri(temp_file.get_uri(), null);
-#endif
             }
         } catch (GLib.Error err) {
             warning("Failed to open file: %s", err.message);
@@ -920,6 +935,10 @@ public class VideoPlayerWidget : Widget {
     }
 
     public override void dispose() {
+        _disposed = true;
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_mapped_handler_id != 0) { this.disconnect(notify_mapped_handler_id); notify_mapped_handler_id = 0; }
+        if (notify_ft_state_handler_id != 0) { this.disconnect(notify_ft_state_handler_id); notify_ft_state_handler_id = 0; }
         // Unbind all file_transfer property bindings
         if (ft_state_binding != null) { ft_state_binding.unbind(); ft_state_binding = null; }
         if (ft_size_binding1 != null) { ft_size_binding1.unbind(); ft_size_binding1 = null; }
@@ -1007,8 +1026,6 @@ public class VideoPlayerWidget : Widget {
     }
 
     private void update_playback_visibility() {
-        // Generate preview thumbnail when scrolling into view (if not done yet).
-        // Safe: uses fakesink only (zero PipeWire entries), pipeline destroyed immediately.
         if (playback_pipeline == null) {
             try_lazy_preview_init();
         }

@@ -74,7 +74,6 @@ public class MqttDiscoveryManager : GLib.Object {
     /* ── Software info ─────────────────────────────────────────────── */
 
     private const string ORIGIN_NAME = "DinoX";
-    private const string ORIGIN_SW   = "1.1.4.2";
     private const string ORIGIN_URL  = "https://github.com/rallep71/dinox";
 
     /* ── Construction ──────────────────────────────────────────────── */
@@ -136,6 +135,20 @@ public class MqttDiscoveryManager : GLib.Object {
     }
 
     /**
+     * Get all system-managed topics (HA status + command topics).
+     * Used by sync_topics_to_client_cfg to avoid accidentally unsubscribing
+     * discovery/command topics when syncing user-managed topic changes.
+     */
+    public Gee.Set<string> get_system_topics() {
+        var topics = new Gee.HashSet<string>();
+        topics.add(get_ha_status_topic());
+        topics.add(command_topic(ENTITY_ALERTS_PAUSE));
+        topics.add(command_topic(ENTITY_RECONNECT));
+        topics.add(command_topic(ENTITY_REFRESH));
+        return topics;
+    }
+
+    /**
      * Subscribe to the HA status topic and all command topics.
      * When HA (re)starts, it sends "online" to <prefix>/status.
      * We re-publish our discovery configs + states in response.
@@ -146,13 +159,13 @@ public class MqttDiscoveryManager : GLib.Object {
 
         string ha_topic = get_ha_status_topic();
         client.subscribe(ha_topic, 1);
-        message("MQTT Discovery: Subscribed to HA status topic: %s", ha_topic);
+        debug("MQTT Discovery: Subscribed to HA status topic: %s", ha_topic);
 
         /* Subscribe to command topics */
         client.subscribe(command_topic(ENTITY_ALERTS_PAUSE), 1);
         client.subscribe(command_topic(ENTITY_RECONNECT), 1);
         client.subscribe(command_topic(ENTITY_REFRESH), 1);
-        message("MQTT Discovery: Subscribed to command topics for node=%s", node_id);
+        debug("MQTT Discovery: Subscribed to command topics for node=%s", node_id);
 
         subscribed_to_ha_status = true;
     }
@@ -164,7 +177,7 @@ public class MqttDiscoveryManager : GLib.Object {
      */
     public void handle_ha_status_message(string payload) {
         if (payload.strip() == "online") {
-            message("MQTT Discovery: HA birth detected — re-publishing discovery for node=%s", node_id);
+            debug("MQTT Discovery: HA birth detected — re-publishing discovery for node=%s", node_id);
             /* Re-publish: force re-send even if already published */
             published = false;
             publish_discovery_config();
@@ -199,10 +212,10 @@ public class MqttDiscoveryManager : GLib.Object {
 
         if (cmd == "ON") {
             am.paused = true;
-            message("MQTT Discovery: Alerts paused via HA command");
+            debug("MQTT Discovery: Alerts paused via HA command");
         } else if (cmd == "OFF") {
             am.paused = false;
-            message("MQTT Discovery: Alerts resumed via HA command");
+            debug("MQTT Discovery: Alerts resumed via HA command");
         } else {
             return false;
         }
@@ -218,10 +231,12 @@ public class MqttDiscoveryManager : GLib.Object {
         string cmd = payload.strip().up();
         if (cmd != "PRESS") return false;
 
-        message("MQTT Discovery: Reconnect triggered via HA command for node=%s", node_id);
-        /* Schedule reconnect on main loop to avoid re-entrant issues */
+        debug("MQTT Discovery: Reconnect triggered via HA command for node=%s", node_id);
+        /* Schedule reconnect on main loop to avoid re-entrant issues.
+         * apply_settings() reloads config AND reconnects; reload_config()
+         * alone only reads the DB without acting on the change. */
         Idle.add(() => {
-            plugin.reload_config();
+            plugin.apply_settings();
             return false;  /* run once */
         });
         return true;
@@ -234,7 +249,7 @@ public class MqttDiscoveryManager : GLib.Object {
         string cmd = payload.strip().up();
         if (cmd != "PRESS") return false;
 
-        message("MQTT Discovery: Refresh triggered via HA command for node=%s", node_id);
+        debug("MQTT Discovery: Refresh triggered via HA command for node=%s", node_id);
         published = false;
         publish_discovery_config();
         publish_all_states();
@@ -275,7 +290,7 @@ public class MqttDiscoveryManager : GLib.Object {
         builder.set_member_name("mdl");
         builder.add_string_value("MQTT Plugin");
         builder.set_member_name("sw");
-        builder.add_string_value(ORIGIN_SW);
+        builder.add_string_value(Dino.VERSION);
         builder.end_object();
 
         /* ── origin (o) — mandatory for device discovery ───────────── */
@@ -284,7 +299,7 @@ public class MqttDiscoveryManager : GLib.Object {
         builder.set_member_name("name");
         builder.add_string_value(ORIGIN_NAME);
         builder.set_member_name("sw");
-        builder.add_string_value(ORIGIN_SW);
+        builder.add_string_value(Dino.VERSION);
         builder.set_member_name("url");
         builder.add_string_value(ORIGIN_URL);
         builder.end_object();
@@ -397,7 +412,7 @@ public class MqttDiscoveryManager : GLib.Object {
         publish_retained(config_topic, generate_json(builder));
 
         published = true;
-        message("MQTT Discovery: Published device config to %s", config_topic);
+        debug("MQTT Discovery: Published device config to %s", config_topic);
     }
 
     /**
@@ -511,7 +526,7 @@ public class MqttDiscoveryManager : GLib.Object {
         }
 
         published = false;
-        message("MQTT Discovery: Removed device config for node=%s", node_id);
+        debug("MQTT Discovery: Removed device config for node=%s", node_id);
     }
 
     /**
@@ -539,7 +554,7 @@ public class MqttDiscoveryManager : GLib.Object {
         sb.append("  • %s (button, cmd_t)\n".printf(ENTITY_RECONNECT));
         sb.append("  • %s (button, cmd_t)\n".printf(ENTITY_REFRESH));
         sb.append("\n");
-        sb.append(_("Origin: %s %s\n").printf(ORIGIN_NAME, ORIGIN_SW));
+        sb.append(_("Origin: %s %s\n").printf(ORIGIN_NAME, Dino.VERSION));
         return sb.str;
     }
 

@@ -10,9 +10,29 @@ public class EntityCapabilitiesStorage : Xep.EntityCapabilities.Storage, Object 
     private Database db;
     private HashMap<string, Gee.List<string>> features_cache = new HashMap<string, Gee.List<string>>();
     private HashMap<string, Identity> identity_cache = new HashMap<string, Identity>();
+    private const int MAX_CACHE_ENTRIES = 500;
 
     public EntityCapabilitiesStorage(Database db) {
         this.db = db;
+    }
+
+    private void evict_if_needed() {
+        if (features_cache.size > MAX_CACHE_ENTRIES) {
+            var iter = features_cache.map_iterator();
+            int to_remove = features_cache.size - MAX_CACHE_ENTRIES + 50;
+            while (to_remove > 0 && iter.next()) {
+                iter.unset();
+                to_remove--;
+            }
+        }
+        if (identity_cache.size > MAX_CACHE_ENTRIES) {
+            var iter = identity_cache.map_iterator();
+            int to_remove = identity_cache.size - MAX_CACHE_ENTRIES + 50;
+            while (to_remove > 0 && iter.next()) {
+                iter.unset();
+                to_remove--;
+            }
+        }
     }
 
     public void store_features(string entity, Gee.List<string> features) {
@@ -24,6 +44,8 @@ public class EntityCapabilitiesStorage : Xep.EntityCapabilities.Storage, Object 
                     .value(db.entity_feature.feature, feature)
                     .perform();
         }
+        features_cache[entity] = features;
+        evict_if_needed();
     }
 
     public void store_identities(string entity, Gee.Set<Identity> identities) {
@@ -65,6 +87,7 @@ public class EntityCapabilitiesStorage : Xep.EntityCapabilities.Storage, Object 
             identity = new Identity(row[db.entity_identity.category], row[db.entity_identity.type], row[db.entity_identity.entity_name]);
         }
         identity_cache[entity] = identity;
+        evict_if_needed();
         return identity;
     }
 }

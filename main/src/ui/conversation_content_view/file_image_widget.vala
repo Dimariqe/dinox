@@ -30,6 +30,8 @@ public class FileImageWidget : Widget {
     private Binding? ft_bytes_binding = null;
     private ulong ft_state_handler_id = 0;
     private ulong ft_sources_handler_id = 0;
+    private ulong notify_mapped_handler_id = 0;
+    private ulong settings_anim_handler_id = 0;
 
     private uint animation_timeout_id = 0;
     private uint cleanup_timeout_id = 0;
@@ -42,7 +44,7 @@ public class FileImageWidget : Widget {
     private Gtk.Adjustment? watched_vadjustment = null;
     private ulong watched_vadjustment_handler_id = 0;
 
-    private const int FIRST_FRAME_CACHE_MAX_ENTRIES = 128;
+    private const int FIRST_FRAME_CACHE_MAX_ENTRIES = 32;
     private static Gee.HashMap<string, Gdk.Texture> first_frame_cache = new Gee.HashMap<string, Gdk.Texture>();
     private static Gee.LinkedList<string> first_frame_lru = new Gee.LinkedList<string>();
 
@@ -83,6 +85,11 @@ public class FileImageWidget : Widget {
         first_frame_lru.add(key);
 
         return first_frame_cache[key];
+    }
+
+    public static void clear_frame_cache() {
+        if (first_frame_cache != null) first_frame_cache.clear();
+        if (first_frame_lru != null) first_frame_lru.clear();
     }
 
     private void disconnect_scroll_watch() {
@@ -250,7 +257,7 @@ public class FileImageWidget : Widget {
         });
         attach_on_motion_event_leave(this_motion_events, button);
 
-        this.notify["mapped"].connect(() => {
+        notify_mapped_handler_id = this.notify["mapped"].connect(() => {
             if (!this.get_mapped()) {
                 pause_animation();
                 disconnect_scroll_watch();
@@ -260,7 +267,7 @@ public class FileImageWidget : Widget {
         });
 
         // React to sticker animation setting changes
-        Dino.Application.get_default().settings.notify["sticker-animations-enabled"].connect(() => {
+        settings_anim_handler_id = Dino.Application.get_default().settings.notify["sticker-animations-enabled"].connect(() => {
             update_animation_state();
         });
     }
@@ -417,7 +424,10 @@ public class FileImageWidget : Widget {
              while (child != null) {
                  Widget next = child.get_next_sibling();
                  if (child != content_widget && child != active_content_widget) {
-                     if (child.get_parent() == stack) stack.remove(child);
+                     if (child.get_parent() == stack) {
+                         stack.remove(child);
+                         child.dispose();
+                     }
                  }
                  child = next;
              }
@@ -638,6 +648,12 @@ public class FileImageWidget : Widget {
     }
 
     public override void dispose() {
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_mapped_handler_id != 0) { this.disconnect(notify_mapped_handler_id); notify_mapped_handler_id = 0; }
+        if (settings_anim_handler_id != 0) {
+            Dino.Application.get_default().settings.disconnect(settings_anim_handler_id);
+            settings_anim_handler_id = 0;
+        }
         // Unbind all file_transfer property bindings
         if (ft_size_binding1 != null) { ft_size_binding1.unbind(); ft_size_binding1 = null; }
         if (ft_size_binding2 != null) { ft_size_binding2.unbind(); ft_size_binding2 = null; }
@@ -663,7 +679,22 @@ public class FileImageWidget : Widget {
         }
         reset_loading_and_animation();
         disconnect_scroll_watch();
-        if (overlay != null && overlay.parent != null) overlay.unparent();
+
+        // Dispose all stack children (FixedRatioPicture with textures)
+        active_content_widget = null;
+        Widget? child = stack.get_first_child();
+        while (child != null) {
+            Widget next = child.get_next_sibling();
+            stack.remove(child);
+            child.dispose();
+            child = next;
+        }
+
+        if (overlay != null) {
+            if (overlay.parent != null) overlay.unparent();
+            overlay.dispose();
+            overlay = null;
+        }
         base.dispose();
     }
 }

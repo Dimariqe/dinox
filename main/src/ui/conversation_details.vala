@@ -40,8 +40,9 @@ namespace Dino.Ui.ConversationDetails {
     public void bind_dialog(Model.ConversationDetails model, ViewModel.ConversationDetails view_model, StreamInteractor stream_interactor) {
         // Set some data once
         view_model.avatar = new ViewModel.CompatAvatarPictureModel(stream_interactor).set_conversation(model.conversation);
-        view_model.show_blocked = model.conversation.type_ == Conversation.Type.CHAT && stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY).is_supported(model.conversation.account);
-        view_model.show_remove_contact = model.conversation.type_ == Conversation.Type.CHAT;  // Only show for 1:1 chats
+        bool is_synthetic_bot = (model.conversation.counterpart.domainpart == "mqtt.local");
+        view_model.show_blocked = !is_synthetic_bot && model.conversation.type_ == Conversation.Type.CHAT && stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY).is_supported(model.conversation.account);
+        view_model.show_remove_contact = !is_synthetic_bot && model.conversation.type_ == Conversation.Type.CHAT;  // Only show for 1:1 chats
         view_model.members_sorted.set_model(model.members);
         view_model.members.set_map_func((item) => {
             var conference_member = (Ui.Model.ConferenceMember) item;
@@ -165,6 +166,8 @@ namespace Dino.Ui.ConversationDetails {
     }
 
     public void set_about_rows(Model.ConversationDetails model, ViewModel.ConversationDetails view_model, StreamInteractor stream_interactor, Gtk.Widget? parent) {
+        bool is_synthetic_bot = (model.conversation.counterpart.domainpart == "mqtt.local");
+
         var xmpp_addr_row = new ViewModel.PreferencesRow.Text();
         xmpp_addr_row.title = _("XMPP Address");
         xmpp_addr_row.text = model.conversation.counterpart.to_string();
@@ -206,7 +209,7 @@ namespace Dino.Ui.ConversationDetails {
             }
         }
 
-        if (model.conversation.type_ == Conversation.Type.CHAT) {
+        if (model.conversation.type_ == Conversation.Type.CHAT && !is_synthetic_bot) {
             var about_row = new ViewModel.PreferencesRow.Entry() {
                 title = _("Display name"),
                 text = model.display_name.display_name
@@ -312,10 +315,10 @@ namespace Dino.Ui.ConversationDetails {
                             var window = parent.get_root() as Gtk.Window;
                             admin_dialog.present(window);
                         } else {
-                            // Fallback if no parent found, though present() requires one.
-                            // We might need to find the active window from application
                             var app = GLib.Application.get_default() as Gtk.Application;
-                            admin_dialog.present(app.active_window);
+                            if (app != null) {
+                                admin_dialog.present(app.active_window);
+                            }
                         }
                     });
                     view_model.settings_rows.append(admin_button);
@@ -679,10 +682,10 @@ namespace Dino.Ui.ConversationDetails {
             yield file_stream.close_async();
 
             if (pixbuf.width >= pixbuf.height && pixbuf.width > MAX_PIXEL) {
-                int dest_height = (int) ((float) MAX_PIXEL / pixbuf.width * pixbuf.height);
+                int dest_height = int.max(1, (int) ((float) MAX_PIXEL / pixbuf.width * pixbuf.height));
                 pixbuf = pixbuf.scale_simple(MAX_PIXEL, dest_height, Gdk.InterpType.BILINEAR);
             } else if (pixbuf.height > pixbuf.width && pixbuf.height > MAX_PIXEL) {
-                int dest_width = (int) ((float) MAX_PIXEL / pixbuf.height * pixbuf.width);
+                int dest_width = int.max(1, (int) ((float) MAX_PIXEL / pixbuf.height * pixbuf.width));
                 pixbuf = pixbuf.scale_simple(dest_width, MAX_PIXEL, Gdk.InterpType.BILINEAR);
             }
 

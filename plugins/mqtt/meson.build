@@ -85,7 +85,10 @@ if dep_mosquitto_check.found() and plugin_mqtt_opt.allowed()
 
     summary('MQTT IoT/Event Plugin (mqtt)', true, section: 'Plugins')
 
-    # Unit tests for MQTT plugin (standalone, only mqtt_utils.vala + connection_config.vala + glib + json-glib)
+    # Unit tests for MQTT plugin (standalone — no broker, no DB, no UI)
+    # Only includes source files with minimal dependencies.
+    # AlertRule/MqttPriority live in alert_manager.vala which depends on
+    # the full Plugin class; those are tested via integration tests instead.
     mqtt_test_sources = files(
         'tests/common.vala',
         'tests/testcase.vala',

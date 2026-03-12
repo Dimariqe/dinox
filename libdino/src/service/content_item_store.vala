@@ -131,15 +131,6 @@ public class ContentItemStore : StreamInteractionModule, Object {
         return MessageStorage.get_reference_id(message);
     }
 
-    public Jid? get_message_sender_for_content_item(Conversation conversation, ContentItem content_item) {
-        Message? message = get_message_for_content_item(conversation, content_item);
-        if (message == null) return null;
-
-        // No need to look at edit_to, because it's the same sender JID.
-
-        return message.from;
-    }
-
     public Message? get_message_for_content_item(Conversation conversation, ContentItem content_item) {
         FileItem? file_item = content_item as FileItem;
         if (file_item != null) {
@@ -249,26 +240,6 @@ public class ContentItemStore : StreamInteractionModule, Object {
         return get_items_from_query(select, conversation);
     }
 
-//    public Gee.List<ContentItemMeta> get_latest_meta(Conversation conversation, int count) {
-//        QueryBuilder select = db.content_item.select()
-//                .with(db.content_item.conversation_id, "=", conversation.id)
-//                .with(db.content_item.hide, "=", false)
-//                .order_by(db.content_item.time, "DESC")
-//                .order_by(db.content_item.id, "DESC")
-//                .limit(count);
-//
-//        var ret = new ArrayList<ContentItemMeta>();
-//        foreach (var row in select) {
-//            var item_meta = new ContentItemMeta() {
-//                id = row[db.content_item.id],
-//                content_type = row[db.content_item.content_type],
-//                foreign_id = row[db.content_item.foreign_id],
-//                time = new DateTime.from_unix_utc(row[db.content_item.time])
-//            };
-//        }
-//        return ret;
-//    }
-
     public Gee.List<ContentItem> get_before(Conversation conversation, ContentItem item, int count) {
         long time = (long) item.time.to_unix();
         QueryBuilder select = db.content_item.select()
@@ -295,13 +266,14 @@ public class ContentItemStore : StreamInteractionModule, Object {
         return get_items_from_query(select, conversation);
     }
 
-    public Gee.List<ContentItem> get_items_older_than(Conversation conversation, DateTime cutoff_time) {
+    public Gee.List<ContentItem> get_items_older_than(Conversation conversation, DateTime cutoff_time, int limit = 500) {
         long cutoff_unix = (long) cutoff_time.to_unix();
         QueryBuilder select = db.content_item.select()
             .where("time < ?", { cutoff_unix.to_string() })
             .with(db.content_item.conversation_id, "=", conversation.id)
             .with(db.content_item.hide, "=", false)
-            .order_by(db.content_item.time, "ASC");
+            .order_by(db.content_item.time, "ASC")
+            .limit(limit);
 
         return get_items_from_query(select, conversation);
     }
@@ -344,10 +316,6 @@ public class ContentItemStore : StreamInteractionModule, Object {
         new_item(item, conversation);
     }
 
-    public bool get_item_hide(ContentItem content_item) {
-        return db.content_item.row_with(db.content_item.id, content_item.id)[db.content_item.hide, false];
-    }
-
     public void set_item_hide(ContentItem content_item, bool hide) {
         db.content_item.update()
             .with(db.content_item.id, "=", content_item.id)
@@ -385,7 +353,7 @@ public abstract class ContentItem : Object {
     public static int compare_func(ContentItem a, ContentItem b) {
         int res = a.time.compare(b.time);
         if (res == 0) {
-            res = a.id - b.id > 0 ? 1 : -1;
+            res = a.id > b.id ? 1 : (a.id < b.id ? -1 : 0);
         }
         return res;
     }
@@ -396,13 +364,19 @@ public class MessageItem : ContentItem {
 
     public Message message;
     public Conversation conversation;
+    private Binding? mark_binding = null;
 
     public MessageItem(Message message, Conversation conversation, int id) {
         base(id, TYPE, message.from, message.time, message.encryption, message.marked);
 
         this.message = message;
         this.conversation = conversation;
-        message.bind_property("marked", this, "mark");
+        mark_binding = message.bind_property("marked", this, "mark");
+    }
+
+    public override void dispose() {
+        if (mark_binding != null) { mark_binding.unbind(); mark_binding = null; }
+        base.dispose();
     }
 }
 
@@ -411,6 +385,9 @@ public class FileItem : ContentItem {
 
     public FileTransfer file_transfer;
     public Conversation conversation;
+    private Binding? encryption_binding = null;
+    private Binding? mark_binding = null;
+    private Binding? state_binding = null;
 
     public FileItem(FileTransfer file_transfer, Conversation conversation, int id, Message? message = null) {
         Entities.Message.Marked mark = Entities.Message.Marked.NONE;
@@ -426,17 +403,24 @@ public class FileItem : ContentItem {
 
         // Keep encryption icon in sync when the file decryptor updates
         // the encryption after download (e.g. PGP file decryption)
-        file_transfer.bind_property("encryption", this, "encryption");
+        encryption_binding = file_transfer.bind_property("encryption", this, "encryption");
 
         // TODO those don't work
         if (message != null) {
-            message.bind_property("marked", this, "mark");
+            mark_binding = message.bind_property("marked", this, "mark");
         } else if (file_transfer.direction == FileTransfer.DIRECTION_SENT) {
-            file_transfer.bind_property("state", this, "mark", BindingFlags.DEFAULT, (_, from_value, ref to_value) => {
+            state_binding = file_transfer.bind_property("state", this, "mark", BindingFlags.DEFAULT, (_, from_value, ref to_value) => {
                 to_value = file_to_message_state((FileTransfer.State)from_value.get_enum());
                 return true;
             });
         }
+    }
+
+    public override void dispose() {
+        if (encryption_binding != null) { encryption_binding.unbind(); encryption_binding = null; }
+        if (mark_binding != null) { mark_binding.unbind(); mark_binding = null; }
+        if (state_binding != null) { state_binding.unbind(); state_binding = null; }
+        base.dispose();
     }
 
     private static Entities.Message.Marked file_to_message_state(FileTransfer.State state) {
@@ -459,6 +443,7 @@ public class CallItem : ContentItem {
 
     public Call call;
     public Conversation conversation;
+    private Binding? encryption_binding = null;
 
     public CallItem(Call call, Conversation conversation, int id) {
         base(id, TYPE, call.proposer, call.time, call.encryption, Message.Marked.NONE);
@@ -466,7 +451,12 @@ public class CallItem : ContentItem {
         this.call = call;
         this.conversation = conversation;
 
-        call.bind_property("encryption", this, "encryption");
+        encryption_binding = call.bind_property("encryption", this, "encryption");
+    }
+
+    public override void dispose() {
+        if (encryption_binding != null) { encryption_binding.unbind(); encryption_binding = null; }
+        base.dispose();
     }
 }
 

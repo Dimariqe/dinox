@@ -56,6 +56,18 @@ public class TelegramBridge : Object {
         }
     }
 
+    // Redact Telegram bot token from URLs for safe logging
+    // Replaces https://api.telegram.org/bot<TOKEN>/... → https://api.telegram.org/bot<REDACTED>/...
+    private static string redact_token_url(string url) {
+        // Match /bot<token>/ or /file/bot<token>/
+        int bot_pos = url.index_of("/bot");
+        if (bot_pos < 0) return url;
+        int token_start = bot_pos + 4; // skip "/bot"
+        int token_end = url.index_of("/", token_start);
+        if (token_end < 0) return url;
+        return url.substring(0, token_start) + "<REDACTED>" + url.substring(token_end);
+    }
+
     // Check if Telegram bridge is enabled for a bot
     public bool is_enabled(int bot_id) {
         string? val = registry.get_setting("bot_%d_tg_enabled".printf(bot_id));
@@ -66,7 +78,7 @@ public class TelegramBridge : Object {
     public void configure(int bot_id, string tg_token, string tg_chat_id, string mode) {
         string prefix = "bot_%d_tg".printf(bot_id);
         registry.set_setting(prefix + "_enabled", "true");
-        registry.set_setting(prefix + "_token", tg_token);
+        registry.set_secret_setting(prefix + "_token", tg_token);
         registry.set_setting(prefix + "_chat_id", tg_chat_id);
         registry.set_setting(prefix + "_mode", mode);
         message("Telegram: Configured for bot %d: chat_id=%s mode=%s", bot_id, tg_chat_id, mode);
@@ -93,7 +105,7 @@ public class TelegramBridge : Object {
     // Delete webhook then start polling loop
     private async void delete_webhook_and_start(int bot_id) {
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         if (token != null) {
             string url = "https://api.telegram.org/bot%s/deleteWebhook".printf(token);
             try {
@@ -142,7 +154,7 @@ public class TelegramBridge : Object {
     // Forward an XMPP message to Telegram
     public async bool forward_to_telegram(int bot_id, string from_jid, string text) {
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         string? chat_id = registry.get_setting(prefix + "_chat_id");
 
         if (token == null || chat_id == null) {
@@ -228,7 +240,7 @@ public class TelegramBridge : Object {
             uint status = request.get_status();
 
             if (status < 200 || status >= 300) {
-                warning("Telegram: Download HTTP %u from %s", status, url);
+                warning("Telegram: Download HTTP %u from %s", status, redact_token_url(url));
                 return null;
             }
 
@@ -317,7 +329,7 @@ public class TelegramBridge : Object {
 
             var request = new Soup.Message.from_multipart(url, multipart);
 
-            var response = yield http.send_and_read_async(request, GLib.Priority.DEFAULT, null);
+            yield http.send_and_read_async(request, GLib.Priority.DEFAULT, null);
             uint status = request.get_status();
 
             if (status >= 200 && status < 300) {
@@ -325,8 +337,7 @@ public class TelegramBridge : Object {
                 return true;
             }
 
-            string body = (string) response.get_data();
-            warning("Telegram: Upload %s failed HTTP %u: %s", method, status, body);
+            warning("Telegram: Upload %s failed HTTP %u (response omitted)", method, status);
             return false;
         } catch (GLib.Error e) {
             warning("Telegram: Upload error: %s", e.message);
@@ -372,7 +383,7 @@ public class TelegramBridge : Object {
         poll_in_progress[bot_id] = true;
 
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         if (token == null) { poll_in_progress[bot_id] = false; return; }
 
         int64 offset = 0;
@@ -504,7 +515,7 @@ public class TelegramBridge : Object {
 
                         if (file_id != null) {
                             string? download_url = yield resolve_telegram_file(token, file_id);
-                            debug("Telegram: Resolved URL: %s", download_url ?? "null");
+                            debug("Telegram: Resolved file: %s", download_url ?? "null");  // safe: returns description, not URL
                             if (download_url != null) {
                                 // Emit file signal -> MessageRouter sends bare URL for inline display
                                 telegram_file_received(bot_id, from_name, download_url, caption);
@@ -592,14 +603,13 @@ public class TelegramBridge : Object {
             request.set_request_body_from_bytes("application/json",
                 new Bytes.take(sb.str.data));
 
-            var response = yield http.send_and_read_async(request, GLib.Priority.DEFAULT, null);
+            yield http.send_and_read_async(request, GLib.Priority.DEFAULT, null);
             uint status = request.get_status();
 
             if (status >= 200 && status < 300) {
                 return true;
             }
-            string body = (string) response.get_data();
-            warning("Telegram: Send failed HTTP %u: %s", status, body);
+            warning("Telegram: Send failed HTTP %u", status);
             return false;
         } catch (GLib.Error e) {
             warning("Telegram: Send error: %s", e.message);
@@ -610,7 +620,7 @@ public class TelegramBridge : Object {
     // Test the connection (get bot info from Telegram)
     public async string? test_connection(int bot_id) {
         string prefix = "bot_%d_tg".printf(bot_id);
-        string? token = registry.get_setting(prefix + "_token");
+        string? token = registry.get_secret_setting(prefix + "_token");
         if (token == null) return "Telegram nicht konfiguriert.";
 
         string url = "https://api.telegram.org/bot%s/getMe".printf(token);
@@ -659,20 +669,9 @@ public class TelegramBridge : Object {
         registry.delete_setting(prefix + "_mode");
     }
 
-    // RFC 8259 compliant JSON string escaping (BUG-05 fix)
+    // Delegate to shared BotUtils (clone removal)
     private static string escape_json(string s) {
-        var sb = new StringBuilder.sized(s.length);
-        for (int i = 0; i < s.length; i++) {
-            unichar c = s[i];
-            if (c == '\\') sb.append("\\\\");
-            else if (c == '"') sb.append("\\\"");
-            else if (c == '\n') sb.append("\\n");
-            else if (c == '\r') sb.append("\\r");
-            else if (c == '\t') sb.append("\\t");
-            else if (c < 0x20) sb.append("\\u%04x".printf(c));
-            else sb.append_unichar(c);
-        }
-        return sb.str;
+        return BotUtils.escape_json(s);
     }
 }
 

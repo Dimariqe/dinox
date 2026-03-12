@@ -118,7 +118,7 @@ public class MqttUtils : Object {
                     }
                 }
             } catch (GLib.Error e) {
-                /* not valid JSON */
+                debug("MqttUtils.try_extract_numeric: JSON parse failed: %s", e.message);
             }
         }
 
@@ -203,6 +203,7 @@ public class MqttUtils : Object {
      * @return The original or truncated string
      */
     public static string truncate_string(string s, int max_len) {
+        if (max_len <= 3) return s;
         if (s.length <= max_len) return s;
         return s.substring(0, max_len - 3) + "...";
     }
@@ -256,6 +257,24 @@ public class MqttUtils : Object {
         }
         if (h.has_suffix(".local") || h.has_suffix(".lan") || h.has_suffix(".home")) return true;
         return false;
+    }
+
+    /**
+     * Safe wrapper for getting current UTC time as Unix timestamp.
+     *
+     * new DateTime.now_utc() can return NULL in edge cases (timezone
+     * database issues, system clock problems), which causes a
+     * GLib-CRITICAL when .to_unix() is called on it.
+     *
+     * Returns: Current Unix timestamp, or 0 if the system clock is unavailable.
+     */
+    public static int64 now_unix() {
+        DateTime? dt = new DateTime.now_utc();
+        if (dt == null) {
+            warning("MqttUtils.now_unix: DateTime.now_utc() returned NULL!");
+            return 0;
+        }
+        return dt.to_unix();
     }
 }
 

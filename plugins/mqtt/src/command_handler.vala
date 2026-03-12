@@ -118,7 +118,10 @@ public class MqttCommandHandler : Object {
 
             case "publish":
             case "pub":
-                response = cmd_publish(arg1, arg2, conversation);
+                /* Combine arg2 + arg3 so multi-word payloads are not truncated.
+                 * split(" ",4) gives [subcmd, topic, word1, rest…] */
+                string pub_payload = (arg3 != "") ? arg2 + " " + arg3 : arg2;
+                response = cmd_publish(arg1, pub_payload, conversation);
                 break;
 
             case "topics":
@@ -158,7 +161,7 @@ public class MqttCommandHandler : Object {
                 break;
 
             case "qos":
-                response = cmd_qos(arg1, arg2);
+                response = cmd_qos(arg1, arg2, conversation);
                 break;
 
             case "chart":
@@ -167,11 +170,11 @@ public class MqttCommandHandler : Object {
                 break;
 
             case "bridge":
-                response = cmd_bridge(arg1, arg2);
+                response = cmd_bridge(arg1, arg2, conversation);
                 break;
 
             case "bridges":
-                response = cmd_bridges();
+                response = cmd_bridges(conversation);
                 break;
 
             case "rmbridge":
@@ -211,6 +214,22 @@ public class MqttCommandHandler : Object {
 
             case "reconnect":
                 response = cmd_reconnect(conversation);
+                break;
+
+            case "alias":
+                /* /mqtt alias <topic> <name...> — arg1=topic, arg2+arg3=name */
+                string alias_name = arg2;
+                if (arg3 != "") alias_name = "%s %s".printf(arg2, arg3);
+                response = cmd_alias(arg1, alias_name, conversation);
+                break;
+
+            case "aliases":
+                response = cmd_aliases(conversation);
+                break;
+
+            case "rmalias":
+            case "delalias":
+                response = cmd_rmalias(arg1, conversation);
                 break;
 
             case "help":
@@ -371,6 +390,8 @@ public class MqttCommandHandler : Object {
         sb.append("─────────────────────────\n");
 
         MqttAlertManager? am = plugin.get_alert_manager();
+        HashMap<string, string> aliases = (cfg != null) ?
+            cfg.get_aliases_map() : new HashMap<string, string>();
 
         int i = 1;
         foreach (string t in topics) {
@@ -383,7 +404,12 @@ public class MqttCommandHandler : Object {
                 if (prio != MqttPriority.NORMAL) {
                     extras += ", %s".printf(prio.to_string_key());
                 }
-                sb.append_printf("%d. %s  [%s]\n", i++, trimmed, extras);
+                string? alias = aliases.has_key(trimmed) ? aliases[trimmed] : null;
+                if (alias != null && alias != "") {
+                    sb.append_printf("%d. %s (%s)  [%s]\n", i++, alias, trimmed, extras);
+                } else {
+                    sb.append_printf("%d. %s  [%s]\n", i++, trimmed, extras);
+                }
             }
         }
 
@@ -398,6 +424,9 @@ public class MqttCommandHandler : Object {
                "/mqtt unsubscribe <topic> — Unsubscribe from a topic\n" +
                "/mqtt publish <t> <msg>   — Publish to a topic\n" +
                "/mqtt topics              — List subscriptions\n" +
+               "/mqtt alias <topic> <name>— Set topic display alias\n" +
+               "/mqtt aliases             — List all aliases\n" +
+               "/mqtt rmalias <topic>     — Remove alias\n" +
                "/mqtt qos <topic> <0|1|2> — Set topic QoS level\n" +
                "/mqtt chart <topic> [N]   — Sparkline chart\n" +
                "/mqtt bridge <topic> <jid>— Forward to XMPP contact\n" +
@@ -443,10 +472,79 @@ public class MqttCommandHandler : Object {
                "QoS levels: 0 (fire&forget), 1 (ack), 2 (exactly once)\n" +
                "Priority levels: silent, normal, alert, critical\n" +
                "\n" +
+               "Alias example:\n" +
+               "  /mqtt alias home/temp 🌡 Wohnzimmer\n" +
+               "\n" +
                "HA Discovery:\n" +
                "  /mqtt discovery         — Show discovery status\n" +
                "  /mqtt discovery on      — Enable & publish\n" +
                "  /mqtt discovery off     — Disable & remove");
+    }
+
+    /* ── Alias Command Implementations ───────────────────────────── */
+
+    /**
+     * /mqtt alias <topic> <name>  — Set display alias for a topic.
+     * Alias length is clamped to MAX_ALIAS_LENGTH.
+     */
+    private string cmd_alias(string topic, string alias_name,
+                              Conversation conversation) {
+        if (topic == "") {
+            return _("Usage: /mqtt alias <topic> <name>\n\n" +
+                     "Example:\n  /mqtt alias home/sensors/temp 🌡 Wohnzimmer");
+        }
+        if (alias_name.strip() == "") {
+            return _("Usage: /mqtt alias <topic> <name>\n\nAlias name cannot be empty.");
+        }
+
+        var cfg = get_config_for_conversation(conversation);
+        if (cfg == null) return _("No config available for this connection.");
+
+        cfg.set_alias(topic, alias_name.strip());
+        save_config_for_conversation(conversation, cfg);
+
+        return _("Alias set: %s → %s ✔").printf(topic, alias_name.strip());
+    }
+
+    /**
+     * /mqtt aliases — List all topic aliases.
+     */
+    private string cmd_aliases(Conversation conversation) {
+        var cfg = get_config_for_conversation(conversation);
+        if (cfg == null) return _("No config available for this connection.");
+
+        var aliases = cfg.get_aliases_map();
+        if (aliases.size == 0) {
+            return _("No topic aliases configured.\n\n" +
+                     "Use /mqtt alias <topic> <name> to set one.");
+        }
+
+        var sb = new StringBuilder();
+        sb.append(_("Topic Aliases\n"));
+        sb.append("─────────────\n");
+        int i = 1;
+        foreach (var entry in aliases.entries) {
+            sb.append_printf("%d. %s → %s\n", i++, entry.key, entry.value);
+        }
+        return sb.str;
+    }
+
+    /**
+     * /mqtt rmalias <topic> — Remove alias for a topic.
+     */
+    private string cmd_rmalias(string topic, Conversation conversation) {
+        if (topic == "") {
+            return _("Usage: /mqtt rmalias <topic>");
+        }
+
+        var cfg = get_config_for_conversation(conversation);
+        if (cfg == null) return _("No config available for this connection.");
+
+        if (cfg.remove_alias(topic)) {
+            save_config_for_conversation(conversation, cfg);
+            return _("Alias removed for: %s ✔").printf(topic);
+        }
+        return _("No alias found for: %s").printf(topic);
     }
 
     /* ── Phase 3: New Command Implementations ────────────────────── */
@@ -749,8 +847,8 @@ public class MqttCommandHandler : Object {
         for (int i = rows.size - 1; i >= 0; i--) {
             var row = rows[i];
             long ts = db.messages.timestamp[row];
-            var dt = new DateTime.from_unix_utc(ts).to_local();
-            string time_str = dt.format("%H:%M:%S");
+            DateTime? dt = new DateTime.from_unix_utc(ts);
+            string time_str = (dt != null) ? dt.to_local().format("%H:%M:%S") : "??:??:??";
             string prio_str = db.messages.priority[row];
             MqttPriority prio = MqttPriority.from_string(prio_str);
             string prio_icon = prio.to_icon();
@@ -818,9 +916,11 @@ public class MqttCommandHandler : Object {
      * Without args: show all QoS settings.
      * With args: set QoS for a topic.
      */
-    private string cmd_qos(string topic, string level_str) {
+    private string cmd_qos(string topic, string level_str,
+                            Conversation conversation) {
         MqttAlertManager? am = plugin.get_alert_manager();
         if (am == null) return _("Alert manager not available.");
+        string conn_key = get_connection_key(conversation);
 
         if (topic == "") {
             /* Show current QoS settings */
@@ -861,8 +961,9 @@ public class MqttCommandHandler : Object {
 
         am.set_topic_qos(topic, qos);
 
-        /* Re-subscribe with new QoS on active connections */
-        plugin.subscribe(topic, qos);
+        /* Re-subscribe with new QoS on the scoped connection
+         * (not all connections).  (Audit Finding 6) */
+        plugin.subscribe(topic, qos, conn_key);
 
         if (qos == 0) {
             return _("Topic '%s' QoS reset to default (0 — at most once) ✔").printf(topic);
@@ -934,7 +1035,7 @@ public class MqttCommandHandler : Object {
     /**
      * /mqtt bridge <topic> <jid>  — Create MQTT→XMPP bridge.
      */
-    private string cmd_bridge(string topic, string jid_str) {
+    private string cmd_bridge(string topic, string jid_str, Conversation conversation) {
         if (topic == "" || jid_str == "") {
             return _("Usage: /mqtt bridge <topic> <jid>\n\n" +
                    "Forward MQTT messages to an XMPP contact.\n\n" +
@@ -953,14 +1054,23 @@ public class MqttCommandHandler : Object {
         MqttBridgeManager? bm = plugin.get_bridge_manager();
         if (bm == null) return _("Bridge manager not available.");
 
+        string label = get_connection_key(conversation);
         var rule = new BridgeRule();
         rule.topic = topic;
         rule.target_jid = jid_str;
+        rule.client_label = label;
+        /* send_account: When the command is typed in a conversation,
+         * use that conversation's account as the sender. */
+        rule.send_account = conversation.account.bare_jid.to_string();
         bm.add_rule(rule);
+
+        /* Subscribe immediately on the correct client */
+        plugin.subscribe_bridge_topic(topic, label);
 
         return _("Bridge rule created ✔\n\n" +
                "Topic: %s\n").printf(topic) +
-               _("Target: %s\n\n").printf(jid_str) +
+               _("Target: %s\n").printf(jid_str) +
+               _("Client: %s\n\n").printf(label) +
                _("MQTT messages matching this topic will be forwarded\n" +
                "as XMPP chat messages to the target contact.");
     }
@@ -968,14 +1078,15 @@ public class MqttCommandHandler : Object {
     /**
      * /mqtt bridges — List all bridge rules.
      */
-    private string cmd_bridges() {
+    private string cmd_bridges(Conversation conversation) {
         MqttBridgeManager? bm = plugin.get_bridge_manager();
         if (bm == null) return _("Bridge manager not available.");
 
-        var rules = bm.get_rules();
+        string label = get_connection_key(conversation);
+        var rules = bm.get_rules_for_client(label);
         if (rules.size == 0) {
-            return _("No bridge rules defined.\n\n" +
-                   "Use /mqtt bridge <topic> <jid> to create one.");
+            return _("No bridge rules for this connection (%s).\n\n" +
+                   "Use /mqtt bridge <topic> <jid> to create one.").printf(label);
         }
 
         var sb = new StringBuilder();
@@ -1358,8 +1469,11 @@ public class MqttCommandHandler : Object {
             }
             save_config_for_conversation(conversation, cfg);
 
-            /* Reconnect needed so LWT can be set before connect */
-            plugin.reload_config();
+            /* Reconnect needed so LWT can be set before connect.
+             * apply_settings() (not just reload_config()) is required
+             * so the broker connection is actually re-established
+             * with the new LWT message.  (Audit Finding 1) */
+            plugin.apply_settings();
             return _("HA Discovery enabled (prefix: %s).\n\n" +
                      "Reconnecting to set LWT… check /mqtt status in a few seconds.").printf(
                 cfg.discovery_prefix);
@@ -1473,24 +1587,6 @@ public class MqttCommandHandler : Object {
         var gen = new Json.Generator();
         gen.set_root(builder.get_root());
         return gen.to_data(null);
-    }
-
-    /* ── DB helpers ──────────────────────────────────────────────── */
-
-    private string? get_db_setting(string key) {
-        var row_opt = plugin.app.db.settings.select({plugin.app.db.settings.value})
-            .with(plugin.app.db.settings.key, "=", key)
-            .single()
-            .row();
-        if (row_opt.is_present()) return row_opt[plugin.app.db.settings.value];
-        return null;
-    }
-
-    private void set_db_setting(string key, string val) {
-        plugin.app.db.settings.upsert()
-            .value(plugin.app.db.settings.key, key, true)
-            .value(plugin.app.db.settings.value, val)
-            .perform();
     }
 }
 

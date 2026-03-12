@@ -86,6 +86,7 @@ sources = files(
     'src/service/util.vala',
     'src/util/checksum_output_stream.vala',
     'src/util/display_name.vala',
+    'src/util/file_utils.vala',
     'src/util/limit_input_stream.vala',
     'src/util/send_message.vala',
     'src/util/util.vala',
@@ -122,6 +123,7 @@ test_sources = [
     'tests/audit.vala',
     'tests/audit_file_transfer.vala',
     'tests/audit_srtp.vala',
+    'tests/audit_entity.vala',
 ]
 exe_libdino_test = executable('libdino-test', test_sources, c_args: c_args, vala_args: vala_args, dependencies: dependencies + dep_dino, install: false)
 test('Tests for libdino', exe_libdino_test)

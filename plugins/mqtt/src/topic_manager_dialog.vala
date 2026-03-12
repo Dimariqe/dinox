@@ -48,6 +48,16 @@ public class MqttTopicManagerDialog : Adw.Dialog {
 
         build_ui();
         populate();
+
+        /* Clear focus entirely on close to prevent GTK "Broken
+         * accounting of active state" and "did not receive a
+         * focus-out event" warnings.  grab_focus() on a container
+         * re-delegates to a child entry — set_focus(null) clears
+         * focus completely. */
+        this.closed.connect(() => {
+            var root = this.get_root() as Gtk.Root;
+            if (root != null) root.set_focus(null);
+        });
     }
 
     private void build_ui() {
@@ -295,9 +305,13 @@ public class MqttTopicManagerDialog : Adw.Dialog {
         string? existing = get_topics_string();
         string new_topics;
         if (existing != null && existing != "") {
-            /* Check duplicate */
+            /* Check duplicate — clear entry as visual feedback
+             * so the user knows it was recognized.  (Audit Finding 8) */
             foreach (string p in existing.split(",")) {
-                if (p.strip() == topic) return;  /* already subscribed */
+                if (p.strip() == topic) {
+                    topic_entry.text = "";
+                    return;
+                }
             }
             new_topics = existing + "," + topic;
         } else {
@@ -384,26 +398,6 @@ public class MqttTopicManagerDialog : Adw.Dialog {
         }
         topic_rows.clear();
         populate_topics();
-    }
-
-    /* ── DB helpers ──────────────────────────────────────────────── */
-
-    private string? get_db_setting(string key) {
-        var row_opt = plugin.app.db.settings.select(
-                {plugin.app.db.settings.value})
-            .with(plugin.app.db.settings.key, "=", key)
-            .single()
-            .row();
-        if (row_opt.is_present())
-            return row_opt[plugin.app.db.settings.value];
-        return null;
-    }
-
-    private void set_db_setting(string key, string val) {
-        plugin.app.db.settings.upsert()
-            .value(plugin.app.db.settings.key, key, true)
-            .value(plugin.app.db.settings.value, val)
-            .perform();
     }
 }
 

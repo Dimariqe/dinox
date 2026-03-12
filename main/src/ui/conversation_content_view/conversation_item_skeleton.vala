@@ -34,6 +34,10 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     public Widget? widget = null;
     private ReactionsController? reactions_controller = null;
 
+    private Binding? edit_mode_binding = null;
+    private Binding? mark_binding = null;
+    private bool _skeleton_disposed = false;
+
     private bool defer_heavy_work = false;
     private bool header_initialized = false;
     private bool content_initialized = false;
@@ -42,6 +46,10 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
 
     private uint time_update_timeout = 0;
     private ulong updated_roster_handler_id = 0;
+    private ulong notify_edit_mode_handler_id = 0;
+    private ulong notify_show_skeleton1_handler_id = 0;
+    private ulong notify_show_skeleton2_handler_id = 0;
+    private ulong notify_item_mark_handler_id = 0;
 
     public ConversationItemSkeleton(StreamInteractor stream_interactor, Conversation conversation, Plugins.MetaConversationItem item, bool defer_heavy_work = false) {
         this.stream_interactor = stream_interactor;
@@ -50,8 +58,8 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
         this.content_meta_item = item as ContentMetaItem;
         this.defer_heavy_work = defer_heavy_work;
 
-        item.bind_property("in-edit-mode", this, "item-in-edit-mode");
-        this.notify["item-in-edit-mode"].connect(update_edit_mode);
+        edit_mode_binding = item.bind_property("in-edit-mode", this, "item-in-edit-mode");
+        notify_edit_mode_handler_id = this.notify["item-in-edit-mode"].connect(update_edit_mode);
 
         int64 t_builder_us = Dino.Ui.UiTiming.now_us();
         Builder builder = new Builder.from_resource("/im/github/rallep71/DinoX/conversation_item_widget.ui");
@@ -87,8 +95,8 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             avatar_picture.add_controller(click_controller);
         }
 
-        this.notify["show-skeleton"].connect(update_margin);
-        this.notify["show-skeleton"].connect(set_header);
+        notify_show_skeleton1_handler_id = this.notify["show-skeleton"].connect(update_margin);
+        notify_show_skeleton2_handler_id = this.notify["show-skeleton"].connect(set_header);
 
         update_margin();
     }
@@ -118,11 +126,26 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     private void on_avatar_clicked(GestureClick controller, int n_press, double x, double y) {
         // Allow both left (1) and right (3) click
         if (controller.get_current_button() == 1 || controller.get_current_button() == 3) {
+            // Don't open occupant menu for own avatar
+            if (conversation.type_ == Conversation.Type.GROUPCHAT) {
+                Xmpp.Jid? own_jid = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_own_jid(conversation.counterpart, conversation.account);
+                if (own_jid != null && item.jid.equals(own_jid)) return;
+            } else if (item.jid.equals_bare(conversation.account.bare_jid)) {
+                return;
+            }
+
             var menu = new Dino.Ui.OccupantMenu.View(stream_interactor, conversation);
             menu.set_parent(avatar_picture);
             menu.show_menu(item.jid, name_label.label);
             menu.popup();
-            menu.closed.connect(() => { menu.unparent(); });
+            menu.closed.connect(() => {
+                Idle.add(() => {
+                    if (menu.get_parent() != null) {
+                        menu.unparent();
+                    }
+                    return false;
+                });
+            });
         }
     }
 
@@ -163,8 +186,8 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             update_time();
         }
 
-        item.bind_property("mark", this, "item-mark", BindingFlags.SYNC_CREATE);
-        this.notify["item-mark"].connect_after(update_received_mark);
+        mark_binding = item.bind_property("mark", this, "item-mark", BindingFlags.SYNC_CREATE);
+        notify_item_mark_handler_id = this.notify["item-mark"].connect_after(update_received_mark);
         update_received_mark();
 
         Dino.Ui.UiTiming.log_ms("ConversationItemSkeleton.init_header: total", t0_us);
@@ -332,6 +355,24 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
     }
 
     public override void dispose() {
+        if (_skeleton_disposed) { base.dispose(); return; }
+        _skeleton_disposed = true;
+
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_edit_mode_handler_id != 0) { this.disconnect(notify_edit_mode_handler_id); notify_edit_mode_handler_id = 0; }
+        if (notify_show_skeleton1_handler_id != 0) { this.disconnect(notify_show_skeleton1_handler_id); notify_show_skeleton1_handler_id = 0; }
+        if (notify_show_skeleton2_handler_id != 0) { this.disconnect(notify_show_skeleton2_handler_id); notify_show_skeleton2_handler_id = 0; }
+        if (notify_item_mark_handler_id != 0) { this.disconnect(notify_item_mark_handler_id); notify_item_mark_handler_id = 0; }
+
+        // Unbind property bindings that keep item<->skeleton alive
+        if (edit_mode_binding != null) { edit_mode_binding.unbind(); edit_mode_binding = null; }
+        if (mark_binding != null) { mark_binding.unbind(); mark_binding = null; }
+
+        // Disconnect signals on item that prevent skeleton GC
+        if (item != null && header_initialized) {
+            item.notify["encryption"].disconnect(update_encryption_icon);
+        }
+
         if (deferred_header_source_id != 0) {
             Source.remove(deferred_header_source_id);
             deferred_header_source_id = 0;
@@ -348,7 +389,20 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY).disconnect(updated_roster_handler_id);
             updated_roster_handler_id = 0;
         }
-        reactions_controller = null;
+        if (reactions_controller != null) {
+            reactions_controller.cleanup();
+            reactions_controller = null;
+        }
+
+        // Dispose content widgets (VideoPlayerWidget, FileWidget, etc.)
+        if (content_widgets != null) {
+            foreach (var content_widget in content_widgets.values) {
+                content_widget.unparent();
+                content_widget.dispose();
+            }
+            content_widgets.clear();
+        }
+        widget = null;
 
         // Children won't be disposed automatically
         if (name_label != null) {
@@ -362,6 +416,9 @@ public class ConversationItemSkeleton : Plugins.ConversationItemWidgetInterface,
             time_label = null;
         }
         if (avatar_picture != null) {
+            // Clean up avatar tile models to break signal reference cycles
+            var compat_model = avatar_picture.model as ViewModel.CompatAvatarPictureModel;
+            if (compat_model != null) compat_model.reset();
             avatar_picture.unparent();
             avatar_picture.dispose();
             avatar_picture = null;

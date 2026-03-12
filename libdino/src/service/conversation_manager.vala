@@ -26,6 +26,7 @@ public class ConversationManager : StreamInteractionModule, Object {
     private Database db;
 
     private HashMap<Account, HashMap<Jid, Gee.List<Conversation>>> conversations = new HashMap<Account, HashMap<Jid, Gee.List<Conversation>>>(Account.hash_func, Account.equals_func);
+    private HashMap<int, Conversation> conversations_by_id = new HashMap<int, Conversation>();
 
     public static void start(StreamInteractor stream_interactor, Database db) {
         ConversationManager m = new ConversationManager(stream_interactor, db);
@@ -35,7 +36,6 @@ public class ConversationManager : StreamInteractionModule, Object {
     private ConversationManager(StreamInteractor stream_interactor, Database db) {
         this.db = db;
         this.stream_interactor = stream_interactor;
-        stream_interactor.add_module(this);
         stream_interactor.account_added.connect(on_account_added);
         stream_interactor.account_removed.connect(on_account_removed);
         stream_interactor.get_module<MessageProcessor>(MessageProcessor.IDENTITY).received_pipeline.connect(new MessageListener(stream_interactor));
@@ -72,8 +72,8 @@ public class ConversationManager : StreamInteractionModule, Object {
             conversation.encryption = Encryption.NONE;
         }
 
-        add_conversation(conversation);
         conversation.persist(db);
+        add_conversation(conversation);
         return conversation;
     }
 
@@ -129,14 +129,8 @@ public class ConversationManager : StreamInteractionModule, Object {
     }
 
     public Conversation? get_conversation_by_id(int id) {
-        foreach (HashMap<Jid, Gee.List<Conversation>> hm in conversations.values) {
-            foreach (Gee.List<Conversation> hm2 in hm.values) {
-                foreach (Conversation conversation in hm2) {
-                    if (conversation.id == id) {
-                        return conversation;
-                    }
-                }
-            }
+        if (conversations_by_id.has_key(id)) {
+            return conversations_by_id[id];
         }
         return null;
     }
@@ -170,6 +164,28 @@ public class ConversationManager : StreamInteractionModule, Object {
 
         conversation.active = false;
         conversation_deactivated(conversation);
+
+        // Release cached messages for this conversation to free RAM
+        stream_interactor.get_module<MessageStorage>(MessageStorage.IDENTITY).clear_conversation_cache(conversation);
+    }
+
+    /**
+     * Permanently remove a 1:1 conversation from the in-memory maps.
+     * After this call, incoming messages will create a fresh Conversation
+     * object instead of reactivating the old one.
+     * Call close_conversation() / clear_conversation_history() first.
+     */
+    public void forget_conversation(Conversation conversation) {
+        if (!conversations.has_key(conversation.account)) return;
+        Jid key = conversation.counterpart;
+        if (!conversations[conversation.account].has_key(key)) return;
+
+        var list = conversations[conversation.account][key];
+        list.remove(conversation);
+        if (list.size == 0) {
+            conversations[conversation.account].unset(key);
+        }
+        conversations_by_id.unset(conversation.id);
     }
 
     // Hide conversation from sidebar without leaving MUC rooms.
@@ -218,6 +234,22 @@ public class ConversationManager : StreamInteractionModule, Object {
                 bool is_recent = message.time.compare(new DateTime.now_utc().add_days(-3)) > 0;
                 if (is_mam_message && !is_recent) return false;
             }
+
+            // Don't reactivate 1:1 chats from contacts the user explicitly
+            // deleted.  A deleted contact is no longer in the roster; if the
+            // conversation was also cleared (history_cleared_at set) we
+            // know the user intentionally removed it.  Genuine *new* first
+            // contacts won't have history_cleared_at set, so they still
+            // work.
+            if (conversation.type_ == Conversation.Type.CHAT && !conversation.active) {
+                if (conversation.history_cleared_at != null) {
+                    var rm = stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY);
+                    if (rm.get_roster_item(conversation.account, conversation.counterpart) == null) {
+                        return false;
+                    }
+                }
+            }
+
             stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).start_conversation(conversation);
             return false;
         }
@@ -228,6 +260,14 @@ public class ConversationManager : StreamInteractionModule, Object {
 
         bool is_recent = message.time.compare(new DateTime.now_utc().add_hours(-24)) > 0;
         if (is_recent) {
+            // Same guard as MessageListener: don't reactivate deleted contacts
+            if (conversation.type_ == Conversation.Type.CHAT && !conversation.active
+                    && conversation.history_cleared_at != null) {
+                var rm = stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY);
+                if (rm.get_roster_item(conversation.account, conversation.counterpart) == null) {
+                    return;
+                }
+            }
             start_conversation(conversation);
         }
     }
@@ -315,6 +355,7 @@ public class ConversationManager : StreamInteractionModule, Object {
         }
 
         conversations[conversation.account][conversation.counterpart].add(conversation);
+        conversations_by_id[conversation.id] = conversation;
 
         if (conversation.active) {
             conversation_activated(conversation);

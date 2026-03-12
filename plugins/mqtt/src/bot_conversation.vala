@@ -18,22 +18,34 @@ namespace Dino.Plugins.Mqtt {
  * Manages the lifecycle of the MQTT Bot conversation(s).
  *
  * Each MQTT connection (per-account or standalone) gets its own
- * bot conversation with a unique JID:
- *   mqtt-bot@mqtt.local/<connection_key>
+ * bot conversation with a UNIQUE bare JID:
  *
- * Where connection_key is:
- *   - Account bare JID (e.g. "user@example.org") for per-account
- *   - "standalone" for standalone connections
+ *   Per-account: mqtt-<escaped_bare_jid>@mqtt.local
+ *                e.g. mqtt-user_at_example.org@mqtt.local
+ *   Standalone:  mqtt-standalone@mqtt.local
  *
- * The resource part distinguishes the conversations in the DB
- * while equals_bare() still matches all bots for command interception.
+ * ConversationManager strips resources for CHAT-type conversations,
+ * so every bot MUST have a different bare JID (localpart) to prevent
+ * ConversationManager from collapsing them into the same conversation.
+ *
+ * Domain check (counterpart.domainpart == "mqtt.local") matches
+ * all bot conversations for command interception.
  */
 public class MqttBotConversation : Object {
 
     /* Synthetic JID domain — will never collide with real XMPP */
     public const string BOT_DOMAIN = "mqtt.local";
-    public const string BOT_LOCALPART = "mqtt-bot";
-    public const string BOT_JID_STR = BOT_LOCALPART + "@" + BOT_DOMAIN;
+    public const string BOT_LOCALPART_PREFIX = "mqtt-";
+
+    /* Standalone uses a DIFFERENT bare JID so its Conversation never
+     * collides with per-account bot conversations in ConversationManager.
+     * Without this, ConversationManager strips the resource for CHAT-type
+     * conversations and both resolve to mqtt-bot@mqtt.local on the same
+     * account → same Conversation object → enable/disable cross-wiring
+     * and mixed-up messages (BUG-CRITICAL). */
+    public const string STANDALONE_LOCALPART = "mqtt-standalone";
+    public const string STANDALONE_JID_STR = STANDALONE_LOCALPART + "@" + BOT_DOMAIN;
+
     public const string STANDALONE_KEY = "standalone";
 
     /* Back-references */
@@ -44,12 +56,12 @@ public class MqttBotConversation : Object {
     private HashMap<string, Conversation> bot_conversations =
         new HashMap<string, Conversation>();
 
-    /* JID per connection_key (each has a unique resource) */
+    /* JID per connection_key (each has a unique bare JID) */
     private HashMap<string, Jid> bot_jids =
         new HashMap<string, Jid>();
 
-    /* Base bare JID (without resource) for is_bot_conversation checks */
-    private Jid? mqtt_bot_bare_jid = null;
+    /* Standalone bare JID (constant) */
+    private Jid? mqtt_standalone_bare_jid = null;
 
     /* ── Construction ────────────────────────────────────────────── */
 
@@ -58,32 +70,106 @@ public class MqttBotConversation : Object {
         this.app = plugin.app;
 
         try {
-            mqtt_bot_bare_jid = new Jid(BOT_JID_STR);
+            mqtt_standalone_bare_jid = new Jid(STANDALONE_JID_STR);
         } catch (InvalidJidError e) {
-            warning("MQTT Bot: Cannot create bot JID: %s", e.message);
+            warning("MQTT Bot: Cannot create standalone JID: %s", e.message);
+        }
+    }
+
+    /* ── Helpers ──────────────────────────────────────────────────── */
+
+    /**
+     * Activate a bot conversation and pin it to the sidebar.
+     * Central helper — avoids 4x duplication of the start+pin+notify
+     * pattern (REVIEW_CHECKLIST §10.3).
+     *
+     * Returns false only if ConversationManager is unavailable.
+     */
+    private bool activate_and_pin(Conversation conv) {
+        var cm = app.stream_interactor.get_module<ConversationManager>(
+            ConversationManager.IDENTITY);
+        if (cm == null) {
+            warning("MQTT Bot: ConversationManager unavailable — cannot activate conversation");
+            return false;
+        }
+        cm.start_conversation(conv);
+        conv.pinned = 1;
+        conv.notify_property("pinned");
+        return true;
+    }
+
+    /* ── Display name ────────────────────────────────────────────── */
+
+    /**
+     * Compute the sidebar display name for a bot conversation.
+     * Uses bot_name from MqttConnectionConfig, appends context:
+     *   Standalone → "MQTT Bot (Standalone)"
+     *   Per-account → "MQTT Bot (user@example.org)"
+     */
+    private string compute_display_name(string key, Account account) {
+        string base_name = "MQTT Bot";
+
+        if (key == STANDALONE_KEY) {
+            var sa_config = plugin.get_standalone_config();
+            if (sa_config.bot_name != null && sa_config.bot_name.strip() != "") {
+                base_name = sa_config.bot_name;
+            }
+            return "%s (Standalone)".printf(base_name);
+        } else {
+            var acct_config = plugin.get_account_config(account);
+            if (acct_config.bot_name != null && acct_config.bot_name.strip() != "") {
+                base_name = acct_config.bot_name;
+            }
+            return "%s (%s)".printf(base_name, key);
         }
     }
 
     /* ── JID factory ─────────────────────────────────────────────── */
 
     /**
+     * Escape an account bare JID for use as a JID localpart.
+     * Replaces '@' with '_at_' since '@' is not allowed in localparts.
+     *   user@example.org → user_at_example.org
+     */
+    private static string escape_for_localpart(string bare_jid) {
+        return bare_jid.replace("@", "_at_");
+    }
+
+    /**
+     * Reverse the localpart escaping to recover the account bare JID.
+     *   user_at_example.org → user@example.org
+     */
+    private static string unescape_from_localpart(string escaped) {
+        return escaped.replace("_at_", "@");
+    }
+
+    /**
      * Create or retrieve the bot JID for a given connection key.
-     * JID format: mqtt-bot@mqtt.local/<connection_key>
      *
-     * For per-account: connection_key = account bare JID
-     *   → mqtt-bot@mqtt.local/user@example.org
-     * For standalone: connection_key = "standalone"
-     *   → mqtt-bot@mqtt.local/standalone
+     * Every bot gets a UNIQUE bare JID so ConversationManager
+     * (which strips resources for CHAT-type conversations) never
+     * collapses different bots into the same conversation:
+     *
+     *   Per-account: mqtt-<escaped_bare_jid>@mqtt.local
+     *                e.g. mqtt-user_at_example.org@mqtt.local
+     *   Standalone:  mqtt-standalone@mqtt.local
      */
     private Jid? make_bot_jid(string connection_key) {
         if (bot_jids.has_key(connection_key)) {
             return bot_jids[connection_key];
         }
 
-        if (mqtt_bot_bare_jid == null) return null;
-
         try {
-            var jid = mqtt_bot_bare_jid.with_resource(connection_key);
+            Jid jid;
+            if (connection_key == STANDALONE_KEY) {
+                /* Standalone: use dedicated bare JID */
+                if (mqtt_standalone_bare_jid == null) return null;
+                jid = mqtt_standalone_bare_jid;
+            } else {
+                /* Per-account: unique bare JID per account */
+                string escaped = escape_for_localpart(connection_key);
+                jid = new Jid(BOT_LOCALPART_PREFIX + escaped + "@" + BOT_DOMAIN);
+            }
             bot_jids[connection_key] = jid;
             return jid;
         } catch (InvalidJidError e) {
@@ -98,7 +184,8 @@ public class MqttBotConversation : Object {
     /**
      * Get or create the bot conversation for the given account.
      *
-     * Uses a unique JID per account: mqtt-bot@mqtt.local/<bare_jid>
+     * Uses a unique bare JID per account:
+     *   mqtt-<escaped_bare_jid>@mqtt.local
      * The conversation is activated (made visible in the sidebar)
      * and pinned so it doesn't disappear.
      *
@@ -111,7 +198,7 @@ public class MqttBotConversation : Object {
 
     /**
      * Ensure the standalone bot (using first available account).
-     * JID: mqtt-bot@mqtt.local/standalone
+     * JID: mqtt-standalone@mqtt.local (different bare JID from per-account).
      */
     public Conversation? ensure_standalone_conversation() {
         var accounts = app.stream_interactor.get_accounts();
@@ -137,10 +224,25 @@ public class MqttBotConversation : Object {
 
     /**
      * Internal: create/get conversation for a connection key.
+     *
+     * Every bot has a unique bare JID:
+     *   standalone  → mqtt-standalone@mqtt.local
+     *   per-account → mqtt-<escaped_bare_jid>@mqtt.local
+     * So ConversationManager bare-JID lookup always finds the right one.
      */
     private Conversation? ensure_conversation_for_key(string key, Account account) {
         if (bot_conversations.has_key(key)) {
-            return bot_conversations[key];
+            Conversation cached = bot_conversations[key];
+            /* Refresh display name (may have changed in settings) */
+            cached.nickname = compute_display_name(key, account);
+            /* BUG-FIX: If the user manually closed the bot from the sidebar,
+             * the conversation is still in our HashMap but inactive.
+             * Reactivate it so it appears in the sidebar again. */
+            if (!cached.active) {
+                if (!activate_and_pin(cached)) return null;
+                debug("MQTT Bot: Reactivated closed conversation for '%s'", key);
+            }
+            return cached;
         }
 
         Jid? jid = make_bot_jid(key);
@@ -148,20 +250,40 @@ public class MqttBotConversation : Object {
 
         var cm = app.stream_interactor.get_module<ConversationManager>(
             ConversationManager.IDENTITY);
+        if (cm == null) {
+            warning("MQTT Bot: ConversationManager unavailable");
+            return null;
+        }
 
+        /* Try bare JID first — matches DB-loaded conversations after restart */
+        Conversation? existing = cm.get_conversation(
+            jid.bare_jid, account, Conversation.Type.CHAT);
+        if (existing != null) {
+            bot_conversations[key] = existing;
+            existing.nickname = compute_display_name(key, account);
+            activate_and_pin(existing);
+            debug("MQTT Bot: Reusing DB-loaded conversation for '%s' (conv.id=%d, name='%s')",
+                    key, existing.id, existing.nickname);
+            return existing;
+        }
+
+        /* No existing conversation — create new (first-time setup only) */
         Conversation conv = cm.create_conversation(
             jid, account, Conversation.Type.CHAT);
         conv.encryption = Encryption.NONE;
+        conv.nickname = compute_display_name(key, account);
 
-        cm.start_conversation(conv);
-
-        /* Pin so the bot stays visible */
-        conv.pinned = 1;
-        conv.notify_property("pinned");
+        activate_and_pin(conv);
 
         bot_conversations[key] = conv;
 
-        message("MQTT Bot: Conversation created for '%s' (JID=%s, conv.id=%d)",
+        /* Sanity check: ensure the ID is valid (not from a stale rowid) */
+        if (conv.id <= 0) {
+            warning("MQTT Bot: Conversation persist returned invalid id=%d for '%s' — DB conflict?",
+                    conv.id, key);
+        }
+
+        debug("MQTT Bot: Conversation created for '%s' (JID=%s, conv.id=%d)",
                 key, jid.to_string(), conv.id);
         return conv;
     }
@@ -197,18 +319,20 @@ public class MqttBotConversation : Object {
 
     /**
      * Internal: re-activate a bot conversation (or create if missing).
-     * Forces start_conversation + pin even if the conv already exists.
+     * Checks whether the conversation is already active + pinned first
+     * to avoid redundant work and misleading log messages.
      */
     private Conversation? reopen_for_key(string key, Account account) {
-        var cm = app.stream_interactor.get_module<ConversationManager>(
-            ConversationManager.IDENTITY);
-
         if (bot_conversations.has_key(key)) {
             Conversation conv = bot_conversations[key];
-            cm.start_conversation(conv);
-            conv.pinned = 1;
-            conv.notify_property("pinned");
-            message("MQTT Bot: Conversation re-opened for '%s'", key);
+            /* Refresh display name (may have changed in settings) */
+            conv.nickname = compute_display_name(key, account);
+            if (conv.active) {
+                debug("MQTT Bot: Conversation for '%s' already open — nothing to do", key);
+                return conv;
+            }
+            activate_and_pin(conv);
+            debug("MQTT Bot: Conversation re-opened for '%s'", key);
             return conv;
         }
 
@@ -224,12 +348,22 @@ public class MqttBotConversation : Object {
         if (!bot_conversations.has_key(key)) return;
 
         Conversation conv = bot_conversations[key];
+
+        /* Unpin BEFORE closing — otherwise pinned conversations
+         * can remain visible in the sidebar even after deactivation. */
+        conv.pinned = 0;
+        conv.notify_property("pinned");
+
         var cm = app.stream_interactor.get_module<ConversationManager>(
             ConversationManager.IDENTITY);
-        cm.close_conversation(conv);
+        if (cm == null) {
+            warning("MQTT Bot: ConversationManager not available, cannot close conversation");
+        } else {
+            cm.close_conversation(conv);
+        }
         bot_conversations.unset(key);
 
-        message("MQTT Bot: Conversation removed for %s", key);
+        debug("MQTT Bot: Conversation removed for %s", key);
     }
 
     /**
@@ -245,23 +379,15 @@ public class MqttBotConversation : Object {
 
     /**
      * Check if a conversation belongs to the MQTT bot.
-     * Uses bare JID comparison — matches ALL bot conversations
-     * regardless of resource.
+     * Matches all bot JIDs (per-account and standalone) by checking
+     * the domain (mqtt.local).
      */
     public bool is_bot_conversation(Conversation conversation) {
-        if (mqtt_bot_bare_jid == null) return false;
-        return conversation.counterpart.equals_bare(mqtt_bot_bare_jid);
+        return conversation.counterpart.domainpart == BOT_DOMAIN;
     }
 
     /**
-     * Get the base bot JID (bare, without resource).
-     */
-    public Jid? get_bot_jid() {
-        return mqtt_bot_bare_jid;
-    }
-
-    /**
-     * Get the full bot JID for a specific connection key (with resource).
+     * Get the bot JID for a specific connection key.
      */
     public Jid? get_bot_jid_for_key(string key) {
         return bot_jids.has_key(key) ? bot_jids[key] : make_bot_jid(key);
@@ -270,22 +396,30 @@ public class MqttBotConversation : Object {
     /**
      * Determine which connection key a bot conversation belongs to.
      *
-     * The resource part of the counterpart JID IS the connection key:
-     *   mqtt-bot@mqtt.local/user@example.org → "user@example.org"
-     *   mqtt-bot@mqtt.local/standalone       → "standalone"
+     * For standalone: localpart is "mqtt-standalone" → return STANDALONE_KEY
+     * For per-account: localpart encodes the account bare JID
+     *   mqtt-user_at_example.org@mqtt.local → "user@example.org"
      *
      * Returns null if the conversation is not a bot conversation.
      */
     public string? get_connection_key(Conversation conversation) {
         if (!is_bot_conversation(conversation)) return null;
 
-        /* The resource identifies the connection */
-        string? resource = conversation.counterpart.resourcepart;
-        if (resource != null && resource != "") {
-            return resource;
+        string? localpart = conversation.counterpart.localpart;
+        if (localpart == null) return null;
+
+        /* Standalone: identified by localpart */
+        if (localpart == STANDALONE_LOCALPART) {
+            return STANDALONE_KEY;
         }
 
-        /* Fallback for old conversations without resource:
+        /* Per-account: localpart = "mqtt-" + escaped bare JID */
+        if (localpart.has_prefix(BOT_LOCALPART_PREFIX)) {
+            string escaped = localpart.substring(BOT_LOCALPART_PREFIX.length);
+            return unescape_from_localpart(escaped);
+        }
+
+        /* Fallback for old conversations with legacy localpart:
          * check which key maps to this conversation */
         foreach (var entry in bot_conversations.entries) {
             if (entry.value.id == conversation.id) {
@@ -329,8 +463,11 @@ public class MqttBotConversation : Object {
     public void inject_mqtt_message(Conversation conversation,
                                      string topic, string payload,
                                      MqttPriority priority = MqttPriority.NORMAL) {
+        /* Resolve topic alias from the connection's config */
+        string display_topic = resolve_topic_alias(conversation, topic);
+
         /* Format: topic on first line, payload on second */
-        string body = format_mqtt_message(topic, payload, priority);
+        string body = format_mqtt_message(display_topic, payload, priority);
 
         if (priority == MqttPriority.SILENT) {
             inject_silent_message(conversation, body);
@@ -343,6 +480,20 @@ public class MqttBotConversation : Object {
      * Inject a plain text response from the bot (for command replies).
      */
     public void inject_bot_message(Conversation conversation, string body) {
+        /* Safety: refuse to inject into a conversation with invalid ID.
+         * This guards against the persist() / last_insert_rowid() bug
+         * where the conversation could end up with the wrong ID. */
+        if (conversation.id <= 0) {
+            warning("MQTT BotConversation: inject_bot_message — conversation has invalid id=%d, refusing to inject",
+                    conversation.id);
+            return;
+        }
+        if (!is_bot_conversation(conversation)) {
+            warning("MQTT BotConversation: inject_bot_message — conversation id=%d is NOT a bot conversation (counterpart=%s), refusing to inject",
+                    conversation.id, conversation.counterpart.to_string());
+            return;
+        }
+
         var storage = app.stream_interactor.get_module<MessageStorage>(
             MessageStorage.IDENTITY);
         var cis = app.stream_interactor.get_module<ContentItemStore>(
@@ -368,8 +519,7 @@ public class MqttBotConversation : Object {
         msg.stanza_id = Xmpp.random_uuid();
 
         /* Remove milliseconds — matches Dino convention */
-        DateTime now = new DateTime.from_unix_utc(
-            new DateTime.now_utc().to_unix());
+        DateTime now = new DateTime.from_unix_utc(MqttUtils.now_unix());
         msg.time = now;
         msg.local_time = now;
         msg.marked = Message.Marked.NONE;
@@ -392,6 +542,18 @@ public class MqttBotConversation : Object {
      * Message is persisted and visible in timeline but marked as read.
      */
     public void inject_silent_message(Conversation conversation, string body) {
+        /* Same safety guards as inject_bot_message() */
+        if (conversation.id <= 0) {
+            warning("MQTT BotConversation: inject_silent_message — conversation has invalid id=%d",
+                    conversation.id);
+            return;
+        }
+        if (!is_bot_conversation(conversation)) {
+            warning("MQTT BotConversation: inject_silent_message — conversation id=%d is NOT a bot conversation",
+                    conversation.id);
+            return;
+        }
+
         var storage = app.stream_interactor.get_module<MessageStorage>(
             MessageStorage.IDENTITY);
         var cis = app.stream_interactor.get_module<ContentItemStore>(
@@ -414,8 +576,7 @@ public class MqttBotConversation : Object {
         msg.type_ = Message.Type.CHAT;
         msg.stanza_id = Xmpp.random_uuid();
 
-        DateTime now = new DateTime.from_unix_utc(
-            new DateTime.now_utc().to_unix());
+        DateTime now = new DateTime.from_unix_utc(MqttUtils.now_unix());
         msg.time = now;
         msg.local_time = now;
         msg.marked = Message.Marked.READ;
@@ -441,15 +602,15 @@ public class MqttBotConversation : Object {
      * Format an MQTT message for display in the chat bubble.
      * Topic is shown as a bracketed header, payload below.
      * Alert/Critical messages get a priority icon prefix.
+     *
+     * @param display_topic  Resolved alias or formatted topic name
      */
-    private string format_mqtt_message(string topic, string payload,
+    private string format_mqtt_message(string display_topic,
+                                        string payload,
                                         MqttPriority priority = MqttPriority.NORMAL) {
         string trimmed = payload.strip();
         string icon = priority.to_icon();
         string prefix = (icon != "") ? "%s ".printf(icon) : "";
-
-        /* Format topic — Prosody uses HOST/TYPE/NODE format */
-        string display_topic = format_topic_display(topic);
 
         /* Try to detect JSON and pretty-print key values */
         if (trimmed.has_prefix("{") && trimmed.has_suffix("}")) {
@@ -464,6 +625,33 @@ public class MqttBotConversation : Object {
             return "%s[%s]\n%s".printf(prefix, display_topic, trimmed);
         }
         return "%s[%s] %s".printf(prefix, display_topic, _("(empty)"));
+    }
+
+    /**
+     * Resolve a topic to its display name using the connection's alias map.
+     * Falls back to format_topic_display() if no alias is set.
+     */
+    private string resolve_topic_alias(Conversation conversation, string topic) {
+        string? key = get_connection_key(conversation);
+        if (key != null) {
+            MqttConnectionConfig? cfg = null;
+            if (key == STANDALONE_KEY) {
+                cfg = plugin.get_standalone_config();
+            } else {
+                var accounts = plugin.app.stream_interactor.get_accounts();
+                foreach (var acct in accounts) {
+                    if (acct.bare_jid.to_string() == key) {
+                        cfg = plugin.get_account_config(acct);
+                        break;
+                    }
+                }
+            }
+            if (cfg != null) {
+                string? alias = cfg.resolve_alias(topic);
+                if (alias != null) return alias;
+            }
+        }
+        return format_topic_display(topic);
     }
 
     /**

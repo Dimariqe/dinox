@@ -4,6 +4,11 @@ namespace Dino.Plugins.BotFeatures {
 
 public class BotRegistry : Qlite.Database {
     private const int VERSION = 3;
+    private const int GCM_IV_SIZE = 12;
+    private const int GCM_TAG_SIZE = 16;
+    private const string ENC_PREFIX = "ENC:";
+
+    private uint8[]? _enc_key = null;
 
     // Fired after a bot is deleted, with the owner JID, bot ID, and bot details
     public signal void bot_deleted(string owner_jid, int bot_id, string? bot_jid, string? bot_mode);
@@ -122,7 +127,8 @@ public class BotRegistry : Qlite.Database {
     public int create_bot(string name, string owner_jid, string token_hash, string mode = "personal",
                           string? jid = null, string? description = null) {
         long now = (long) new DateTime.now_utc().to_unix();
-        bot.insert()
+        // BUG-04 fix: perform() returns last_insert_rowid() — no separate SELECT needed
+        int64 new_bot_id = bot.insert()
             .value(bot.name_, name)
             .value(bot.owner_jid, owner_jid)
             .value(bot.token_hash, token_hash)
@@ -134,16 +140,7 @@ public class BotRegistry : Qlite.Database {
             .value(bot.description, description)
             .value(bot.webhook_enabled, false)
             .perform();
-        // BUG-04 fix: Use last_insert_rowid() instead of SELECT max(id) to avoid race conditions
-        int result_id = 0;
-        try {
-            foreach (Qlite.Row row in bot.select({bot.id}).with(bot.name_, "=", name).with(bot.owner_jid, "=", owner_jid).with(bot.created_at, "=", now).order_by(bot.id, "DESC").limit(1)) {
-                result_id = bot.id.get(row);
-            }
-        } catch (Error e) {
-            warning("BotRegistry: Failed to get last insert id: %s", e.message);
-        }
-        return result_id;
+        return (int) new_bot_id;
     }
 
     public BotInfo? get_bot_by_id(int bot_id) {
@@ -190,24 +187,14 @@ public class BotRegistry : Qlite.Database {
         bot.update().with(bot.id, "=", bot_id).set(bot.token_hash, new_hash).perform();
     }
 
-    public void update_bot_token_raw(int bot_id, string raw_token) {
-        bot.update().with(bot.id, "=", bot_id).set(bot.token_raw, raw_token).perform();
-    }
+    // BUG-02: update_bot_token_raw() removed — raw tokens are never stored
 
     public void update_bot_status(int bot_id, string status) {
         bot.update().with(bot.id, "=", bot_id).set(bot.status, status).perform();
     }
 
-    public void update_bot_jid(int bot_id, string jid) {
-        bot.update().with(bot.id, "=", bot_id).set(bot.jid, jid).perform();
-    }
-
     public void update_bot_password(int bot_id, string password) {
         bot.update().with(bot.id, "=", bot_id).set(bot.bot_password, password).perform();
-    }
-
-    public void update_bot_owner(int bot_id, string owner_jid) {
-        bot.update().with(bot.id, "=", bot_id).set(bot.owner_jid, owner_jid).perform();
     }
 
     public void update_bot_last_active(int bot_id) {
@@ -272,18 +259,14 @@ public class BotRegistry : Qlite.Database {
 
     public int enqueue_update(int bot_id, string update_type, string payload) {
         long now = (long) new DateTime.now_utc().to_unix();
-        update_queue.insert()
+        // perform() returns last_insert_rowid() — no separate SELECT needed
+        int64 new_update_id = update_queue.insert()
             .value(update_queue.bot_id, bot_id)
             .value(update_queue.update_type, update_type)
             .value(update_queue.payload, payload)
             .value(update_queue.created_at, now)
             .perform();
-        // Get the last inserted update ID
-        int result_id = 0;
-        foreach (Qlite.Row row in update_queue.select({update_queue.id}).order_by(update_queue.id, "DESC").limit(1)) {
-            result_id = update_queue.id.get(row);
-        }
-        return result_id;
+        return (int) new_update_id;
     }
 
     public Gee.List<UpdateInfo> get_updates(int bot_id, int offset = 0, int limit = 100) {
@@ -327,14 +310,6 @@ public class BotRegistry : Qlite.Database {
         return null;
     }
 
-    public int get_setting_int(string key, int default_value) {
-        string? val = get_setting(key);
-        if (val != null) {
-            return int.parse((!) val);
-        }
-        return default_value;
-    }
-
     public void set_setting(string key, string value) {
         settings.upsert()
             .value(settings.key_, key, true)
@@ -344,6 +319,114 @@ public class BotRegistry : Qlite.Database {
 
     public void delete_setting(string key) {
         settings.delete().with(settings.key_, "=", key).perform();
+    }
+
+    public void delete_settings_like(string pattern) {
+        settings.delete().with(settings.key_, "LIKE", pattern).perform();
+    }
+
+    public Gee.HashMap<string, string> get_settings_like(string pattern) {
+        var result = new Gee.HashMap<string, string>();
+        foreach (Qlite.Row row in settings.select().with(settings.key_, "LIKE", pattern)) {
+            result[settings.key_.get(row)] = settings.value_.get(row);
+        }
+        return result;
+    }
+
+    // --- Encrypted Settings ---
+
+    // Lazily derive a 32-byte AES-256 key from server_hmac_key via HMAC-SHA256.
+    // Returns null only if server_hmac_key is not yet stored (TokenManager hasn't initialized).
+    private uint8[]? get_enc_key() {
+        if (_enc_key != null) return _enc_key;
+        string? hmac_key = get_setting("server_hmac_key");
+        if (hmac_key == null || hmac_key == "") return null;
+        var hmac = new GLib.Hmac(ChecksumType.SHA256, (uchar[]) hmac_key.data);
+        hmac.update((uchar[]) "dinox-settings-encryption".data);
+        size_t len = 32;
+        _enc_key = new uint8[len];
+        hmac.get_digest(_enc_key, ref len);
+        return _enc_key;
+    }
+
+    // Store a setting with AES-256-GCM encryption.
+    // Falls back to plaintext only if the encryption key is not yet available.
+    public void set_secret_setting(string key, string value) {
+        uint8[]? enc_key = get_enc_key();
+        if (enc_key == null) {
+            set_setting(key, value);
+            return;
+        }
+        try {
+            uint8[] plaintext = value.data;
+            // Generate random IV from two UUID4s (128-bit secure random), take first 12 bytes
+            string uuid_hex = GLib.Uuid.string_random().replace("-", "");
+            uint8[] iv = new uint8[GCM_IV_SIZE];
+            for (int i = 0; i < GCM_IV_SIZE; i++) {
+                iv[i] = (uint8) uint64.parse("0x" + uuid_hex.substring(i * 2, 2));
+            }
+
+            var cipher = new Crypto.SymmetricCipher("AES-GCM");
+            cipher.set_key(enc_key);
+            cipher.set_iv(iv);
+            uint8[] ciphertext = new uint8[plaintext.length];
+            cipher.encrypt(ciphertext, plaintext);
+            uint8[] tag = cipher.get_tag(GCM_TAG_SIZE);
+
+            // Pack: IV || ciphertext || tag
+            uint8[] packed = new uint8[GCM_IV_SIZE + ciphertext.length + GCM_TAG_SIZE];
+            GLib.Memory.copy(packed, iv, GCM_IV_SIZE);
+            GLib.Memory.copy((uint8*) packed + GCM_IV_SIZE, ciphertext, ciphertext.length);
+            GLib.Memory.copy((uint8*) packed + GCM_IV_SIZE + ciphertext.length, tag, GCM_TAG_SIZE);
+
+            set_setting(key, ENC_PREFIX + GLib.Base64.encode(packed));
+        } catch (GLib.Error e) {
+            warning("BotRegistry: encrypt error for '%s': %s — storing plaintext", key, e.message);
+            set_setting(key, value);
+        }
+    }
+
+    // Read a setting and decrypt if encrypted. Auto-migrates plaintext values on first read.
+    public string? get_secret_setting(string key) {
+        string? raw = get_setting(key);
+        if (raw == null) return null;
+
+        if (raw.has_prefix(ENC_PREFIX)) {
+            uint8[]? enc_key = get_enc_key();
+            if (enc_key == null) {
+                warning("BotRegistry: cannot decrypt '%s' — no encryption key", key);
+                return null;
+            }
+            try {
+                uint8[] packed = GLib.Base64.decode(raw.substring(ENC_PREFIX.length));
+                if (packed.length < GCM_IV_SIZE + GCM_TAG_SIZE) {
+                    warning("BotRegistry: encrypted data too short for '%s'", key);
+                    return null;
+                }
+                uint8[] iv = packed[0:GCM_IV_SIZE];
+                uint8[] ciphertext = packed[GCM_IV_SIZE:packed.length - GCM_TAG_SIZE];
+                uint8[] tag = packed[packed.length - GCM_TAG_SIZE:packed.length];
+
+                var cipher = new Crypto.SymmetricCipher("AES-GCM");
+                cipher.set_key(enc_key);
+                cipher.set_iv(iv);
+                uint8[] plaintext = new uint8[ciphertext.length];
+                cipher.decrypt(plaintext, ciphertext);
+                cipher.check_tag(tag);
+
+                return (string) plaintext;
+            } catch (GLib.Error e) {
+                warning("BotRegistry: decrypt error for '%s': %s", key, e.message);
+                return null;
+            }
+        }
+
+        // Plaintext value found — auto-migrate to encrypted storage
+        uint8[]? enc_key = get_enc_key();
+        if (enc_key != null) {
+            set_secret_setting(key, raw);
+        }
+        return raw;
     }
 
     // --- Audit Log ---
@@ -367,7 +450,7 @@ public class BotRegistry : Qlite.Database {
         info.name = bot.name_.get(row);
         info.jid = bot.jid.get(row);
         info.token_hash = bot.token_hash.get(row);
-        info.token_raw = bot.token_raw.get(row);
+        // BUG-02 fix: token_raw deliberately not read — never store raw tokens
         info.owner_jid = bot.owner_jid.get(row);
         info.description = bot.description.get(row);
         info.permissions = bot.permissions.get(row);
@@ -390,7 +473,7 @@ public class BotInfo : Object {
     public string? name { get; set; }
     public string? jid { get; set; }
     public string? token_hash { get; set; }
-    public string? token_raw { get; set; }
+    // BUG-02 fix: token_raw removed — raw tokens are shown once at creation, never stored
     public string? owner_jid { get; set; }
     public string? description { get; set; }
     public string? permissions { get; set; }

@@ -70,33 +70,6 @@ namespace Dino {
             }
         }
 
-        private class RetractionTask {
-            public XmppStream stream;
-            public MessageStanza stanza;
-        }
-
-        private Gee.Queue<RetractionTask> retraction_queue = new LinkedList<RetractionTask>();
-        private uint retraction_timer_id = 0;
-
-        public void enqueue_retraction(XmppStream stream, MessageStanza stanza) {
-            retraction_queue.offer(new RetractionTask() { stream = stream, stanza = stanza });
-            if (retraction_timer_id == 0) {
-                retraction_timer_id = Timeout.add(200, process_retraction_queue);
-            }
-        }
-
-        private bool process_retraction_queue() {
-            if (retraction_queue.is_empty) {
-                retraction_timer_id = 0;
-                return false;
-            }
-
-            var task = retraction_queue.poll();
-            task.stream.get_module<MessageModule>(MessageModule.IDENTITY).send_message.begin(task.stream, task.stanza);
-
-            return true;
-        }
-
         public void delete_globally(Conversation conversation, ContentItem content_item) {
             var stream = stream_interactor.get_stream(conversation.account);
             if (stream == null) return;
@@ -303,12 +276,16 @@ namespace Dino {
 
         private void delete_expired_messages(Conversation conversation, DateTime now, ContentItemStore content_item_store) {
             var cutoff_time = now.add_seconds(-conversation.message_expiry_seconds);
-            var items = content_item_store.get_items_older_than(conversation, cutoff_time);
-            
-            if (items.size > 0) {
-                debug("Auto-deleting %d expired messages for %s (older than %s)", 
-                      items.size, conversation.counterpart.to_string(), cutoff_time.to_string());
-            }
+            // Process in batches to avoid loading all expired messages into memory at once (D5)
+            Gee.List<ContentItem> items = new Gee.ArrayList<ContentItem>();
+            int total_deleted = 0;
+            do {
+                items = content_item_store.get_items_older_than(conversation, cutoff_time, 500);
+                if (items.size > 0 && total_deleted == 0) {
+                    debug("Auto-deleting expired messages for %s (older than %s)", 
+                          conversation.counterpart.to_string(), cutoff_time.to_string());
+                }
+                total_deleted += items.size;
             
             foreach (ContentItem item in items) {
                 // Check if it's our own message
@@ -326,6 +303,10 @@ namespace Dino {
                     // Received message: Delete locally only
                     delete_locally(conversation, item, conversation.account.bare_jid);
                 }
+            }
+            } while (items.size >= 500); // Continue if batch was full (more may remain)
+            if (total_deleted > 0) {
+                debug("Auto-deleted %d expired messages for %s", total_deleted, conversation.counterpart.to_string());
             }
         }
     }

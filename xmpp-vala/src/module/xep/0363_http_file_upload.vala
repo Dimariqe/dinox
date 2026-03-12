@@ -174,15 +174,20 @@ public class Module : XmppStreamModule {
             foreach (StanzaNode node in field_nodes) {
                 string? var_attr = node.get_attribute("var");
                 if (var_attr == "max-file-size") {
-                    StanzaNode value_node = node.get_subnode("value", "jabber:x:data");
-                    max_file_size_str = value_node.get_string_content();
+                    StanzaNode? value_node = node.get_subnode("value", "jabber:x:data");
+                    if (value_node != null) max_file_size_str = value_node.get_string_content();
                     break;
                 }
             }
         }
-        if (max_file_size_str != null) return long.parse(max_file_size_str);
+        if (max_file_size_str != null) {
+            long parsed = long.parse(max_file_size_str);
+            if (parsed > 0) return parsed;
+            // Negative or zero values from server are invalid — treat as unlimited
+            warning("Server reported invalid max-file-size: %s, ignoring", max_file_size_str);
+        }
 
-        // If there is no max-file-size node, there is no file size limit
+        // If there is no max-file-size node or the value was invalid, there is no file size limit
         return long.MAX;
     }
 }

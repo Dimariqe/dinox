@@ -15,6 +15,8 @@ int main(string[] args) {
     // Tier 4 Security Audit Tests
     TestSuite.get_root().add_suite(new Dino.Test.FileTransferAudit().get_suite());
     TestSuite.get_root().add_suite(new Dino.Test.SrtpAudit().get_suite());
+    // Phase 10: Test Suite Expansion
+    TestSuite.get_root().add_suite(new Dino.Test.EntityAudit().get_suite());
     return GLib.Test.run();
 }
 
@@ -36,7 +38,7 @@ bool fail_if_not(bool exp, string? reason = null) {
 }
 
 bool fail_if_not_eq_str(string? left, string? right, string? reason = null) {
-    bool nullcheck = (left == null || right == null) && (left != null && right != null);
+    bool nullcheck = (left == null) != (right == null);
     string l = left ?? "(null)";
     string r = right ?? "(null)";
     return fail_if(nullcheck || l != r, @"$(reason != null ? reason + ": " : "")'$l' != '$r'");

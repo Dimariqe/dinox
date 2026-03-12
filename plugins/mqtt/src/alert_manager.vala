@@ -143,7 +143,7 @@ public class AlertRule : Object {
     public bool evaluate(string value) {
         /* Check cooldown */
         if (last_triggered > 0 && cooldown_secs > 0) {
-            int64 now = new DateTime.now_utc().to_unix();
+            int64 now = MqttUtils.now_unix();
             if (now - last_triggered < cooldown_secs) {
                 return false;
             }
@@ -258,7 +258,7 @@ public class TopicHistoryEntry {
     public TopicHistoryEntry(string topic, string payload) {
         this.topic = topic;
         this.payload = payload;
-        this.timestamp = new DateTime.now_utc();
+        this.timestamp = new DateTime.from_unix_utc(MqttUtils.now_unix());
         this.triggered_priority = MqttPriority.NORMAL;
     }
 }
@@ -646,23 +646,23 @@ public class MqttAlertManager : Object {
                 }
 
                 /* Update trigger timestamp */
-                rule.last_triggered = new DateTime.now_utc().to_unix();
+                rule.last_triggered = MqttUtils.now_unix();
             }
         }
 
         /* BUG-10 fix: Only update last_triggered in the DB
          * rather than doing a full DELETE ALL + INSERT ALL cycle.
-         * This avoids an expensive save_rules() call on every alert. */
+         * This avoids an expensive save_rules() call on every alert.
+         *
+         * Uses Qlite ORM instead of raw exec() to avoid SQL injection
+         * and ensure the correct table name (mqtt_alert_rules). */
         if (result.triggered_rules.size > 0 && plugin.mqtt_db != null) {
-            long ts = (long) new DateTime.now_utc().to_unix();
+            long ts = (long) MqttUtils.now_unix();
             foreach (var triggered_rule in result.triggered_rules) {
-                try {
-                    plugin.mqtt_db.exec(
-                        "UPDATE alert_rules SET last_triggered=%lld WHERE id='%s'"
-                        .printf((int64) ts, triggered_rule.id));
-                } catch (Error e) {
-                    warning("MQTT AlertManager: UPDATE last_triggered failed: %s", e.message);
-                }
+                plugin.mqtt_db.alert_rules.update()
+                    .with(plugin.mqtt_db.alert_rules.id, "=", triggered_rule.id)
+                    .set(plugin.mqtt_db.alert_rules.last_triggered, ts)
+                    .perform();
             }
         }
 
@@ -743,7 +743,7 @@ public class MqttAlertManager : Object {
             }
 
             if (rules.size > 0) {
-                message("MQTT AlertManager: Loaded %d alert rules from mqtt.db", rules.size);
+                debug("MQTT AlertManager: Loaded %d alert rules from mqtt.db", rules.size);
                 return;
             }
         }
@@ -769,12 +769,12 @@ public class MqttAlertManager : Object {
                 }
             }
 
-            message("MQTT AlertManager: Loaded %d alert rules from JSON (legacy)", rules.size);
+            debug("MQTT AlertManager: Loaded %d alert rules from JSON (legacy)", rules.size);
 
             /* One-time migration: write rules to mqtt.db */
             if (rules.size > 0 && plugin.mqtt_db != null) {
                 save_rules();
-                message("MQTT AlertManager: Migrated %d rules from JSON → mqtt.db", rules.size);
+                debug("MQTT AlertManager: Migrated %d rules from JSON → mqtt.db", rules.size);
             }
         } catch (GLib.Error e) {
             warning("MQTT AlertManager: Failed to load rules: %s", e.message);
@@ -792,7 +792,7 @@ public class MqttAlertManager : Object {
                 /* Delete all existing rules and re-insert */
                 plugin.mqtt_db.alert_rules.delete().perform();
 
-                long now = (long) new DateTime.now_utc().to_unix();
+                long now = (long) MqttUtils.now_unix();
                 foreach (var rule in rules) {
                     plugin.mqtt_db.alert_rules.insert()
                         .value(plugin.mqtt_db.alert_rules.id, rule.id)
@@ -853,7 +853,7 @@ public class MqttAlertManager : Object {
                 topic_priorities[member] = MqttPriority.from_string(prio_str);
             }
 
-            message("MQTT AlertManager: Loaded %d topic priorities",
+            debug("MQTT AlertManager: Loaded %d topic priorities",
                     topic_priorities.size);
         } catch (GLib.Error e) {
             warning("MQTT AlertManager: Failed to load priorities: %s",
@@ -896,7 +896,7 @@ public class MqttAlertManager : Object {
                 }
             }
 
-            message("MQTT AlertManager: Loaded %d topic QoS settings",
+            debug("MQTT AlertManager: Loaded %d topic QoS settings",
                     topic_qos.size);
         } catch (GLib.Error e) {
             warning("MQTT AlertManager: Failed to load QoS settings: %s",
@@ -920,24 +920,14 @@ public class MqttAlertManager : Object {
         set_db_setting(KEY_TOPIC_QOS, json_str);
     }
 
-    /* ── DB helpers ──────────────────────────────────────────────── */
+    /* ── DB helpers (delegated to Plugin) ─────────────────────────── */
 
     private string? get_db_setting(string key) {
-        var row_opt = plugin.app.db.settings.select(
-                {plugin.app.db.settings.value})
-            .with(plugin.app.db.settings.key, "=", key)
-            .single()
-            .row();
-        if (row_opt.is_present())
-            return row_opt[plugin.app.db.settings.value];
-        return null;
+        return plugin.get_app_db_setting(key);
     }
 
     private void set_db_setting(string key, string val) {
-        plugin.app.db.settings.upsert()
-            .value(plugin.app.db.settings.key, key, true)
-            .value(plugin.app.db.settings.value, val)
-            .perform();
+        plugin.set_app_db_setting(key, val);
     }
 }
 

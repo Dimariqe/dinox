@@ -80,7 +80,7 @@ public class Module : XmppStreamNegotiationModule, WriteNodeFunc {
         while (!node_queue.is_empty && in_flight_stanzas.size < 10) {
             QueueItem queue_item = node_queue.poll();
             try {
-                queue_item.cancellable.set_error_if_cancelled();
+                if (queue_item.cancellable != null) queue_item.cancellable.set_error_if_cancelled();
             } catch (IOError e) {
                 queue_item.promise.set_exception(e);
                 continue;
@@ -115,7 +115,7 @@ public class Module : XmppStreamNegotiationModule, WriteNodeFunc {
     }
 
     public static void require(XmppStream stream) {
-        if (stream.get_module<Module>(IDENTITY) == null) stream.add_module(new PrivateXmlStorage.Module());
+        if (stream.get_module<Module>(IDENTITY) == null) stream.add_module(new Module());
     }
 
     public override bool mandatory_outstanding(XmppStream stream) { return false; }
@@ -171,8 +171,11 @@ public class Module : XmppStreamNegotiationModule, WriteNodeFunc {
                         stream.add_flag(flag);
                     }
 
-                    h_outbound = (uint32) uint64.parse(node.get_attribute("h", NS_URI));
-                    handle_incoming_h(stream, h_outbound);
+                    string? h_resumed = node.get_attribute("h", NS_URI);
+                    if (h_resumed != null) {
+                        h_outbound = (uint32) uint64.parse(h_resumed);
+                        handle_incoming_h(stream, h_outbound);
+                    }
                     foreach (var id in in_flight_stanzas.keys) {
                         node_queue.add(in_flight_stanzas[id]);
                     }

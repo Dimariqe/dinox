@@ -188,7 +188,9 @@ public class MessageProcessor : StreamInteractionModule, Object {
 
         // Parse times
         if (mam_message_flag != null) new_message.local_time = mam_message_flag.server_time;
-        DateTime now = new DateTime.from_unix_utc(new DateTime.now_utc().to_unix()); // Remove milliseconds. They are not stored in the db and might lead to ordering issues when compared with times from the db.
+        DateTime? now_utc = new DateTime.now_utc();
+        int64 now_epoch = (now_utc != null) ? now_utc.to_unix() : 0;
+        DateTime now = new DateTime.from_unix_utc(now_epoch); // Remove milliseconds. They are not stored in the db and might lead to ordering issues when compared with times from the db.
         if (new_message.local_time == null || new_message.local_time.compare(now) > 0) new_message.local_time = now;
 
         Xep.DelayedDelivery.MessageFlag? delayed_message_flag = Xep.DelayedDelivery.MessageFlag.get_flag(message);
@@ -444,7 +446,9 @@ public class MessageProcessor : StreamInteractionModule, Object {
         message.stanza_id = random_uuid();
         message.account = conversation.account;
         message.body = text;
-        DateTime now = new DateTime.from_unix_utc(new DateTime.now_utc().to_unix()); // Remove milliseconds. They are not stored in the db and might lead to ordering issues when compared with times from the db.
+        DateTime? now_utc_out = new DateTime.now_utc();
+        int64 now_epoch_out = (now_utc_out != null) ? now_utc_out.to_unix() : 0;
+        DateTime now = new DateTime.from_unix_utc(now_epoch_out); // Remove milliseconds. They are not stored in the db and might lead to ordering issues when compared with times from the db.
         message.time = now;
         message.local_time = now;
         message.direction = Entities.Message.DIRECTION_SENT;

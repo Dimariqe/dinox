@@ -29,5 +29,20 @@ int main(string[] args) {
     /* Contract — MqttConnectionConfig model */
     TestSuite.get_root().add_suite(new ConnectionConfigTest().get_suite());
 
+    /* ── Audit-driven tests (commit 030cc9d9) ──────────────────── */
+
+    /* Audit — Port validation (clamp 1–65535 in config setter) */
+    TestSuite.get_root().add_suite(new PortValidationTest().get_suite());
+
+    /* Audit — truncate_string() edge cases (max_len <= 3) */
+    TestSuite.get_root().add_suite(new TruncateEdgeCaseTest().get_suite());
+
+    /* NOTE: MqttPriority, AlertOperator, AlertRule tests would need
+     * alert_manager.vala which depends on the full Plugin class.
+     * Those types are verified via manual/integration testing. */
+
+    /* Audit — Alias map parsing, CRUD, wildcard resolve */
+    TestSuite.get_root().add_suite(new AliasMapTest().get_suite());
+
     return GLib.Test.run();
 }

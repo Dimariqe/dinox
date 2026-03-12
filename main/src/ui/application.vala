@@ -110,6 +110,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     private int unlock_failures = 0;
     private Adw.ApplicationWindow? unlock_parent = null;
     private bool unlock_window_centered_once = false;
+    private Ui.PreferencesDialog? cached_preferences_dialog = null;
 
     // Path of the marker file that signals the DB is protected by an auto-key
     // (i.e. the user chose "Skip" instead of setting a manual password).
@@ -186,6 +187,67 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     // survives the recursive wipe of ~/.local/share/dinox/
     private static string get_panic_marker_path() {
         return Path.build_filename(Environment.get_user_data_dir(), "dinox_panic_marker");
+    }
+
+    // Shared post-unlock / post-set-password initialization.
+    // Extracted to eliminate duplication between prompt_unlock() and prompt_set_password().
+    private void finish_post_unlock () {
+        create_ui_actions ();
+        core_ready = true;
+
+        apply_color_scheme (settings.color_scheme);
+        settings.notify["color-scheme"].connect (() => {
+            apply_color_scheme (settings.color_scheme);
+        });
+
+        NotificationEvents notification_events = stream_interactor.get_module<NotificationEvents> (NotificationEvents.IDENTITY);
+        get_notifications_dbus.begin ((_, res) => {
+            DBusNotifications? dbus_notifications = get_notifications_dbus.end (res);
+            if (dbus_notifications != null) {
+                FreeDesktopNotifier free_desktop_notifier = new FreeDesktopNotifier (stream_interactor, dbus_notifications);
+                notification_events.register_notification_provider.begin (free_desktop_notifier);
+            } else {
+                notification_events.register_notification_provider.begin (new GNotificationsNotifier (stream_interactor));
+            }
+        });
+
+        notification_events.notify_content_item.connect ((content_item, conversation) => {
+            var desktop_env = Environment.get_variable ("XDG_CURRENT_DESKTOP");
+            if (desktop_env == null || !desktop_env.down ().contains ("gnome")) {
+                if (this.active_window != null) {
+//                    this.active_window.urgency_hint = true;
+                }
+            }
+        });
+        stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
+
+        systray_manager = new SystrayManager (this);
+
+        // Auto-show certificate warning dialog when TLS cert validation fails
+        stream_interactor.connection_manager.certificate_validation_required.connect ((account, peer_cert, errors) => {
+            Idle.add (() => {
+                var app = (Gtk.Application) GLib.Application.get_default ();
+                Gtk.Window? parent_window = app != null ? app.active_window : null;
+                if (parent_window != null) {
+                    var cert_dialog = new CertificateWarningDialog (
+                        account, peer_cert, errors,
+                        account.domainpart, stream_interactor
+                    );
+                    cert_dialog.present (parent_window);
+                }
+                return false;
+            });
+        });
+
+        if (unlock_parent != null) {
+            unlock_parent.close ();
+            unlock_parent = null;
+        }
+
+        if (pending_activate) {
+            pending_activate = false;
+            activate ();
+        }
     }
 
     // Check if a panic wipe happened before this startup.
@@ -409,6 +471,18 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         Environment.set_application_name ("DinoX");
         Gtk.Window.set_default_icon_name ("im.github.rallep71.DinoX");
 
+        // Suppress known harmless GTK4/libadwaita warnings that cannot be fixed
+        // from application code (AdwBreakpointBin internal layout, PopoverMenu
+        // accounting, GtkText blinking selection).
+        GLib.Log.set_handler("Gtk", GLib.LogLevelFlags.LEVEL_WARNING, (domain, level, msg) => {
+            if (msg.contains("AdwBreakpointBin") ||
+                msg.contains("Broken accounting of active state") ||
+                msg.contains("unexpected blinking selection")) {
+                return; // swallow
+            }
+            GLib.Log.default_handler(domain, level, msg);
+        });
+
         // For AppImage: ensure GTK4 can find bundled icons by prepending to XDG_DATA_DIRS.
         // (AppRun also sets this, but do it here as safety net for direct execution.)
         string? appdir = Environment.get_variable("APPDIR");
@@ -506,6 +580,15 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 if (systray_manager != null) {
                     systray_manager.set_window (window);
                 }
+
+#if HAVE_MALLOC_TRIM
+                // Periodically return freed heap memory to the OS.
+                // glibc keeps freed pages in its arena; malloc_trim(0) releases them.
+                Timeout.add_seconds(60, () => {
+                    malloc_trim(0);
+                    return Source.CONTINUE;
+                });
+#endif
             }
             window.present ();
 
@@ -661,66 +744,11 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                         warning ("Plugin loading error (non-fatal): %s", plugin_err.message);
                     }
                 }
-                create_ui_actions ();
-                core_ready = true;
-
-                apply_color_scheme (settings.color_scheme);
-                settings.notify["color-scheme"].connect( () => {
-                    apply_color_scheme (settings.color_scheme);
-                });
-
-                NotificationEvents notification_events = stream_interactor.get_module<NotificationEvents> (NotificationEvents.IDENTITY);
-                get_notifications_dbus.begin ((_, res) => {
-                    DBusNotifications? dbus_notifications = get_notifications_dbus.end (res);
-                    if (dbus_notifications != null) {
-                        FreeDesktopNotifier free_desktop_notifier = new FreeDesktopNotifier (stream_interactor, dbus_notifications);
-                        notification_events.register_notification_provider.begin (free_desktop_notifier);
-                    } else {
-                        notification_events.register_notification_provider.begin (new GNotificationsNotifier (stream_interactor));
-                    }
-                });
-
-                notification_events.notify_content_item.connect ((content_item, conversation) => {
-                    var desktop_env = Environment.get_variable ("XDG_CURRENT_DESKTOP");
-                    if (desktop_env == null || !desktop_env.down ().contains ("gnome")) {
-                        if (this.active_window != null) {
-//                            this.active_window.urgency_hint = true;
-                        }
-                    }
-                });
-                stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
-
-                systray_manager = new SystrayManager (this);
-
-                // Auto-show certificate warning dialog when TLS cert validation fails
-                stream_interactor.connection_manager.certificate_validation_required.connect((account, peer_cert, errors) => {
-                    Idle.add(() => {
-                        var app = (Gtk.Application) GLib.Application.get_default();
-                        Gtk.Window? parent_window = app != null ? app.active_window : null;
-                        if (parent_window != null) {
-                            var cert_dialog = new CertificateWarningDialog(
-                                account, peer_cert, errors,
-                                account.domainpart, stream_interactor
-                            );
-                            cert_dialog.present(parent_window);
-                        }
-                        return false;
-                    });
-                });
-
-                if (unlock_parent != null) {
-                    unlock_parent.close ();
-                    unlock_parent = null;
-                }
+                finish_post_unlock ();
 
                 // Check if a panic wipe happened before this startup.
                 // If so, configure MAM sync to skip old messages.
                 check_panic_marker();
-
-                if (pending_activate) {
-                    pending_activate = false;
-                    activate ();
-                }
             } catch (Error e) {
                 unlock_failures++;
                 warning ("Unlock failed: %s", e.message);
@@ -852,61 +880,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                     if (plugin_loader != null) {
                         plugin_loader.load_all ();
                     }
-                    create_ui_actions ();
-                    core_ready = true;
-
-                    apply_color_scheme (settings.color_scheme);
-                    settings.notify["color-scheme"].connect( () => {
-                        apply_color_scheme (settings.color_scheme);
-                    });
-
-                    NotificationEvents notification_events = stream_interactor.get_module<NotificationEvents> (NotificationEvents.IDENTITY);
-                    get_notifications_dbus.begin ((_, res) => {
-                        DBusNotifications? dbus_notifications = get_notifications_dbus.end (res);
-                        if (dbus_notifications != null) {
-                            FreeDesktopNotifier free_desktop_notifier = new FreeDesktopNotifier (stream_interactor, dbus_notifications);
-                            notification_events.register_notification_provider.begin (free_desktop_notifier);
-                        } else {
-                            notification_events.register_notification_provider.begin (new GNotificationsNotifier (stream_interactor));
-                        }
-                    });
-
-                    notification_events.notify_content_item.connect ((content_item, conversation) => {
-                        var desktop_env = Environment.get_variable ("XDG_CURRENT_DESKTOP");
-                        if (desktop_env == null || !desktop_env.down ().contains ("gnome")) {
-                            if (this.active_window != null) {
-//                            this.active_window.urgency_hint = true;
-                            }
-                        }
-                    });
-                    stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
-
-                    systray_manager = new SystrayManager (this);
-
-                    // Auto-show certificate warning dialog when TLS cert validation fails
-                    stream_interactor.connection_manager.certificate_validation_required.connect((account, peer_cert, errors) => {
-                        Idle.add(() => {
-                            var app = (Gtk.Application) GLib.Application.get_default();
-                            Gtk.Window? parent_window = app != null ? app.active_window : null;
-                            if (parent_window != null) {
-                                var cert_dialog = new CertificateWarningDialog(
-                                    account, peer_cert, errors,
-                                    account.domainpart, stream_interactor
-                                );
-                                cert_dialog.present(parent_window);
-                            }
-                            return false;
-                        });
-                    });
-
-                    if (unlock_parent != null) {
-                        unlock_parent.close ();
-                        unlock_parent = null;
-                    }
-                    if (pending_activate) {
-                        pending_activate = false;
-                        activate ();
-                    }
+                    finish_post_unlock ();
                     return;
                 } catch (Error e) {
                     unlock_failures++;
@@ -993,6 +967,10 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             jid = jid.substring (1);
         }
         jid = Uri.unescape_string (jid);
+        if (jid == null) {
+            warning ("Invalid percent-encoding in xmpp:-URI");
+            return;
+        }
         try {
             jid = new Xmpp.Jid (jid).to_string ();
         } catch (Xmpp.InvalidJidError e) {
@@ -1349,6 +1327,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
             int call_id = variant.get_child_value (1).get_int32 ();
             Call? call = stream_interactor.get_module<CallStore> (CallStore.IDENTITY).get_call_by_id (call_id, conversation);
+            if (call == null) return;
             CallState? call_state = stream_interactor.get_module<Calls> (Calls.IDENTITY).call_states[call];
             if (call_state == null) return;
 
@@ -1368,6 +1347,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
             int call_id = variant.get_child_value (1).get_int32 ();
             Call? call = stream_interactor.get_module<CallStore> (CallStore.IDENTITY).get_call_by_id (call_id, conversation);
+            if (call == null) return;
             CallState? call_state = stream_interactor.get_module<Calls> (Calls.IDENTITY).call_states[call];
             if (call_state == null) return;
 
@@ -1403,25 +1383,27 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     }
 
     private void show_preferences_window (string? navigate_to_page = null) {
-        Ui.PreferencesDialog dialog = new Ui.PreferencesDialog ();
-        configure_preferences (dialog);
-        dialog.model.populate (db, stream_interactor);
-        dialog.backup_requested.connect (() => {
-            string data_dir = Path.build_filename (Environment.get_user_data_dir (), "dinox");
-            create_backup (data_dir);
-        });
-        dialog.restore_backup_requested.connect (() => restore_from_backup ());
-        dialog.show_data_location.connect (() => show_data_location_dialog ());
-        dialog.change_db_password_requested.connect (() => show_change_db_password_dialog ());
-        dialog.remove_db_password_requested.connect (() => show_remove_db_password_dialog ());
-        dialog.clear_cache_requested.connect (() => clear_cache ());
-        dialog.reset_database_requested.connect (() => reset_database ());
-        dialog.factory_reset_requested.connect (() => factory_reset ());
-        dialog.present (window);
+        if (cached_preferences_dialog == null) {
+            cached_preferences_dialog = new Ui.PreferencesDialog ();
+            configure_preferences (cached_preferences_dialog);
+            cached_preferences_dialog.model.populate (db, stream_interactor);
+            cached_preferences_dialog.backup_requested.connect (() => {
+                string data_dir = Path.build_filename (Environment.get_user_data_dir (), "dinox");
+                create_backup (data_dir);
+            });
+            cached_preferences_dialog.restore_backup_requested.connect (() => restore_from_backup ());
+            cached_preferences_dialog.show_data_location.connect (() => show_data_location_dialog ());
+            cached_preferences_dialog.change_db_password_requested.connect (() => show_change_db_password_dialog ());
+            cached_preferences_dialog.remove_db_password_requested.connect (() => show_remove_db_password_dialog ());
+            cached_preferences_dialog.clear_cache_requested.connect (() => clear_cache ());
+            cached_preferences_dialog.reset_database_requested.connect (() => reset_database ());
+            cached_preferences_dialog.factory_reset_requested.connect (() => factory_reset ());
+        }
+        cached_preferences_dialog.present (window);
 
         // Navigate to specific page if requested (e.g. "tor" from the Tor indicator)
         if (navigate_to_page != null) {
-            dialog.set_visible_page_name (navigate_to_page);
+            cached_preferences_dialog.set_visible_page_name (navigate_to_page);
         }
     }
 
@@ -1590,10 +1572,10 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     }
 
     private void show_preferences_account_window (Account account) {
-        Ui.PreferencesDialog dialog = new Ui.PreferencesDialog ();
-        dialog.model.populate (db, stream_interactor);
-        dialog.accounts_page.account_chosen (account);
-        dialog.present (window);
+        show_preferences_window();
+        if (cached_preferences_dialog != null) {
+            cached_preferences_dialog.accounts_page.account_chosen (account);
+        }
     }
 
     private void show_about_window () {
@@ -2214,6 +2196,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         // Close the database before deleting
         // We need to restart the app after this
+        if (db != null) {
+            db.close();
+        }
 
         var toast_overlay = window.get_first_child () as Adw.ToastOverlay;
         if (toast_overlay != null) {
@@ -2329,6 +2314,11 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         }
 
         Timeout.add (2000, () => {
+            // Close database connections before file deletion (on Windows, open files can't be deleted)
+            if (db != null) {
+                db.close();
+            }
+
             // Delete everything
             try {
                 delete_directory_contents (data_dir);
@@ -2684,6 +2674,8 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                     stderr_str = err.message;
                     success = false;
                     warning ("Failed to run GPG encrypt: %s", err.message);
+                    // Clean up unencrypted temp file to avoid leaking plaintext data
+                    FileUtils.unlink(temp_tar_path);
                 }
             }
 

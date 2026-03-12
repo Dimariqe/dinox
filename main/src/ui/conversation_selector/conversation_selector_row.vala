@@ -41,7 +41,19 @@ public class ConversationSelectorRow : ListBoxRow {
 
     protected ContentItem? last_content_item;
     protected int num_unread = 0;
-
+    private PopoverMenu? active_popover = null;
+    private Widget? cached_groupchat_tooltip = null;
+    // D14: Signal handler IDs for proper cleanup
+    private ulong muc_room_info_handler_id;
+    private ulong muc_subject_set_handler_id;
+    private ulong content_new_item_handler_id;
+    private ulong correction_handler_id;
+    private ulong deletion_handler_id;
+    private ulong conversation_cleared_handler_id;
+    private ulong block_changed_handler_id;
+    private ulong notify_read_handler_id;
+    private ulong notify_pinned_handler_id;
+    private ulong notify_muted_handler_id;
 
     protected StreamInteractor stream_interactor;
 
@@ -77,7 +89,7 @@ public class ConversationSelectorRow : ListBoxRow {
 
         if (conversation.type_ == Conversation.Type.GROUPCHAT) {
             muc_indicator.visible = true;
-            stream_interactor.get_module<MucManager>(MucManager.IDENTITY).room_info_updated.connect((account, jid) => {
+            muc_room_info_handler_id = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).room_info_updated.connect((account, jid) => {
                 if (conversation != null && conversation.counterpart.equals_bare(jid) && conversation.account.equals(account)) {
                     update_read(true); // bubble color might have changed
                     update_private_room_indicator();
@@ -98,12 +110,16 @@ public class ConversationSelectorRow : ListBoxRow {
             case Conversation.Type.GROUPCHAT:
                 has_tooltip = Util.use_tooltips();
                 query_tooltip.connect ((x, y, keyboard_tooltip, tooltip) => {
-                    tooltip.set_custom(Util.widget_if_tooltips_active(generate_groupchat_tooltip()));
+                    if (cached_groupchat_tooltip == null) {
+                        cached_groupchat_tooltip = generate_groupchat_tooltip();
+                    }
+                    tooltip.set_custom(Util.widget_if_tooltips_active(cached_groupchat_tooltip));
                     return true;
                 });
                 // Invalidate tooltip when subject changes
-                stream_interactor.get_module<MucManager>(MucManager.IDENTITY).subject_set.connect((account, jid, subject) => {
+                muc_subject_set_handler_id = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).subject_set.connect((account, jid, subject) => {
                     if (conversation.account.equals(account) && conversation.counterpart.equals_bare(jid)) {
+                        cached_groupchat_tooltip = null;
                         trigger_tooltip_query();
                     }
                 });
@@ -112,22 +128,22 @@ public class ConversationSelectorRow : ListBoxRow {
                 break;
         }
 
-        stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).new_item.connect((item, c) => {
+        content_new_item_handler_id = stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).new_item.connect((item, c) => {
             if (conversation.equals(c)) {
                 content_item_received(item);
             }
         });
-        stream_interactor.get_module<MessageCorrection>(MessageCorrection.IDENTITY).received_correction.connect((item) => {
+        correction_handler_id = stream_interactor.get_module<MessageCorrection>(MessageCorrection.IDENTITY).received_correction.connect((item) => {
             if (last_content_item != null && last_content_item.id == item.id) {
                 content_item_received(item);
             }
         });
-        stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY).item_deleted.connect((item) => {
+        deletion_handler_id = stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY).item_deleted.connect((item) => {
             if (last_content_item != null && last_content_item.id == item.id) {
                 content_item_received(item);
             }
         });
-        stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).conversation_cleared.connect((cleared_conversation) => {
+        conversation_cleared_handler_id = stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).conversation_cleared.connect((cleared_conversation) => {
             if (conversation.id == cleared_conversation.id) {
                 last_content_item = null;
                 update_message_label();
@@ -138,13 +154,13 @@ public class ConversationSelectorRow : ListBoxRow {
         last_content_item = stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).get_latest(conversation);
 
         picture.model = new ViewModel.CompatAvatarPictureModel(stream_interactor).set_conversation(conversation);
-        conversation.notify["read-up-to-item"].connect(() => update_read());
-        conversation.notify["pinned"].connect(() => { update_pinned_icon(); });
-        conversation.notify["notify-setting"].connect(() => { update_muted_icon(); });
+        notify_read_handler_id = conversation.notify["read-up-to-item"].connect(() => update_read());
+        notify_pinned_handler_id = conversation.notify["pinned"].connect(() => { update_pinned_icon(); });
+        notify_muted_handler_id = conversation.notify["notify-setting"].connect(() => { update_muted_icon(); });
         
         // Listen for block status changes
         if (conversation.type_ == Conversation.Type.CHAT) {
-            stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY).block_changed.connect((account, jid) => {
+            block_changed_handler_id = stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY).block_changed.connect((account, jid) => {
                 if (conversation.account.equals(account) && conversation.counterpart.equals_bare(jid)) {
                     update_blocked_icon();
                 }
@@ -165,6 +181,48 @@ public class ConversationSelectorRow : ListBoxRow {
             pm.received_offline_presence.disconnect(on_presence_changed);
             pm.status_changed.disconnect(on_own_status_changed);
         }
+        // D14: Disconnect all registered signal handlers to prevent leaks
+        // Use is_connected() guard: module instance from get_module() during finalization
+        // may differ from the one used during construction.
+        var muc_mgr = stream_interactor.get_module<MucManager>(MucManager.IDENTITY);
+        if (muc_room_info_handler_id != 0 && muc_mgr != null && SignalHandler.is_connected(muc_mgr, muc_room_info_handler_id)) {
+            SignalHandler.disconnect(muc_mgr, muc_room_info_handler_id);
+        }
+        if (muc_subject_set_handler_id != 0 && muc_mgr != null && SignalHandler.is_connected(muc_mgr, muc_subject_set_handler_id)) {
+            SignalHandler.disconnect(muc_mgr, muc_subject_set_handler_id);
+        }
+        var cis = stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY);
+        if (content_new_item_handler_id != 0 && cis != null && SignalHandler.is_connected(cis, content_new_item_handler_id)) {
+            SignalHandler.disconnect(cis, content_new_item_handler_id);
+        }
+        var mc = stream_interactor.get_module<MessageCorrection>(MessageCorrection.IDENTITY);
+        if (correction_handler_id != 0 && mc != null && SignalHandler.is_connected(mc, correction_handler_id)) {
+            SignalHandler.disconnect(mc, correction_handler_id);
+        }
+        var md = stream_interactor.get_module<MessageDeletion>(MessageDeletion.IDENTITY);
+        if (deletion_handler_id != 0 && md != null && SignalHandler.is_connected(md, deletion_handler_id)) {
+            SignalHandler.disconnect(md, deletion_handler_id);
+        }
+        var cm = stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY);
+        if (conversation_cleared_handler_id != 0 && cm != null && SignalHandler.is_connected(cm, conversation_cleared_handler_id)) {
+            SignalHandler.disconnect(cm, conversation_cleared_handler_id);
+        }
+        var bm = stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY);
+        if (block_changed_handler_id != 0 && bm != null && SignalHandler.is_connected(bm, block_changed_handler_id)) {
+            SignalHandler.disconnect(bm, block_changed_handler_id);
+        }
+        // Disconnect conversation property-change signals
+        if (conversation != null) {
+            if (notify_read_handler_id != 0 && SignalHandler.is_connected(conversation, notify_read_handler_id)) {
+                SignalHandler.disconnect(conversation, notify_read_handler_id);
+            }
+            if (notify_pinned_handler_id != 0 && SignalHandler.is_connected(conversation, notify_pinned_handler_id)) {
+                SignalHandler.disconnect(conversation, notify_pinned_handler_id);
+            }
+            if (notify_muted_handler_id != 0 && SignalHandler.is_connected(conversation, notify_muted_handler_id)) {
+                SignalHandler.disconnect(conversation, notify_muted_handler_id);
+            }
+        }
     }
 
     public void update() {
@@ -172,13 +230,32 @@ public class ConversationSelectorRow : ListBoxRow {
     }
 
     public void content_item_received(ContentItem? ci = null) {
-        last_content_item = stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).get_latest(conversation) ?? ci;
+        // D3: If a new item is provided and is newer than cached, use it directly
+        // instead of querying the DB (avoids N+1 on every incoming message)
+        if (ci != null && (last_content_item == null || ci.compare(last_content_item) >= 0)) {
+            last_content_item = ci;
+        } else {
+            last_content_item = stream_interactor.get_module<ContentItemStore>(ContentItemStore.IDENTITY).get_latest(conversation) ?? ci;
+        }
         update_message_label();
         update_time_label();
         update_read();
     }
 
+    public void dismiss_popover() {
+        if (active_popover != null) {
+            var old_popover = active_popover;
+            active_popover = null;
+            // unparent() removes the widget and destroys its GDK surface
+            // in one step.  Calling popdown() first would leave a window
+            // where GTK tries to query the half-torn-down surface
+            // (gdk_surface_get_device_position assertion / SIGSEGV).
+            old_popover.unparent();
+        }
+    }
+
     public async void colapse() {
+        dismiss_popover();
         main_revealer.set_transition_type(RevealerTransitionType.SLIDE_UP);
         main_revealer.set_reveal_child(false);
 
@@ -308,9 +385,10 @@ public class ConversationSelectorRow : ListBoxRow {
         if (update_read_pending) return;
         update_read_pending = true;
         Idle.add(() => {
+            bool force = update_read_pending_force;
             update_read_pending = false;
             update_read_pending_force = false;
-            update_read_idle(update_read_pending_force);
+            update_read_idle(force);
             return Source.REMOVE;
         }, Priority.LOW);
     }
@@ -359,7 +437,7 @@ public class ConversationSelectorRow : ListBoxRow {
 
         // Room topic/subject
         string? topic = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_groupchat_subject(conversation.counterpart, conversation.account);
-        debug("generate_groupchat_tooltip: topic='%s' for %s", topic ?? "(null)", conversation.counterpart.to_string());
+        // topic can legitimately be null for rooms without a subject set
         if (topic != null && topic.strip() != "") {
             Label topic_title = new Label(_("Thema:")) { valign=Align.START, xalign=0 };
             topic_title.attributes = new AttrList();
@@ -570,20 +648,28 @@ public class ConversationSelectorRow : ListBoxRow {
             
         } else {
             // 1:1 Chat options
+            bool is_synthetic_bot = (conversation.counterpart.domainpart == "mqtt.local");
+
             menu.append(_("Conversation Details"), "row.details");
-            menu.append(_("Edit Alias"), "row.edit");
+            if (!is_synthetic_bot) {
+                menu.append(_("Edit Alias"), "row.edit");
+            }
             
             // Mute/Unmute
             bool is_muted = (conversation.notify_setting == Conversation.NotifySetting.OFF);
             menu.append(is_muted ? _("Unmute") : _("Mute"), "row.mute");
             
-            // Block/Unblock
-            bool is_blocked = stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY).is_blocked(conversation.account, conversation.counterpart);
-            menu.append(is_blocked ? _("Unblock") : _("Block"), "row.block");
+            if (!is_synthetic_bot) {
+                // Block/Unblock
+                bool is_blocked = stream_interactor.get_module<BlockingManager>(BlockingManager.IDENTITY).is_blocked(conversation.account, conversation.counterpart);
+                menu.append(is_blocked ? _("Unblock") : _("Block"), "row.block");
+            }
             
             menu.append(_("Delete Conversation History"), "row.clear");
             menu.append(_("Close"), "row.close");
-            menu.append(_("Remove Contact"), "row.remove");
+            if (!is_synthetic_bot) {
+                menu.append(_("Remove Contact"), "row.remove");
+            }
             
             // Details action
             var details_action = new SimpleAction("details", null);
@@ -638,13 +724,22 @@ public class ConversationSelectorRow : ListBoxRow {
         
         this.insert_action_group("row", action_group);
         
+        // Dismiss any existing popover first
+        dismiss_popover();
+        
         // Show popover menu
         var popover = new PopoverMenu.from_model(menu);
+        active_popover = popover;
         popover.set_parent(this);
         popover.set_pointing_to({ (int)x, (int)y, 1, 1 });
         popover.closed.connect(() => {
             Idle.add(() => {
-                popover.unparent();
+                if (popover.get_parent() != null) {
+                    popover.unparent();
+                }
+                if (active_popover == popover) {
+                    active_popover = null;
+                }
                 return false;
             });
         });
@@ -815,32 +910,7 @@ public class ConversationSelectorRow : ListBoxRow {
     }
 
     private void show_clear_history_dialog() {
-        var dialog = new Adw.AlertDialog(
-            _("Delete all message history?"),
-            _("This will permanently delete all messages in this conversation. This action cannot be undone.")
-        );
-
-        Gtk.CheckButton? global_check = null;
-        if (conversation.type_ == Conversation.Type.CHAT) {
-            global_check = new Gtk.CheckButton.with_label(_("Also delete for chat partner"));
-            global_check.halign = Gtk.Align.CENTER;
-            dialog.set_extra_child(global_check);
-        }
-
-        dialog.add_response("cancel", _("Cancel"));
-        dialog.add_response("delete", _("Delete"));
-        dialog.set_response_appearance("delete", DESTRUCTIVE);
-        dialog.set_default_response("cancel");
-        dialog.set_close_response("cancel");
-        
-        dialog.response.connect((response) => {
-            if (response == "delete") {
-                bool global = global_check != null && global_check.active;
-                stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).clear_conversation_history(conversation, global);
-            }
-        });
-        
-        dialog.present((Window)this.get_root());
+        Util.show_clear_history_dialog(conversation, stream_interactor, (Window)this.get_root());
     }
 
     private void show_destroy_room_dialog() {

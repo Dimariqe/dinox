@@ -292,15 +292,24 @@ public class Handler {
 
     private Xmpp.Xep.Jingle.ContentEncryption? setup_dtls_connection_thread() {
         buffer_mutex.lock();
-        if (stop) {
-            restart = true;
+        if (running) {
+            /* Another thread is already doing the handshake. */
+            if (stop) {
+                /* A stop was requested — signal it to restart later. */
+                restart = true;
+                buffer_mutex.unlock();
+                return null;
+            }
             buffer_mutex.unlock();
             return null;
         }
-        if (running || ready) {
+        if (ready) {
             buffer_mutex.unlock();
             return null;
         }
+        /* Not running and not ready — start fresh, clear any stale stop flag
+         * (e.g. from a mode change before the handshake was started). */
+        stop = false;
         running = true;
         restart = false;
         buffer_mutex.unlock();
@@ -334,13 +343,13 @@ public class Handler {
         session.set_push_function(push_function);
         session.set_verify_function(verify_function);
 
-        DateTime maximum_time = new DateTime.now_utc().add_seconds(20);
+        DateTime maximum_time = new DateTime.now_utc().add_seconds(30);
         do {
             err = session.handshake();
 
             DateTime current_time = new DateTime.now_utc();
             if (maximum_time.compare(current_time) < 0) {
-                warning("DTLS handshake timeouted");
+                warning("DTLS handshake timeouted (mode=%s)", mode.to_string());
                 err = ErrorCode.APPLICATION_ERROR_MIN + 1;
                 break;
             }
@@ -365,7 +374,7 @@ public class Handler {
         }
         buffer_mutex.unlock();
         if (err != ErrorCode.SUCCESS) {
-            warning("DTLS handshake failed: %s", ((ErrorCode)err).to_string());
+            warning("DTLS handshake failed (mode=%s): %s", mode.to_string(), ((ErrorCode)err).to_string());
             return null;
         }
 

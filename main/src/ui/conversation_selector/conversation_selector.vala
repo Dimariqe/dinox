@@ -15,6 +15,9 @@ public class ConversationSelector : Widget {
 
     private StreamInteractor stream_interactor;
     private HashMap<Conversation, ConversationSelectorRow> rows = new HashMap<Conversation, ConversationSelectorRow>(Conversation.hash_func, Conversation.equals_func);
+    // Guard: conversations currently being removed (collapse animation in progress).
+    // Prevents add_conversation from re-creating a row during the async yield.
+    private HashSet<Conversation> removing_conversations = new HashSet<Conversation>(Conversation.hash_func, Conversation.equals_func);
 
     public ConversationSelector init(StreamInteractor stream_interactor) {
         this.stream_interactor = stream_interactor;
@@ -108,6 +111,8 @@ public class ConversationSelector : Widget {
 
     private void add_conversation(Conversation conversation) {
         if (!conversation.account.enabled) return;
+        // Don't re-add a conversation while its removal animation is still in progress
+        if (removing_conversations.contains(conversation)) return;
         ConversationSelectorRow row;
         if (!rows.has_key(conversation)) {
             conversation.notify["pinned"].connect(list_box.invalidate_sort);
@@ -140,6 +145,7 @@ public class ConversationSelector : Widget {
     }
 
     private void select_fallback_conversation(Conversation conversation) {
+        if (!rows.has_key(conversation)) return;
         if (list_box.get_selected_row() == rows[conversation]) {
             int index = rows[conversation].get_index();
             ListBoxRow? next_select_row = list_box.get_row_at_index(index + 1);
@@ -149,11 +155,19 @@ public class ConversationSelector : Widget {
             if (next_select_row != null) {
                 list_box.select_row(next_select_row);
                 row_activated(next_select_row);
+            } else {
+                // Last conversation being removed — deselect so the UI can
+                // switch to the "no active conversations" placeholder.
+                list_box.select_row(null);
             }
         }
     }
 
     private async void remove_conversation(Conversation conversation) {
+        // Guard: already being removed (collapse animation in progress)
+        if (removing_conversations.contains(conversation)) return;
+        removing_conversations.add(conversation);
+
         select_fallback_conversation(conversation);
         if (rows.has_key(conversation)) {
             conversation.notify["pinned"].disconnect(list_box.invalidate_sort);
@@ -168,10 +182,14 @@ public class ConversationSelector : Widget {
                 list_box.remove(conversation_row);
             }
         }
+
+        removing_conversations.remove(conversation);
     }
 
     public void loop_conversations(bool backwards) {
-        int index = list_box.get_selected_row().get_index();
+        ListBoxRow? selected = list_box.get_selected_row();
+        if (selected == null) return;
+        int index = selected.get_index();
         int new_index = ((index + (backwards ? -1 : 1)) + rows.size) % rows.size;
         ListBoxRow? next_select_row = list_box.get_row_at_index(new_index);
         if (next_select_row != null) {

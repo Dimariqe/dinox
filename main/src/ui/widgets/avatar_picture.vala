@@ -20,6 +20,10 @@ public class Dino.Ui.ViewModel.ConversationParticipantAvatarPictureTileModel : A
     private Jid? primary_avatar_jid;
     private Jid? secondary_avatar_jid;
     private Jid? display_name_jid;
+    // Signal handler IDs for cleanup in dispose() (D6)
+    private ulong roster_updated_handler_id;
+    private ulong received_avatar_handler_id;
+    private ulong fetched_avatar_handler_id;
 
     public ConversationParticipantAvatarPictureTileModel(StreamInteractor stream_interactor, Conversation conversation, Jid jid) {
         this.stream_interactor = stream_interactor;
@@ -43,14 +47,44 @@ public class Dino.Ui.ViewModel.ConversationParticipantAvatarPictureTileModel : A
         }
         string display = Util.get_participant_display_name(stream_interactor, conversation, display_name_jid);
         display_text = display.get_char(0).toupper().to_string();
-        stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY).updated_roster_item.connect(on_roster_updated);
+        roster_updated_handler_id = stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY).updated_roster_item.connect(on_roster_updated);
 
         float[] rgbf = color_id != null ? Xep.ConsistentColor.string_to_rgbf(color_id) : new float[] {0.5f, 0.5f, 0.5f};
         background_color = Gdk.RGBA() { red = rgbf[0], green = rgbf[1], blue = rgbf[2], alpha = 1.0f};
 
         update_image_bytes();
-        avatar_manager.received_avatar.connect(on_received_avatar);
-        avatar_manager.fetched_avatar.connect(on_received_avatar);
+        received_avatar_handler_id = avatar_manager.received_avatar.connect(on_received_avatar);
+        fetched_avatar_handler_id = avatar_manager.fetched_avatar.connect(on_received_avatar);
+    }
+
+    ~ConversationParticipantAvatarPictureTileModel() {
+        cleanup();
+    }
+
+    public void cleanup() {
+        // Disconnect signal handlers to break reference cycles (D6)
+        // These closures capture 'this' via instance method refs, preventing
+        // GObject finalisation. Must be called explicitly since the destructor
+        // can't fire while signals keep refcount > 0.
+        if (roster_updated_handler_id != 0) {
+            var roster_mgr = stream_interactor != null ? stream_interactor.get_module<RosterManager>(RosterManager.IDENTITY) : null;
+            if (roster_mgr != null && SignalHandler.is_connected(roster_mgr, roster_updated_handler_id)) {
+                SignalHandler.disconnect(roster_mgr, roster_updated_handler_id);
+            }
+            roster_updated_handler_id = 0;
+        }
+        var am = avatar_manager;
+        if (am != null) {
+            if (received_avatar_handler_id != 0 && SignalHandler.is_connected(am, received_avatar_handler_id)) {
+                SignalHandler.disconnect(am, received_avatar_handler_id);
+            }
+            received_avatar_handler_id = 0;
+            if (fetched_avatar_handler_id != 0 && SignalHandler.is_connected(am, fetched_avatar_handler_id)) {
+                SignalHandler.disconnect(am, fetched_avatar_handler_id);
+            }
+            fetched_avatar_handler_id = 0;
+        }
+        image_bytes = null;
     }
 
     private void update_image_bytes() {
@@ -178,6 +212,11 @@ public class Dino.Ui.ViewModel.CompatAvatarPictureModel : AvatarPictureModel {
     public void reset() {
         var store = tiles as GLib.ListStore;
         if (store != null) {
+            // Cleanup tile models to break signal reference cycles before dropping references
+            for (uint i = 0; i < store.get_n_items(); i++) {
+                var tile = store.get_item(i) as ConversationParticipantAvatarPictureTileModel;
+                if (tile != null) tile.cleanup();
+            }
             store.remove_all();
         }
     }
@@ -334,9 +373,9 @@ public class Dino.Ui.CompatAvatarDrawer {
     }
 
     private Cairo.Surface sub_surface_idx(Cairo.Context ctx, int idx, int width, int height, int font_factor = 1) {
-        ViewModel.AvatarPictureTileModel tile = (ViewModel.AvatarPictureTileModel) this.model.tiles.get_item(idx);
+        ViewModel.AvatarPictureTileModel? tile = (idx >= 0) ? (ViewModel.AvatarPictureTileModel) this.model.tiles.get_item(idx) : null;
         Gdk.Pixbuf? avatar = null;
-        if (tile.image_bytes != null) {
+        if (tile != null && tile.image_bytes != null) {
             try {
                 var stream = new MemoryInputStream.from_data(tile.image_bytes.get_data(), null);
                 avatar = new Gdk.Pixbuf.from_stream(stream);
@@ -344,8 +383,8 @@ public class Dino.Ui.CompatAvatarDrawer {
                 warning("Failed to load avatar from bytes: %s", e.message);
             }
         }
-        string? name = idx >= 0 ? tile.display_text : "";
-        Gdk.RGBA hex_color = tile.background_color;
+        string? name = (idx >= 0 && tile != null) ? tile.display_text : "";
+        Gdk.RGBA hex_color = (tile != null) ? tile.background_color : Gdk.RGBA() { red = 0.5f, green = 0.5f, blue = 0.5f, alpha = 1.0f };
         return sub_surface(ctx, font_family, avatar, name, hex_color, width, height, font_factor);
     }
 
@@ -520,6 +559,9 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
         private Binding? display_text_binding;
         private Binding? image_bytes_binding;
 
+        private ulong notify_model_handler_id;
+        private ulong notify_bg_color_handler_id;
+
         private Label label = new Label("");
         private Picture picture = new Picture();
 
@@ -533,8 +575,8 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
             picture.@set("content-fit", 2);
 #endif
             picture.insert_after(this, label);
-            this.notify["model"].connect(on_model_changed);
-            this.notify["background-color"].connect(queue_draw);
+            notify_model_handler_id = this.notify["model"].connect(on_model_changed);
+            notify_bg_color_handler_id = this.notify["background-color"].connect(queue_draw);
         }
 
         private void on_model_changed() {
@@ -553,12 +595,19 @@ public class Dino.Ui.AvatarPicture : Gtk.Widget {
         }
 
         public override void dispose() {
+            if (notify_model_handler_id != 0) { this.disconnect(notify_model_handler_id); notify_model_handler_id = 0; }
+            if (notify_bg_color_handler_id != 0) { this.disconnect(notify_bg_color_handler_id); notify_bg_color_handler_id = 0; }
             if (background_color_binding != null) background_color_binding.unbind();
             if (display_text_binding != null) display_text_binding.unbind();
             if (image_bytes_binding != null) image_bytes_binding.unbind();
             background_color_binding = null;
             display_text_binding = null;
             image_bytes_binding = null;
+            // Clean up avatar tile model to break signal reference cycles
+            if (model != null) {
+                var participant_tile = model as ViewModel.ConversationParticipantAvatarPictureTileModel;
+                if (participant_tile != null) participant_tile.cleanup();
+            }
             label.unparent();
             picture.unparent();
             base.dispose();

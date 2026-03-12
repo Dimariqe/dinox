@@ -5,6 +5,360 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6.3] - 2026-03-12
+
+### Added
+- **MQTT Bridge: Enable/Disable switch**: Each bridge rule now has a toggle switch in the UI — disable rules without deleting them
+- **MQTT Bridge: Freetext echo filter**: Self-published freetext messages (e.g. bot commands) are no longer echoed back through bridge rules
+- **Plugin i18n infrastructure**: Added GETTEXT_PACKAGE to tor-manager, wrapped strings in _(), added 18 plugin source files to POTFILES (515→1277 translatable strings)
+- **Translations**: DE/FR/ES for all new plugin strings (780+ strings each)
+- **Translation helper scripts**: translate_plugins.py, translations_fr.py, translations_es.py
+
+### Fixed
+- **MQTT Bridge: OMEMO encryption**: Removed forced `conv.encryption = Encryption.NONE` — bridge messages now respect per-conversation OMEMO encryption setting
+- **MQTT Bridge: Rate limiting**: Reduced from 2s to 200ms (millisecond granularity) — fast request/response chains (e.g. Node-RED) no longer dropped
+- **MQTT Bridge: Bot visibility**: Bridged messages now also appear in the bot conversation (previously hidden when forwarded)
+- **MQTT Translation fix**: Fixed misleading "Thema/Themenmuster" → "Topic" in DE, "sujet" → "topic" in FR, "tema" → "topic" in ES for MQTT context (MUC room subject translations preserved)
+
+### Changed
+- **Code audit: Duplicate elimination**: Extracted `escape_json()` to BotUtils, `finish_post_unlock()` in application.vala, `decrypt_to_temp()` in audio_player_widget.vala, removed duplicate `looks_like_svg_file` from stickers.vala, consolidated MQTT DB helpers into Plugin class
+- **Weblate merge**: 5 German translation strings from Weblate
+- **Version**: 1.1.6.2 → 1.1.6.3
+
+---
+
+## [1.1.6.2] - 2026-03-11
+
+### Fixed
+- **CRITICAL: Avatar popup SIGSEGV crash**: All popover button handlers (header click, private conversation, invite) executed UI actions synchronously while the popover was still parented — changing conversations or presenting dialogs destroyed the parent widget mid-gesture causing SIGSEGV. Now deferred with `Idle.add_full(GLib.Priority.LOW)` so actions run after popover cleanup
+- **Self-chat prevention**: Clicking own avatar in chat no longer opens the occupant menu (MUC: checks `own_jid`, 1:1 chat: checks `account.bare_jid`)
+- **Self-actions in MUC**: "Start private conversation" button no longer shown for own avatar
+- **GDK surface assertion**: `hide_deferred()` now checks `get_parent()` and `get_native()` before calling `hide()` — prevents `gdk_surface_get_device_position: GDK_IS_SURFACE` failures
+- **Popover unparent guard**: `closed` handler checks `get_parent() != null` before `unparent()`
+
+### Changed
+- **Version**: 1.1.6.1 → 1.1.6.2
+
+---
+
+## [1.1.6.1] - 2026-03-11
+
+### Fixed
+- **CRITICAL: File transfer SIGSEGV crash**: `file_provider` stored message ID in `file_transfer.info` — when message body was empty (OOB-only stanzas), `Soup.Message("HEAD", "")` crashed in libsoup. Now stores `url:` + URL directly
+- **File transfer URL validation**: Added `Uri.parse()` validation before passing URLs to libsoup — prevents SIGSEGV on malformed URIs
+- **Unencrypted file detection**: Plain `https://` URLs in message body (without OOB element) now recognized as file transfers — fixes images showing as raw text in unencrypted MUCs
+- **MUC occupant list freeze + crash**: Batch row creation with `Timeout.add` (10 per frame), pre-sort occupants, cached affiliation per ListRow, initializing flag blocks presence events during batch loading
+- **MUC occupant list debounce**: 150ms debounce on `invalidate_filter()` — reduces O(n²) sort operations when joining rooms with many participants
+- **Room creation defaults**: Default to public; set `muc#roomconfig_publicroom=false` for private rooms so they don't appear in server directory
+- **Popover SIGSEGV crash**: Use `unparent()` only instead of `popdown()` + `unparent()` — avoids GDK surface lifecycle race condition
+- **Deleted contact reactivation**: Guard against reactivating conversations for contacts with `history_cleared_at` set and removed from roster
+- **Base64/binary UI freeze**: Smart truncation — no-whitespace data truncated to 200 chars, normal text to 50K chars (previously 100K)
+
+### Changed
+- **RAM: Signal handler leak fixes**: ConversationView stores 5 handler IDs + disconnects in `dispose()`; ConversationSelectorRow tracks 10 handler IDs + disconnects in destructor
+- **RAM: AvatarManager**: `failed_decrypt_hashes` capped at 500 entries (clear-on-overflow)
+- **RAM: MessageCorrection**: `unmatched_corrections` limited to 50 per conversation (FIFO eviction)
+- **RAM: Conversation close**: `clear_conversation_cache()` removes per-conversation stanza/server-ID lookup maps on close
+- **RAM: Periodic malloc_trim(0)**: Every 60s via `Timeout.add_seconds` to return freed glibc arena pages to OS
+- **RAM: message_storage**: `clear_conversation_cache()` no longer calls `message_refs.clear()` (was clearing ALL cached messages globally)
+- **GTK warnings**: Suppress known harmless AdwBreakpointBin, PopoverMenu accounting, GtkText blinking warnings
+- **Version**: 1.1.6.0 → 1.1.6.1
+
+---
+
+## [1.1.6.0] - 2026-03-09
+
+### Fixed
+- **CRITICAL: NULL conversation race condition in ConversationView**: Fixed cascade of `dino-CRITICAL` assertion failures (`conversation != NULL`, `self != NULL`) and `Gtk-CRITICAL` (`gtk_widget_insert_after`, `gtk_widget_unparent`) triggered when populators fired after conversation was set to NULL
+- **Root Cause**: `initialize_for_conversation(null)` set `this.conversation = null` but never called `populator.close()` — the null path returned early before reaching `initialize_for_conversation_()`. Active populators (ChatState, DateSeparator, UnreadIndicator, Status, OMEMO BadMessages) could still call `insert_item()` → `insert_new()` with NULL conversation
+- **Fix: Close populators on null path**: All `ConversationAdditionPopulator` and `NotificationPopulator` instances are now properly closed (signal handlers disconnected) before setting `this.conversation = null`
+- **Fix: Null guards in insert path**: `insert_item()` returns early if `conversation == null`; `insert_new()` returns `Widget?` (nullable) with null guard; `do_insert_item()` and `initialize_around_message()` check return value before adding to data structures
+
+### Changed
+- **Version**: 1.1.5.9 → 1.1.6.0
+
+---
+
+## [1.1.5.9] - 2026-03-07
+
+### Fixed
+- **Memory: Call memory leaks — Jingle/RTP/ICE reference chain cleanup**: Aggressive teardown of the entire Jingle object hierarchy after call termination. Each call previously leaked ~10–50 MB due to surviving reference chains between Session, Content, Parameters, ICE TransportParameters, Nice.Agent, and GStreamer pipeline objects
+- **Session.terminate()**: Clear `contents` and `contents_map` after terminating all contents — previously the Session held strong references to all Content objects indefinitely
+- **Content.terminate()**: Null `content_params`, `transport_params`, `security_params`; clear `component_connections` and `encryptions` — previously kept entire ICE/DTLS/transport buffer tree alive
+- **Parameters.terminate()**: Clear `payload_types`, `header_extensions`, `remote_cryptos`; null crypto refs — previously kept codec negotiation state in memory
+- **JingleRtp.Stream.content**: Made nullable with null-checks on all property getters. `release_refs()` nulls both `content` and `plugin` references in `destroy()` — breaks the critical Stream→Content→Session retention chain
+- **content_parameters.vala use-after-free**: Fixed `weak_ref` callback crash — anonymous lambda `() => this.stream = null` could fire on already-freed Parameters object. Replaced with named `unset_stream()` method + `weak_unref()` before `close_stream()` to prevent `g_object_notify_by_pspec` CRITICAL on dead object
+- **CallWindowController signal handler tracking**: All 13+ signal handler IDs tracked and disconnected in `cleanup()`; `detach_all_video()` for immediate GStreamer release on call terminated
+- **CallState.end()**: Explicit `peer_bindings` unbind, peer signal handler disconnect, `peers.clear()`, `cim_jids_to_inform.clear()`
+- **PeerState**: `cleanup_signal_handlers()` disconnects 9+ handlers; `release_objects()` nulls session, content_parameter, content, encryption fields
+- **Plugin**: `malloc_trim(0)` after GStreamer pipeline destruction to return buffer pool pages to OS
+- **Stream**: REMB timer tracked via `remb_timeout_id` and cancelled with `Source.remove()` in `destroy()`
+
+### Changed
+- **Version**: 1.1.5.8 → 1.1.5.9
+
+---
+
+## [1.1.5.8] - 2026-03-07
+
+### Fixed
+- **Memory: GObject reference cycles via `this.notify[].connect()`**: Fixed 26 instances across 8 widget classes (ConversationItemSkeleton, VideoPlayerWidget, FileWidget, FileDefaultWidgetController, FileImageWidget, CallWidget, FileTransmissionProgress, AvatarPicture) where closures capturing `this` prevented GObject finalisation — store handler IDs, disconnect in `dispose()`
+- **Memory: Leaked `bind_property()` bindings**: Fixed in MessageItem (marked), FileItem (encryption/marked/state), CallItem (encryption), CallWidget (state), MessageMetaItem (marked) — return values were discarded, keeping objects pinned via long-lived service entities. Stored bindings and unbind in `dispose()`
+- **Memory: Avatar tile model destructor deadlock**: `ConversationParticipantAvatarPictureTileModel` connected to 3 service signals (RosterManager, AvatarManager×2) in constructor; destructor never fired because signal closures kept refcount ≥ 3. Moved disconnect logic to explicit `cleanup()` method called from `reset()`, `Tile.dispose()`, and `ConversationItemSkeleton.dispose()`
+- **Memory: Avatar tile cleanup `is_connected()` guards**: Added `SignalHandler.is_connected()` checks before each `disconnect()` in `cleanup()` to prevent "instance has no handler with id" CRITICALs on double-disconnect
+- **Memory: `Tile.dispose()` dead code**: Fixed cast from `CompatAvatarPictureModel` (always null for a Tile) to `ConversationParticipantAvatarPictureTileModel` so tile signal cycles are actually broken on individual tile disposal
+- **Memory: Scroll-pruned items never disposed**: `ConversationView.remove_item()` now calls `item.dispose()` after skeleton disposal — previously items pruned during scrolling leaked
+- **Memory: ContentMetaItem disposes content_item**: Explicitly calls `content_item.dispose()` to trigger unbinding of bind_property bindings
+- **Memory: GLib.Value leak in video preview**: Fixed `dup_boxed` without `unset` in `generate_preview()` — replaced with direct `get()`
+- **CRITICAL: `gtk_list_box_row_get_index` assertion failure**: `select_fallback_conversation()` accessed `rows[conversation]` without checking key existence — when conversation not in map, `null == null` entered the branch. Added `rows.has_key()` guard
+- **UI: Last chat close leaves chat view open**: Explicitly deselect (`list_box.select_row(null)`) when the last conversation is removed so the UI switches to the "no active conversations" placeholder
+- **Null-safety**: `AudioPlayerWidget` null check for `file_transfer` after async yield; `FileWidget` null-safe `get_file().get_uri()` error logging
+
+### Changed
+- **Version**: 1.1.5.7 → 1.1.5.8
+
+---
+
+## [1.1.5.7] - 2026-03-06
+
+### Fixed
+- **Memory: Unbounded widget accumulation in ConversationView**: Added `MAX_CONTENT_ITEMS=200` limit. `prune_newest_items()` called after loading earlier messages, `prune_oldest_items()` after loading later messages. Previously, all loaded message widgets accumulated without bound during scrolling
+- **Memory: Widgets not freed on conversation close**: `unset_conversation()` now calls `initialize_for_conversation(null)` which triggers `clear()` to free all widgets immediately. Previously, closing a conversation without opening another left all widgets in memory
+- **Memory: Unbounded URL preview cache**: Added `MAX_CACHE_SIZE=200` with LRU eviction to `UrlPreviewCache`. Previously, every URL preview (including image textures at 100KB–1MB each) was cached forever in the singleton
+
+### Changed
+- **Version**: 1.1.5.6 → 1.1.5.7
+
+---
+
+## [1.1.5.6] - 2026-03-06
+
+### Fixed
+- **Crash: Bookmark close re-entry guard**: Added `removing_conversations` HashSet in `ConversationSelector` to prevent `add_conversation()` from re-creating rows during async removal animation (`yield colapse()`). Incoming messages during the slide-up animation could trigger `start_conversation()` → widget tree corruption → SEGV/system freeze
+- **Video player use-after-free hardening**: Added `_disposed` and `get_mapped()` checks in `update_video_frame()` and post-yield `_disposed` check in `generate_preview()` to prevent accessing disposed widgets in timer callbacks
+- **Bookmarks reappearing on reconnect (Tor switch)**: `sync_autojoin_active()` now detects inactive (user-closed) conversations and calls `unset_autojoin()` instead of re-joining. Previously, if the connection dropped before the async `unset_autojoin()` completed, the server still had `autojoin=true`, causing old rooms to reappear on reconnect
+
+### Changed
+- **Version**: 1.1.5.5 → 1.1.5.6
+
+---
+
+## [1.1.5.5] - 2026-03-05
+
+### Fixed
+- **Video playback for uploaded files (WebM/VFR)**: Replaced manual `uridecodebin` pipeline with `playbin` — fixes WebM files with PTS=0 (variable framerate, e.g. screen recordings) that showed only a frozen first frame. MP4 video messages continue to work
+- **Pause/Stop properly stops decoding**: `pause_playback()` now stops both GStreamer pipeline (PAUSED) AND the 33ms frame-polling timer. Previously the timer kept running during pause, wasting CPU. `cleanup_playback()` (Stop) destroys the entire pipeline
+- **Seek slider re-enabled**: Uses safe `KEY_UNIT` seeking (nearest keyframe) instead of `ACCURATE` which crashed on VFR streams. 200ms debounce prevents seek flooding
+- **AdwBreakpointBin warning in file send dialog**: Set `content-height=400` on `FileSendOverlay` dialog template — prevents GTK warning where natural height < min height during async image loading
+
+### Added
+- **`pause_playback()` / `resume_playback()` helpers**: Centralized play/pause logic used by all 3 interaction points (play button, controls bar, click-on-video)
+- **Internal documentation**: `docs/internal/VIDEO_PLAYER_IMPLEMENTATION.md` — pipeline architecture, debugging guide, known limitations
+
+### Changed
+- **Video pipeline architecture**: `playbin` with custom video-sink bin (videoconvert → capsfilter(RGBA) → fakesink) replaces manual uridecodebin pipeline
+- **Version**: 1.1.5.4 → 1.1.5.5
+
+---
+
+## [1.1.5.4] - 2026-03-05
+
+### Fixed
+- **Tor switch lag in Preferences**: All 3 Tor switches (Enable, Bridges, Firewall) now defer their async work and sensitivity updates to `Idle.add()`, matching the MQTT switch fix from v1.1.4.9. Synchronous DB writes and property notifications in `state_set` were blocking the Switch animation frame
+- **MQTT status timer leak with dialog caching**: The 3-second status poll timer now pauses on `unmap` and resumes on `map`. Previously, with dialog caching, the timer ran indefinitely even while the Preferences dialog was closed
+
+### Changed
+- **Preferences dialog cached**: Dialog is now created once and reused on subsequent opens. First open unchanged (~400ms), every re-open is instant (0ms instead of ~200ms). Eliminates redundant widget tree construction, plugin page creation, and DB queries
+- **Version**: 1.1.5.3 → 1.1.5.4
+
+---
+
+## [1.1.5.3] - 2026-03-05
+
+### Fixed
+- **PopoverMenu GTK warning + AppImage WebM playback**: Fixed GTK PopoverMenu deprecation warning; bundled VP8/WebM GStreamer decoder for AppImage so video/audio plays out of the box
+- **Bundle missing GStreamer plugins for AppImage**: Added GStreamer `good`, `bad`, `libav` plugins to AppImage for full audio/video codec coverage (MP4, WebM, OGG, FLAC, AAC)
+- **Disable "Show Bot in Chat" when MQTT is off**: Button is now grayed out (insensitive) when MQTT is disabled — in standalone settings page, per-account dialog, and standalone bot manager dialog
+
+### Changed
+- **MQTT logging refactored to debug()**: ~80 verbose `message()` calls converted to `debug()` across 10 MQTT plugin files. Only 9 essential lifecycle messages (startup, shutdown, connected, disconnected, migration) remain as `message()`. Use `G_MESSAGES_DEBUG=mqtt` to enable verbose output
+- **DEBUG.md MQTT section rewritten**: Two-tier logging table, 7 subsystem categories, mqtt.db reference with sqlcipher examples, expanded grep filter
+- **Version**: 1.1.5.2 → 1.1.5.3
+
+---
+
+## [1.1.5.2] - 2026-03-04
+
+### Security
+- **AES-256-GCM encryption for sensitive settings** (Hinweis 1): All secrets (Telegram bot tokens, AI API keys, ejabberd admin password) are now encrypted at rest in the SQLite settings table. Key derivation via HMAC-SHA256 from `server_hmac_key`. Existing plaintext values auto-migrate on first read. New API: `set_secret_setting()` / `get_secret_setting()` in `bot_registry.vala`
+- **BUG-02: Remove token_raw cleartext storage**: `BotInfo.token_raw` property and `update_bot_token_raw()` removed entirely. Tokens shown once at creation, never stored
+- **BUG-06: Redact Telegram bot token from logs**: `redact_token_url()` helper masks tokens in debug/warning log output. API response bodies no longer logged
+
+### Fixed
+- **BUG-04: Race condition in `create_bot()`**: `SELECT max(id)` replaced with `last_insert_rowid()` return value from `InsertBuilder.perform()` (PR #17)
+- **BUG-17: OMEMO session persistence**: Per-key storage (`omemo_session:<bot_id>:<jid>:<device_id>`) instead of full JSON blob rewrite. Auto-migration from old format
+- **BUG-18: `gnutls_global_init()` called per certificate**: Added `dinox_cert_init()` / `dinox_cert_deinit()` — GnuTLS initialized once at plugin startup
+- **BUG-22: `delete_dedicated_bot()` fire-and-forget**: Bot deletion now sequenced after `ejabberd_api.unregister_account()` async callback. Owner notified on failure via `deferred_response` signal
+
+### Changed
+- **BUG-09 downgraded**: Moved from HOCH to Hinweis — ejabberd API limitation, not a code bug
+- **BUG_AUDIT.md**: Comprehensive update — 18 bugs fixed, 2 open (API-design + C-binding), 1 false positive
+- **Version**: 1.1.5.1 → 1.1.5.2
+
+---
+
+## [1.1.5.1] - 2026-03-04
+
+### Fixed
+- **HA Discovery live start/stop for per-account MQTT**: Toggling HA Discovery on/off in the per-account bot dialog now creates/removes the DiscoveryManager on-the-fly for already-connected clients — no reconnect required. Previously, `apply_account_config_change()` only synced topics but never started/stopped discovery
+- **Log message showed wrong field**: "Saved config" log displayed `enabled=` instead of `discovery_enabled=` — now shows both fields for proper debugging
+
+### Changed
+- **HA Discovery ORIGIN_SW → Dino.VERSION**: Hardcoded `ORIGIN_SW = "1.1.4.2"` replaced with `Dino.VERSION` from the build system — version in HA device info now updates automatically with each release
+- **release.sh automation**: `release.sh` now auto-updates VERSION, docs/index.html (softwareVersion + datePublished), and dino.doap release block
+- **NODERED_FLOWS.md**: Rewritten from German to English, added 3 local broker setup options (Mosquitto no-TLS, Mosquitto with auth, ejabberd mod_mqtt TLS)
+- **Version**: 1.1.5.0 → 1.1.5.1
+
+---
+
+## [1.1.5.0] - 2026-03-04
+
+### Fixed
+- **MQTT per-account bot JID collision (BUG-CRITICAL)**: All per-account MQTT bots shared `mqtt-bot@mqtt.local` — ConversationManager strips resources for CHAT-type conversations, collapsing all per-account bots into the same conversation. New scheme: each account gets a unique bare JID `mqtt-<escaped_bare_jid>@mqtt.local` (e.g. `mqtt-user_at_example.org@mqtt.local`)
+- **MQTT standalone/per-account cross-wiring (BUG-CRITICAL)**: Standalone MQTT toggled per-account connection because both shared the same bare JID. Standalone now uses dedicated `mqtt-standalone@mqtt.local`
+- **`purge_caches()` crash on Clear Cache**: `DELETE FROM undecrypted` failed because the table is owned by the OMEMO plugin and never instantiated in the main Database. Wrapped in try/catch
+- **Avatar storage after Clear Cache**: `store_image()` failed because `~/.cache/dinox/avatars/` was deleted by cache clear. Now checks and re-creates the directory before writing
+- **CI vala-nightly build**: `git clone --depth 1` + `git fetch --tags --depth=1` prevented `git describe` from finding version tags. Changed to `git fetch --deepen=200 --tags`
+
+### Changed
+- **Version**: 1.1.4.9 → 1.1.5.0
+
+---
+
+## [1.1.4.9] - 2026-03-03
+
+### Fixed
+- **MQTT Enable Switch lag (per-account)**: `update_connection_sensitivity()` in `mqtt_bot_manager_dialog.vala` ran synchronously in `notify["active"]`, setting `.sensitive` on 5 widget groups → CSS restyling blocked Switch animation. Deferred to `Idle.add()` matching settings_page pattern
+- **Untracked `Idle.add()` sources (§9)**: Both `mqtt_bot_manager_dialog.vala` and `settings_page.vala` used bare `Idle.add()` without storing the source ID. Rapid toggle → queued duplicate callbacks; dialog destroy before callback → crash on dead widget. Now tracked via `sensitivity_idle_id`, cancelled before re-queue, cleaned up in destructor
+- **GTK "Broken accounting of active state" warnings**: 5 `grab_focus()` calls on containers (nav_view, this, save_button) replaced with `Gtk.Root.set_focus(null)` across `settings_page.vala`, `mqtt_bot_manager_dialog.vala`, `topic_manager_dialog.vala`
+- **6 compiler warnings → 0**: Removed unused variables in `audit_carbons_forwarding.vala` (1) and `audit_pubsub.vala` (3), removed dead method `emit_new_icon()` in `systray.vala`, removed unreachable `try/catch` in `bot_registry.vala`
+- **Shell script `set -e` + pipeline crash**: `build.sh` and `run_debug.sh` crashed before error reporting due to `set -euo pipefail` + non-zero pipeline exit. Added `set +e` around pipelines, used `PIPESTATUS[0]` for correct exit code
+
+### Added
+- **`scripts/build.sh`**: Build wrapper with `--clean`, `--strict`, `--run` flags. Captures output to `build_log.txt`, extracts warnings to `build_warnings.txt`, color-coded summary
+- **`scripts/run_debug.sh`**: Runtime debug launcher with `G_MESSAGES_DEBUG=all`, `--fatal` (crash on GTK warning), `--filter STR`, `--valgrind`. Logs to `logs/runtime_warnings.log`
+- **`scripts/pre-commit`**: Git hook that auto-builds and rejects commits with compiler warnings. Filters `certificate_warning` false positive
+
+### Changed
+- **REVIEW_CHECKLIST.md 5.10**: Updated from `grab_focus()` recommendation to `Gtk.Root.set_focus(null)` — the old advice was the root cause of GTK warnings
+- **CONTRIBUTING.md**: New build workflow using `scripts/build.sh`, runtime debug step, helper scripts table, MQTT plugin in architecture table
+- **Version**: 1.1.4.8 → 1.1.4.9
+
+---
+
+## [1.1.4.8] - 2026-03-03
+
+### Fixed
+- **MQTT Enable Switch bypass**: `update_status()` used UI widget state (`enable_switch.active`) instead of saved config — status changed before Save & Apply. Now reads `plugin.get_standalone_config().enabled`
+- **MQTT Enable Switch lag**: 6 widgets' `.sensitive` changes in `notify["active"]` caused CSS restyling that blocked Switch animation. Deferred `update_sensitivity()` to next frame via `Idle.add()`
+- **MQTT Discovery command**: `/mqtt discovery on` called `reload_config()` (read-only) instead of `apply_settings()` — LWT was never set. Changed to `apply_settings()`
+- **MQTT QoS scope**: `/mqtt qos` subscribed on all connections — now scoped to conversation's connection via `connection_key`
+- **MQTT freetext_qos unclamped**: Could pass invalid values (outside 0–2) to `mosquitto_publish`. Added `.clamp(0, 2)` setter
+- **MQTT port not clamped in mqtt_connect()**: Raw port parameter passed to `connect_async()`. Now pre-clamped with `port.clamp(1, 65535)`
+- **MQTT server_detector post-yield**: Stream could be torn down during async disco requests. Added stream re-validation + null check after each yield point
+- **MQTT discovery_prefix unsafe**: Could contain MQTT wildcards (#, +, null, space). Added sanitizing setter
+- **GTK focus-out warning**: Entry rows didn't receive focus-out when page/dialog closed. Added `unmap`/`closed` signal handlers in settings_page, bot_manager_dialog, topic_manager_dialog
+- **MQTT database migration v4**: Added justifying comment for `exec()` call (Qlite ORM can't express column-to-column copy)
+
+### Added
+- **Node-RED Examples**: Two example flows for DinoX MQTT bot integration — DinoX Bot flow (help, time, ping, joke, echo) and Tankerkoenig fuel price monitoring flow with auto-alerts
+- **NODERED_FLOWS.md**: Documentation with embedded flow JSON, ejabberd mod_mqtt config, screenshots, import instructions
+
+### Changed
+- **Version**: 1.1.4.7 → 1.1.4.8
+
+---
+
+## [1.1.4.7] - 2026-03-02
+
+### Fixed
+- **MQTT Plugin Self-Audit (11 findings, M1–M11)**: Comprehensive code review of ~15 MQTT source files against CODING_GUIDELINES.md, SECURITY_GUIDELINES.md, and REVIEW_CHECKLIST.md. Fixed 4 CRITICAL (SQL injection, reconnect race, payload truncation, null deref), 2 HIGH (port validation, reload_config vs apply_settings), 3 MEDIUM (empty catch blocks, unbounded queries, truncate_string crash), 2 LOW (dropdown mismatch, dead code). All fixed in `030cc9d9`
+- **MQTT Tests**: 23 new audit-driven regression tests (78 → 101 total, 12 suites). New suites: LocalHost, ConnectionConfig, PortValidation, TruncateEdge, AliasMap. Added in `bdb2e272`
+
+### Improved
+- **Security Audit Documentation**: SECURITY_AUDIT.md updated with MQTT audit section (M1–M11), consolidated header (55 findings total), removed upstream Dino references
+- **Test Documentation**: TESTING.md updated — MQTT section expanded (52→101 tests, 7→12 suites), total 689 Meson + 136 standalone = 825 tests
+- **GitHub Templates**: All 4 issue/PR templates overhauled with clickable dropdowns (version, OS, desktop, architecture). New CrashReport.yml template added
+- **Project Guidelines**: 10 new rules added to CODING_GUIDELINES.md, REVIEW_CHECKLIST.md, and SECURITY_GUIDELINES.md based on MQTT audit findings
+
+### Changed
+- **Version**: 1.1.4.6 → 1.1.4.7
+
+## [1.1.4.6] - 2026-03-02
+
+### Fixed
+- **ICE/DTLS Handshake Timeout**: Fixed outgoing call DTLS timeout — handshake was started before ICE connectivity, wasting the 20s timeout. Now deferred to `on_component_state_changed` (same as incoming calls). Also fixed stale stop-flag race in `setup_dtls_connection_thread`, increased timeout to 30s, and improved error messages with mode info
+- **MQTT Bridge Duplicate Messages**: Bridge messages no longer appear in both bot chat AND target MUC — `evaluate()` returns bool, bot injection skipped when bridged
+- **GLib-CRITICAL in history_sync.vala**: NULL DateTime guard on `mam_times[account][latest_mam_id].to_unix()` at lines 238 and 350
+- **GLib-CRITICAL g_date_time_to_unix**: Additional NULL guards for all remaining DateTime calls in MQTT plugin files
+- **Adwaita-CRITICAL stale widgets**: Guard `populate_*_list()` against orphaned widgets after back-navigation
+- **MQTT Bridge auto-subscribe**: 3-bug fix — auto-subscribe on add, remove dead JSON fields, XMPP-offline queue
+
+### Added
+- **MQTT Bridge `send_account` field**: Mandatory account selector (DropDown) on bridge rules — explicitly choose which XMPP account sends bridged messages. Fixes "Only occupants are allowed to send messages" when standalone bridge targets a MUC. DB v3→v4 migration with auto-backfill for legacy rules
+- **MQTT Bridge alias in messages**: Formatted bridge messages now show alias instead of raw topic path
+- **MQTT Bridge client scoping**: Rules scoped to their MQTT client label — prevents cross-broker duplicate delivery
+- **MQTT Bridge MUC delivery**: Bridge detects MUC targets via `MucManager.is_groupchat()` and uses proper MUC send path
+- **MQTT Bridge edit support**: Inline edit for bridge rules (topic, JID, alias, format, account)
+- **Topic subscription inline edit**: Edit button fills topic/QoS/alias form fields, "Subscribe" becomes "Save" — consistent with bridge UI pattern
+- **Topic subscription edit dialog**: Full edit dialog for existing subscriptions (topic + alias + QoS)
+
+### Improved
+- **MQTT Bot Manager dialog**: No longer auto-closes after Save & Apply
+- **MQTT topic deletion**: Fixed 3 bugs where deletion wasn't applied until on/off toggle
+- **MUC creation privacy**: Always set explicit room config (non-public, members-only) — prevents accidental public room creation
+- **MUC creation context menu**: Fixed context menu creation, details dialog, autojoin + GTK warning
+- **MQTT Topic Aliases**: UI completion with reconnect, pause, per-topic QoS/Priority
+- **MQTT Bot UI/UX overhaul**: DB orphan cleanup + self-review fixes
+- **Documentation**: MQTT_PLUGIN.md and MQTT_UI_GUIDE.md updated to v1.6.0
+- **Static analysis**: Clone removal + dead code cleanup
+- **Security audit tables**: Cleaned up Fix columns for readability
+
+### Changed
+- **Version**: 1.1.4.5 → 1.1.4.6
+
+## [1.1.4.5] - 2026-03-01
+
+### Fixed
+- **Tor Proxy Timing**: Fixed "Verbindungsaufbau abgelehnt" when enabling Tor — `start_tor()` now waits for bootstrap completion (up to 60s) before applying SOCKS5 proxy settings
+- **Signal Disconnect Guards**: Fixed `GLib-GObject-CRITICAL` warnings about handler ID not found — added `SignalHandler.is_connected()` checks before every `disconnect()` in avatar_picture.vala and conversation_selector_row.vala
+- **Popover SIGSEGV Crash (#134)**: Fixed segfault from null popover access in conversation view
+- **libsoup Session Lifecycle (#135)**: Fixed HTTP session not properly shut down on account disconnect
+- **Tooltip Rebuild Spam (#136)**: Eliminated unnecessary repeated tooltip widget rebuilds
+- **Soup.Sessions Shutdown**: Abort active HTTP sessions on application exit
+- **libdino** (48 bugs): Service layer null checks, entity lifecycle fixes, XEP compliance (XEP-0030, XEP-0045, XEP-0060, XEP-0115, etc.), plugin/dbus error handling
+- **xmpp-vala** (16 bugs): Presence stanza handling, IQ error responses, message archive fixes, roster versioning edge cases
+- **UI** (49 bugs): Conversation content view layout, main window state management, chat input handling, file transfer display, notification deduplication
+- **qlite** (3 bugs): SQL query builder null safety, transaction isolation
+- **crypto-vala** (4 bugs): SRTP counter overflow, cipher padding, key comparison safety
+- **OMEMO** (3 bugs): Decryptor session lookup, encryptor key distribution, device list sync
+- **Systray** (5 bugs): Icon rendering, tooltip updates, menu action handling
+- **Infrastructure** (9 bugs): Meson build configuration, test runner scripts, CI pipeline fixes
+- **4 additional bugs found by expanded test suite** (#137–#140)
+
+### Improved
+- **Performance** (13 optimizations): Memory allocation reduction, startup time improvement, hot-path optimizations across libdino, UI, and xmpp-vala
+- **Test Suite**: +299 test cases (835 total), covering 52 of 69 XEPs (75.4%) — SCE, Jingle FT, Registration, Ad-Hoc, MAM v2, JMI, Moderation
+
+### Added
+- **Systray IconPixmap**: Support for Qt-based tray hosts (KDE Plasma, LXQt)
+- **CI `--clean` mode**: New `--clean` option for `ci-build-deps.sh` to rebuild dependencies from scratch
+- **webrtc/abseil Build Fix**: Replaced fragile perl regex with proper `.patch` file for webrtc-audio-processing abseil-cpp compatibility
+- **Coding Guidelines**: Security guidelines, review checklist, and coding standards documentation
+
+### Changed
+- **Version**: 1.1.4.4 → 1.1.4.5
+
 ## [1.1.4.4] - 2026-02-28
 
 ### Fixed

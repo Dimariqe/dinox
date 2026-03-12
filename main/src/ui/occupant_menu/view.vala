@@ -36,6 +36,14 @@ public class View : Popover {
         hide.connect(reset);
     }
 
+    public override void dispose() {
+        if (list != null) {
+            list.cleanup();
+            list = null;
+        }
+        base.dispose();
+    }
+
     public void reset() {
         stack.transition_type = StackTransitionType.NONE;
         stack.visible_child_name = "list";
@@ -47,7 +55,10 @@ public class View : Popover {
     // (avoids GTK 'Broken accounting of active state' warning)
     private void hide_deferred() {
         GLib.Idle.add(() => {
-            hide();
+            // Only hide if popover is still parented and has a valid surface
+            if (this.get_parent() != null && this.get_native() != null) {
+                hide();
+            }
             return false;
         });
     }
@@ -93,22 +104,31 @@ public class View : Popover {
             header_button.clicked.connect(show_list);
         } else {
             header_button.clicked.connect(() => {
+                if (selected_jid == null) return;
+                // Capture state before popover destruction
+                Jid? real_jid_inner = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_real_jid(selected_jid, conversation.account);
+                Jid target_jid = real_jid_inner ?? selected_jid;
+                Account account = conversation.account;
+                StreamInteractor si = stream_interactor;
                 hide_deferred();
-                if (selected_jid != null) {
-                    Jid? real_jid_inner = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_real_jid(selected_jid, conversation.account);
-                    Jid target_jid = real_jid_inner ?? selected_jid;
-                    Conversation conversation = stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).create_conversation(target_jid, conversation.account, Conversation.Type.CHAT);
-                    
+                // Schedule after popover is fully cleaned up (LOW priority runs after all DEFAULT_IDLE)
+                Idle.add_full(GLib.Priority.LOW, () => {
+                    Conversation conv = si.get_module<ConversationManager>(ConversationManager.IDENTITY).create_conversation(target_jid, account, Conversation.Type.CHAT);
                     Application app = GLib.Application.get_default() as Application;
-                    var conversation_details = ConversationDetails.setup_dialog(conversation, stream_interactor);
+                    var conversation_details = ConversationDetails.setup_dialog(conv, si);
                     conversation_details.present(app.window);
-                }
+                    return false;
+                });
             });
         }
 
-        outer_box.append(create_menu_button(_("Start private conversation"), private_conversation_button_clicked));
-
         Jid? own_jid = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_own_jid(conversation.counterpart, conversation.account);
+        bool is_self = (own_jid != null && jid.equals(own_jid));
+
+        // Don't offer private conversation with yourself
+        if (!is_self) {
+            outer_box.append(create_menu_button(_("Start private conversation"), private_conversation_button_clicked));
+        }
         Xmpp.Xep.Muc.Role? role = null;
         if (own_jid != null) {
             role = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_role(own_jid, conversation.account);
@@ -128,7 +148,6 @@ public class View : Popover {
             role = Xmpp.Xep.Muc.Role.MODERATOR;
         }
 
-        bool is_self = (own_jid != null && jid.equals(own_jid));
         Xmpp.Xep.Muc.Affiliation? target_affiliation = stream_interactor.get_module<MucManager>(MucManager.IDENTITY).get_affiliation(conversation.counterpart, jid, conversation.account);
         
         bool allowed_by_hierarchy = true;
@@ -260,13 +279,18 @@ public class View : Popover {
 
     private void private_conversation_button_clicked() {
         if (selected_jid == null) return;
+        Jid jid = selected_jid;
+        Account account = conversation.account;
+        StreamInteractor si = stream_interactor;
         hide_deferred();
-
-        Conversation conversation = stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).create_conversation(selected_jid, conversation.account, Conversation.Type.GROUPCHAT_PM);
-        stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).start_conversation(conversation);
-
-        Application app = GLib.Application.get_default() as Application;
-        app.controller.select_conversation(conversation);
+        // Schedule after popover is fully cleaned up
+        Idle.add_full(GLib.Priority.LOW, () => {
+            Conversation conv = si.get_module<ConversationManager>(ConversationManager.IDENTITY).create_conversation(jid, account, Conversation.Type.GROUPCHAT_PM);
+            si.get_module<ConversationManager>(ConversationManager.IDENTITY).start_conversation(conv);
+            Application app = GLib.Application.get_default() as Application;
+            app.controller.select_conversation(conv);
+            return false;
+        });
     }
 
     private void kick_button_clicked() {
@@ -315,16 +339,24 @@ public class View : Popover {
     }
 
     private void on_invite_clicked() {
+        Jid room = conversation.counterpart;
+        Account account = conversation.account;
+        StreamInteractor si = stream_interactor;
         hide_deferred();
-        Gee.List<Account> acc_list = new ArrayList<Account>(Account.equals_func);
-        acc_list.add(conversation.account);
-        SelectContactDialog add_chat_dialog = new SelectContactDialog(stream_interactor, acc_list);
-        add_chat_dialog.title = _("Invite to Conference");
-        add_chat_dialog.ok_button.label = _("Invite");
-        add_chat_dialog.selected.connect((account, jid) => {
-            stream_interactor.get_module<MucManager>(MucManager.IDENTITY).invite(conversation.account, conversation.counterpart, jid);
+        // Schedule after popover is fully cleaned up
+        Idle.add_full(GLib.Priority.LOW, () => {
+            Gee.List<Account> acc_list = new ArrayList<Account>(Account.equals_func);
+            acc_list.add(account);
+            SelectContactDialog add_chat_dialog = new SelectContactDialog(si, acc_list);
+            add_chat_dialog.title = _("Invite to Conference");
+            add_chat_dialog.ok_button.label = _("Invite");
+            add_chat_dialog.selected.connect((a, jid) => {
+                si.get_module<MucManager>(MucManager.IDENTITY).invite(account, room, jid);
+            });
+            Application app = GLib.Application.get_default() as Application;
+            add_chat_dialog.present(app.window);
+            return false;
         });
-        add_chat_dialog.present((Window) get_root());
     }
 
     private void ban_timed_button_clicked(int minutes) {

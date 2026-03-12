@@ -124,7 +124,7 @@ public class MqttClient : Object {
                                     string? username = null,
                                     string? password = null) {
         if (is_connected) {
-            message("MQTT: Already connected to %s:%d", broker_host, broker_port);
+            debug("MQTT: Already connected to %s:%d", broker_host, broker_port);
             return true;
         }
 
@@ -205,7 +205,7 @@ public class MqttClient : Object {
             if (will_rc != Mosquitto.Error.SUCCESS) {
                 warning("MQTT: will_set failed (rc=%d)", will_rc);
             } else {
-                message("MQTT: LWT set — topic=%s payload=%s", lwt_topic, lwt_payload);
+                debug("MQTT: LWT set — topic=%s payload=%s", lwt_topic, lwt_payload);
             }
         }
 
@@ -247,7 +247,7 @@ public class MqttClient : Object {
         /* TCP connected — install GLib main loop sources */
         setup_glib_sources();
 
-        message("MQTT: TCP connected to %s:%d, waiting for CONNACK…", host, port);
+        debug("MQTT: TCP connected to %s:%d, waiting for CONNACK…", host, port);
 
         /* Wait for CONNACK (on_connect_cb stores result and resumes us) */
         int connack_rc = -1;
@@ -431,11 +431,11 @@ public class MqttClient : Object {
              * because on_connection_changed handlers won't re-subscribe */
             foreach (var entry in subscribed_topics.entries) {
                 mosq.subscribe(null, entry.key, entry.value);
-                message("MQTT: Re-subscribed to '%s' (qos=%d)", entry.key, entry.value);
+                debug("MQTT: Re-subscribed to '%s' (qos=%d)", entry.key, entry.value);
             }
 
             on_connection_changed(true);
-            message("MQTT: CONNACK success");
+            debug("MQTT: CONNACK success");
         } else {
             warning("MQTT: CONNACK refused (rc=%d: %s)",
                     rc, connack_rc_to_string(rc));
@@ -527,7 +527,7 @@ public class MqttClient : Object {
     private async void attempt_reconnect() {
         if (mosq == null || is_connected) return;
 
-        message("MQTT: Reconnecting to %s:%d…", broker_host, broker_port);
+        debug("MQTT: Reconnecting to %s:%d…", broker_host, broker_port);
 
         int rc = Mosquitto.Error.UNKNOWN;
         SourceFunc resume = attempt_reconnect.callback;
@@ -539,9 +539,13 @@ public class MqttClient : Object {
         });
         yield;
 
+        /* Guard: mosq may have been nulled by disconnect_sync() while
+         * the reconnect thread was running — avoid crash. */
+        if (mosq == null) return;
+
         if (rc == Mosquitto.Error.SUCCESS) {
             setup_glib_sources();
-            message("MQTT: Reconnect TCP OK, waiting for CONNACK…");
+            debug("MQTT: Reconnect TCP OK, waiting for CONNACK…");
             /* handle_connect will fire from on_connect_cb via loop_read */
         } else {
             warning("MQTT: Reconnect failed (rc=%d), retrying…", rc);
@@ -564,7 +568,7 @@ public class MqttClient : Object {
         if (rc != Mosquitto.Error.SUCCESS) {
             warning("MQTT: subscribe('%s') failed (rc=%d)", topic, rc);
         } else {
-            message("MQTT: Subscribed to '%s' (qos=%d)", topic, qos);
+            debug("MQTT: Subscribed to '%s' (qos=%d)", topic, qos);
         }
 
         schedule_write_if_needed();

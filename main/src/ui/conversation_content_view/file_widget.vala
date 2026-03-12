@@ -64,6 +64,8 @@ public class FileWidget : SizeRequestBin {
     private Widget? content = null;
     private Binding? state_binding = null;
     private Binding? mime_binding = null;
+    private ulong notify_ft_state_handler_id = 0;
+    private ulong notify_ft_mime_handler_id = 0;
 
     public signal void open_file();
     public signal void save_file_as();
@@ -97,8 +99,8 @@ public class FileWidget : SizeRequestBin {
         state_binding = file_transfer.bind_property("state", this, "file-transfer-state");
         mime_binding = file_transfer.bind_property("mime-type", this, "file-transfer-mime-type");
 
-        this.notify["file-transfer-state"].connect(update_widget);
-        this.notify["file-transfer-mime-type"].connect(update_widget);
+        notify_ft_state_handler_id = this.notify["file-transfer-state"].connect(update_widget);
+        notify_ft_mime_handler_id = this.notify["file-transfer-mime-type"].connect(update_widget);
     }
 
     private async void update_widget() {
@@ -115,7 +117,10 @@ public class FileWidget : SizeRequestBin {
             // If the widget changed in the meanwhile, stop
             if (content != content_bak) return;
 
-            if (content != null) content.unparent();
+            if (content != null) {
+                content.unparent();
+                content.dispose();
+            }
             content = file_image_widget;
             state = State.IMAGE;
             content.insert_after(this, null);
@@ -123,7 +128,10 @@ public class FileWidget : SizeRequestBin {
         }
 
         if (!show_image && state != State.DEFAULT) {
-            if (content != null) content.unparent();
+            if (content != null) {
+                content.unparent();
+                content.dispose();
+            }
             FileDefaultWidget default_file_widget = new FileDefaultWidget();
             default_widget_controller = new FileDefaultWidgetController(default_file_widget);
             default_widget_controller.set_file_transfer(file_transfer);
@@ -134,6 +142,9 @@ public class FileWidget : SizeRequestBin {
     }
 
     public override void dispose() {
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_ft_state_handler_id != 0) { this.disconnect(notify_ft_state_handler_id); notify_ft_state_handler_id = 0; }
+        if (notify_ft_mime_handler_id != 0) { this.disconnect(notify_ft_mime_handler_id); notify_ft_mime_handler_id = 0; }
         if (state_binding != null) { state_binding.unbind(); state_binding = null; }
         if (mime_binding != null) { mime_binding.unbind(); mime_binding = null; }
         if (default_widget_controller != null) default_widget_controller.dispose();
@@ -201,14 +212,10 @@ public class FileWidgetController : Object {
             try { source_stream.close(); } catch (Error e) {}
             try { target_stream.close(); } catch (Error e) {}
 
-#if WINDOWS
-            string win_path = temp_file.get_path().replace("/", "\\");
-            Process.spawn_command_line_async("cmd.exe /c start \"\" \"" + win_path + "\"");
-#else
             AppInfo.launch_default_for_uri(temp_file.get_uri(), null);
-#endif
         } catch (Error err) {
-            warning("Failed to open %s - %s", file_transfer.get_file().get_uri(), err.message);
+            File? err_file = (file_transfer != null) ? file_transfer.get_file() : null;
+            warning("Failed to open %s - %s", err_file != null ? err_file.get_uri() : "(null)", err.message);
         }
     }
 
@@ -268,15 +275,18 @@ public class FileDefaultWidgetController : Object {
     private Binding? state_binding2 = null;
     private Binding? mime_binding2 = null;
     private Binding? bytes_binding2 = null;
+    private ulong notify_ctrl_state_handler_id = 0;
+    private ulong notify_ctrl_mime_handler_id = 0;
+    private ulong notify_ctrl_bytes_handler_id = 0;
 
     public FileDefaultWidgetController(FileDefaultWidget widget) {
         this.widget = widget;
 
         widget.clicked.connect(on_clicked);
 
-        this.notify["file-transfer-state"].connect(update_file_info);
-        this.notify["file-transfer-mime-type"].connect(update_file_info);
-        this.notify["file-transfer-transferred-bytes"].connect(update_file_info);
+        notify_ctrl_state_handler_id = this.notify["file-transfer-state"].connect(update_file_info);
+        notify_ctrl_mime_handler_id = this.notify["file-transfer-mime-type"].connect(update_file_info);
+        notify_ctrl_bytes_handler_id = this.notify["file-transfer-transferred-bytes"].connect(update_file_info);
     }
 
     public void set_file_transfer(FileTransfer? file_transfer) {
@@ -314,6 +324,10 @@ public class FileDefaultWidgetController : Object {
     }
 
     public new void dispose() {
+        // Break reference cycles: disconnect this.notify signals
+        if (notify_ctrl_state_handler_id != 0) { this.disconnect(notify_ctrl_state_handler_id); notify_ctrl_state_handler_id = 0; }
+        if (notify_ctrl_mime_handler_id != 0) { this.disconnect(notify_ctrl_mime_handler_id); notify_ctrl_mime_handler_id = 0; }
+        if (notify_ctrl_bytes_handler_id != 0) { this.disconnect(notify_ctrl_bytes_handler_id); notify_ctrl_bytes_handler_id = 0; }
         if (state_binding2 != null) { state_binding2.unbind(); state_binding2 = null; }
         if (mime_binding2 != null) { mime_binding2.unbind(); mime_binding2 = null; }
         if (bytes_binding2 != null) { bytes_binding2.unbind(); bytes_binding2 = null; }

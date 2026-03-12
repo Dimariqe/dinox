@@ -173,12 +173,9 @@ public class Dino.Plugins.Ice.TransportParameters : JingleIceUdp.IceUdpTransport
             } else {
                 own_setup = "actpass";
                 dtls_srtp_handler.mode = DtlsSrtp.Mode.SERVER;
-                dtls_srtp_handler.setup_dtls_connection.begin((_, res) => {
-                    var content_encryption = dtls_srtp_handler.setup_dtls_connection.end(res);
-                    if (content_encryption != null) {
-                        this.content.encryptions[content_encryption.encryption_ns] = content_encryption;
-                    }
-                });
+                /* DTLS handshake is deferred until ICE component is
+                 * ready — starting earlier wastes the timeout while
+                 * waiting for connectivity (see on_component_state_changed). */
             }
 
             debug("DTLS local: setup='%s' fingerprint(sha-256)=%s", own_setup ?? "null", format_fingerprint(own_fingerprint) ?? "null");
@@ -298,12 +295,30 @@ public class Dino.Plugins.Ice.TransportParameters : JingleIceUdp.IceUdpTransport
                 });
             } else if (peer_setup == "active") {
                 debug("DTLS: Staying as SERVER mode because peer is active");
+                /* Start DTLS now if ICE is already connected (guard
+                 * in setup_dtls_connection_thread prevents double-start). */
+                dtls_srtp_handler.setup_dtls_connection.begin((_, res) => {
+                    var content_encryption = dtls_srtp_handler.setup_dtls_connection.end(res);
+                    if (content_encryption != null) {
+                        this.content.encryptions[content_encryption.encryption_ns] = content_encryption;
+                    }
+                });
             } else if (peer_setup == "actpass") {
-                debug("DTLS: Peer is actpass - we decide. We're %s", own_setup ?? "null");
-                // If peer is actpass and we're actpass (initiator), we stay server
-                // If peer is actpass and we're active, we're client
+                debug("DTLS: Peer is actpass - we decide. Staying as %s", dtls_srtp_handler.mode.to_string());
+                dtls_srtp_handler.setup_dtls_connection.begin((_, res) => {
+                    var content_encryption = dtls_srtp_handler.setup_dtls_connection.end(res);
+                    if (content_encryption != null) {
+                        this.content.encryptions[content_encryption.encryption_ns] = content_encryption;
+                    }
+                });
             } else {
-                debug("DTLS: Unknown or null peer_setup, staying as current mode");
+                debug("DTLS: Unknown or null peer_setup, starting handshake as %s", dtls_srtp_handler.mode.to_string());
+                dtls_srtp_handler.setup_dtls_connection.begin((_, res) => {
+                    var content_encryption = dtls_srtp_handler.setup_dtls_connection.end(res);
+                    if (content_encryption != null) {
+                        this.content.encryptions[content_encryption.encryption_ns] = content_encryption;
+                    }
+                });
             }
         } else {
             dtls_srtp_handler = null;
@@ -389,6 +404,18 @@ public class Dino.Plugins.Ice.TransportParameters : JingleIceUdp.IceUdpTransport
         debug("stream %u component %u state changed to %s", stream_id, component_id, agent.get_component_state(stream_id, component_id).to_string());
         may_consider_ready(stream_id, component_id);
         if (incoming && dtls_srtp_handler != null && !dtls_srtp_handler.ready && is_component_ready(agent, stream_id, component_id) && dtls_srtp_handler.mode == DtlsSrtp.Mode.CLIENT) {
+            dtls_srtp_handler.setup_dtls_connection.begin((_, res) => {
+                Jingle.ContentEncryption? encryption = dtls_srtp_handler.setup_dtls_connection.end(res);
+                if (encryption != null) {
+                    this.content.encryptions[encryption.encryption_ns] = encryption;
+                }
+            });
+        }
+        /* Outgoing calls: DTLS was deferred from the constructor.
+         * Start it now that ICE is connected. The guard inside
+         * setup_dtls_connection_thread prevents double-starts. */
+        if (!incoming && dtls_srtp_handler != null && !dtls_srtp_handler.ready && is_component_ready(agent, stream_id, component_id)) {
+            debug("ICE ready for outgoing call — starting deferred DTLS handshake (mode=%s)", dtls_srtp_handler.mode.to_string());
             dtls_srtp_handler.setup_dtls_connection.begin((_, res) => {
                 Jingle.ContentEncryption? encryption = dtls_srtp_handler.setup_dtls_connection.end(res);
                 if (encryption != null) {

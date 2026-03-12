@@ -237,7 +237,7 @@ public class MessageCorrection : StreamInteractionModule, MessageListener {
 
             HashMap<Jid, Message> last_conversation_messages = new HashMap<Jid, Message>(Jid.hash_func, Jid.equals_func);
             Gee.List<Message> messages = stream_interactor.get_module<MessageStorage>(MessageStorage.IDENTITY).get_messages(conversation);
-            for (int i = messages.size - 1; i > 0; i--) {
+            for (int i = messages.size - 1; i >= 0; i--) {
                 Message message = messages[i];
                 if (!last_conversation_messages.has_key(message.from) && message.edit_to == null) {
                     last_conversation_messages[message.from] = message;
@@ -256,7 +256,11 @@ public class MessageCorrection : StreamInteractionModule, MessageListener {
 
         debug(@"Caching unmatched correction $(message_item.message.server_id) $(message_item.id)");
         if (!unmatched_corrections.has_key(conversation)) unmatched_corrections[conversation] = new ArrayList<ContentItem>();
-        unmatched_corrections[conversation].add(content_item);
+        var list = unmatched_corrections[conversation];
+        if (list.size >= 50) {
+            list.remove_at(0);
+        }
+        list.add(content_item);
     }
 }
 

@@ -37,6 +37,7 @@ public class MessageMetaItem : ContentMetaItem {
     ulong realize_id = -1;
     ulong marked_notify_handler_id = -1;
     uint pending_timeout_id = -1;
+    Binding? marked_binding = null;
 
     public Label label = new Label("") { use_markup=true, xalign=0, selectable=true, wrap=true, wrap_mode=Pango.WrapMode.WORD_CHAR, hexpand=true, vexpand=true };
 
@@ -52,7 +53,7 @@ public class MessageMetaItem : ContentMetaItem {
 
         Message message = ((MessageItem) content_item).message;
         if (message.direction == Message.DIRECTION_SENT && !(message.marked in Message.MARKED_RECEIVED)) {
-            var binding = message.bind_property("marked", this, "marked");
+            marked_binding = message.bind_property("marked", this, "marked");
             marked_notify_handler_id = this.notify["marked"].connect(() => {
                 // Currently "pending", but not anymore
                 if (additional_info == AdditionalInfo.PENDING &&
@@ -72,7 +73,7 @@ public class MessageMetaItem : ContentMetaItem {
 
                 // Nothing bad can happen anymore
                 if (message.marked in Message.MARKED_RECEIVED) {
-                    binding.unbind();
+                    if (marked_binding != null) { marked_binding.unbind(); marked_binding = null; }
                     this.disconnect(marked_notify_handler_id);
                     marked_notify_handler_id = -1;
                 }
@@ -100,13 +101,29 @@ public class MessageMetaItem : ContentMetaItem {
 
         if (markup_text == null) return; // TODO remove
 
-        // Increased limit from 10,000 to 100,000 characters (issue #1779)
-        // Most XMPP servers limit messages to ~262KB, so 100k chars is reasonable
-        // Extremely long messages (>100k) are truncated with a notice
+        // Truncate extremely long messages to prevent UI freeze.
+        // Base64/binary data without whitespace is especially expensive for
+        // regex processing and Pango layout, so detect and truncate early.
         bool message_truncated = false;
-        if (markup_text.length > 100000) {
-            markup_text = markup_text.substring(0, 100000);
-            message_truncated = true;
+        if (markup_text.length > 10000) {
+            // Check if the text looks like non-textual data (no whitespace in first 500 chars)
+            bool has_whitespace = false;
+            int check_len = int.min(500, markup_text.length);
+            for (int i = 0; i < check_len; i++) {
+                unichar c = markup_text[i];
+                if (c == ' ' || c == '\n' || c == '\t') {
+                    has_whitespace = true;
+                    break;
+                }
+            }
+            if (!has_whitespace && markup_text.length > 1000) {
+                // Likely base64 or binary data — truncate aggressively
+                markup_text = markup_text.substring(0, 200) + " …";
+                message_truncated = true;
+            } else if (markup_text.length > 50000) {
+                markup_text = markup_text.substring(0, 50000);
+                message_truncated = true;
+            }
         }
 
         bool theme_dependent = false;
@@ -475,6 +492,7 @@ public class MessageMetaItem : ContentMetaItem {
             this.notify["in-edit-mode"].disconnect(on_in_edit_mode_changed);
             stream_interactor = null;
         }
+        if (marked_binding != null) { marked_binding.unbind(); marked_binding = null; }
         if (marked_notify_handler_id != -1) {
             this.disconnect(marked_notify_handler_id);
             marked_notify_handler_id = -1;

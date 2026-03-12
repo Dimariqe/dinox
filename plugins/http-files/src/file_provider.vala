@@ -85,13 +85,15 @@ public class FileProvider : Dino.FileProvider, Object {
             // Determine the file URL candidate:
             // - If OOB element present: use that URL (standard file transfer)
             // - If no OOB but body is an aesgcm:// URL: treat as OMEMO file transfer
-            // - If no OOB and body is a plain http(s):// URL: this is a normal text
-            //   message with a link, NOT a file transfer — do not intercept
+            // - If no OOB but body is a single http(s):// URL: treat as file transfer
+            //   (many clients use HTTP Upload without OOB element)
             string? url_candidate = null;
             if (oob_url != null) {
                 url_candidate = oob_url;
             } else if (message.body != null && FileProvider.omemo_url_regex.match(message.body)) {
                 url_candidate = message.body;
+            } else if (message.body != null && FileProvider.http_url_regex.match(message.body.strip())) {
+                url_candidate = message.body.strip();
             }
 
             bool normal_file = url_candidate != null && FileProvider.http_url_regex.match(url_candidate);
@@ -111,8 +113,9 @@ public class FileProvider : Dino.FileProvider, Object {
     }
 
     private void on_file_message(Entities.Message message, Xmpp.MessageStanza stanza, Conversation conversation, string url) {
-        // Always store the message database ID so lookups (deletion, reactions, etc.) work.
-        string additional_info = message.id.to_string();
+        // Store the URL directly so we don't depend on message.body being non-empty.
+        // Messages with OOB element but no <body> would otherwise lose the URL.
+        string additional_info = "url:" + url;
 
         var receive_data = new HttpFileReceiveData();
         receive_data.url = url;
@@ -138,6 +141,18 @@ public class FileProvider : Dino.FileProvider, Object {
     public async FileMeta get_meta_info(FileTransfer file_transfer, FileReceiveData receive_data, FileMeta file_meta) throws FileReceiveError {
         HttpFileReceiveData? http_receive_data = receive_data as HttpFileReceiveData;
         if (http_receive_data == null) return file_meta;
+
+        if (http_receive_data.url == null || http_receive_data.url.strip() == "") {
+            throw new FileReceiveError.GET_METADATA_FAILED("Empty URL");
+        }
+
+        // Validate URL structure before passing to libsoup — Soup.Message()
+        // never returns null in GObject, but crashes on invalid URIs.
+        try {
+            Uri.parse(http_receive_data.url, UriFlags.NONE);
+        } catch (Error e) {
+            throw new FileReceiveError.GET_METADATA_FAILED("Malformed URL: %s".printf(sanitize_for_log(http_receive_data.url)));
+        }
 
         yield ensure_soup_context();
 
@@ -198,6 +213,17 @@ public class FileProvider : Dino.FileProvider, Object {
         HttpFileReceiveData? http_receive_data = receive_data as HttpFileReceiveData;
         if (http_receive_data == null) {
             throw new IOError.INVALID_ARGUMENT("Missing HTTP receive data");
+        }
+
+        if (http_receive_data.url == null || http_receive_data.url.strip() == "") {
+            throw new IOError.INVALID_ARGUMENT("Empty download URL");
+        }
+
+        // Validate URL before passing to libsoup
+        try {
+            Uri.parse(http_receive_data.url, UriFlags.NONE);
+        } catch (Error e) {
+            throw new IOError.INVALID_ARGUMENT("Malformed download URL: %s".printf(sanitize_for_log(http_receive_data.url)));
         }
 
         yield ensure_soup_context();
@@ -266,7 +292,11 @@ public class FileProvider : Dino.FileProvider, Object {
         file_meta.size = file_transfer.size;
         file_meta.mime_type = file_transfer.mime_type;
 
-        file_meta.file_name = extract_file_name_from_url(message.body);
+        if (message.body != null && message.body.strip() != "") {
+            file_meta.file_name = extract_file_name_from_url(message.body);
+        } else {
+            file_meta.file_name = file_transfer.file_name ?? "unknown";
+        }
 
         file_meta.message = message;
 
@@ -310,7 +340,14 @@ public class FileProvider : Dino.FileProvider, Object {
         if (message == null) return null;
 
         var receive_data = new HttpFileReceiveData();
-        receive_data.url = message.body;
+        // message.body may be empty for OOB-only stanzas — fall back to null
+        // so the caller can handle the error gracefully instead of crashing.
+        if (message.body != null && message.body.strip() != "") {
+            receive_data.url = message.body;
+        } else {
+            warning("http-files: message %d has empty body, cannot determine download URL", int.parse(file_transfer.info));
+            return null;
+        }
 
         return receive_data;
     }

@@ -29,7 +29,7 @@ public class EjabberdApi : Object {
     public bool is_configured() {
         string? url = registry.get_setting(KEY_API_URL);
         string? admin_jid = registry.get_setting(KEY_ADMIN_JID);
-        string? admin_pw = registry.get_setting(KEY_ADMIN_PASSWORD);
+        string? admin_pw = registry.get_secret_setting(KEY_ADMIN_PASSWORD);
         string? host = registry.get_setting(KEY_HOST);
         return (url != null && url.strip() != "" &&
                 admin_jid != null && admin_jid.strip() != "" &&
@@ -102,16 +102,6 @@ public class EjabberdApi : Object {
         return yield api_call("check_account", body);
     }
 
-    // List all registered users
-    public async ApiResult get_registered_users() {
-        if (!is_configured()) {
-            return ApiResult() { success = false, error_message = "ejabberd API not configured" };
-        }
-        string host = get_host();
-        string body = "{\"host\":\"%s\"}".printf(escape_json(host));
-        return yield api_call("registered_users", body);
-    }
-
     // Generate a random password for bot accounts
     public static string generate_bot_password() {
         string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
@@ -161,7 +151,7 @@ public class EjabberdApi : Object {
     private async ApiResult api_call(string endpoint, string json_body) {
         string? api_url = registry.get_setting(KEY_API_URL);
         string? admin_jid = registry.get_setting(KEY_ADMIN_JID);
-        string? admin_pw = registry.get_setting(KEY_ADMIN_PASSWORD);
+        string? admin_pw = registry.get_secret_setting(KEY_ADMIN_PASSWORD);
 
         if (api_url == null || admin_jid == null || admin_pw == null) {
             return ApiResult() { success = false, error_message = "Missing API configuration" };
@@ -212,20 +202,9 @@ public class EjabberdApi : Object {
         }
     }
 
-    // RFC 8259 compliant JSON string escaping (BUG-05 fix)
+    // Delegate to shared BotUtils (clone removal)
     private static string escape_json(string s) {
-        var sb = new StringBuilder.sized(s.length);
-        for (int i = 0; i < s.length; i++) {
-            unichar c = s[i];
-            if (c == '\\') sb.append("\\\\");
-            else if (c == '"') sb.append("\\\"");
-            else if (c == '\n') sb.append("\\n");
-            else if (c == '\r') sb.append("\\r");
-            else if (c == '\t') sb.append("\\t");
-            else if (c < 0x20) sb.append("\\u%04x".printf(c));
-            else sb.append_unichar(c);
-        }
-        return sb.str;
+        return BotUtils.escape_json(s);
     }
 }
 
