@@ -1476,13 +1476,13 @@ public class MqttCommandHandler : Object {
             }
             save_config_for_conversation(conversation, cfg);
 
-            /* Reconnect needed so LWT can be set before connect.
-             * apply_settings() (not just reload_config()) is required
-             * so the broker connection is actually re-established
-             * with the new LWT message.  (Audit Finding 1) */
+            /* Apply change — sync_discovery() handles live enable
+             * without requiring reconnect.  LWT is set on next reconnect
+             * (broker publishes it on unclean disconnect). */
             plugin.apply_settings();
             return _("HA Discovery enabled (prefix: %s).\n\n" +
-                     "Reconnecting to set LWT… check /mqtt status in a few seconds.").printf(
+                     "Device will appear in Home Assistant shortly.\n" +
+                     "LWT (offline on crash) takes effect after next reconnect.").printf(
                 cfg.discovery_prefix);
         }
 
@@ -1490,9 +1490,10 @@ public class MqttCommandHandler : Object {
             if (!cfg.discovery_enabled) {
                 return _("HA Discovery is already disabled.");
             }
-            /* Remove discovery configs before disabling */
+            /* Remove discovery configs and clean up HashMap entry */
             if (dm != null) {
                 dm.remove_discovery_configs();
+                plugin.remove_discovery_manager(key);
             }
             cfg.discovery_enabled = false;
             save_config_for_conversation(conversation, cfg);

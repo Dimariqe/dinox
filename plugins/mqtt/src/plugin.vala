@@ -573,6 +573,8 @@ public class Plugin : RootInterface, Object {
                 /* Same connection params — just re-sync topics */
                 debug("[STANDALONE] No connection change — syncing topics only");
                 sync_topics_to_client_cfg(standalone_client, standalone_config, "standalone");
+                /* HA Discovery: live enable/disable without reconnect */
+                sync_discovery("standalone", standalone_client, standalone_config);
                 /* NOTE: Do NOT return here! Per-account handling follows below
                  * and must not be skipped just because standalone didn't change. */
             } else {
@@ -598,6 +600,9 @@ public class Plugin : RootInterface, Object {
             /* Standalone disabled → disconnect if running */
             if (standalone_client != null) {
                 debug("[STANDALONE] Disabled → disconnecting");
+                /* Clean up discovery retained messages before disconnect —
+                 * clean disconnect does NOT trigger LWT. */
+                cleanup_discovery_before_disconnect("standalone", standalone_client);
                 standalone_client.disconnect_sync();
                 standalone_client = null;
                 /* Note: disconnect_sync() already fires connection_changed
@@ -634,10 +639,14 @@ public class Plugin : RootInterface, Object {
                 } else if (account_clients.has_key(jid)) {
                     /* Already connected — re-sync topics */
                     sync_topics_to_client_cfg(account_clients[jid], acfg, jid);
+                    /* HA Discovery: live enable/disable without reconnect */
+                    sync_discovery(jid, account_clients[jid], acfg);
                 }
             } else if (!acfg.enabled && account_clients.has_key(jid)) {
                 /* Disabled → disconnect */
                 debug("[ACCT:%s] Disabled → disconnecting MQTT", jid);
+                /* Clean up discovery retained messages before disconnect */
+                cleanup_discovery_before_disconnect(jid, account_clients[jid]);
                 account_clients[jid].disconnect_sync();
                 account_clients.unset(jid);
                 /* Remove per-account bot conversation */
@@ -657,6 +666,50 @@ public class Plugin : RootInterface, Object {
             if (bot_conversation != null) {
                 bot_conversation.remove_all();
             }
+        }
+    }
+
+    /**
+     * Ensure discovery state matches config for a live connection.
+     * Creates DiscoveryManager + publishes configs if discovery is now enabled,
+     * or removes retained messages + destroys manager if now disabled.
+     *
+     * Does NOT set LWT (requires pre-connect); LWT takes effect on next reconnect.
+     * Safe to call repeatedly — only acts on state transitions.
+     */
+    private void sync_discovery(string label, MqttClient client, MqttConnectionConfig cfg) {
+        bool is_xmpp_mode = cfg.use_xmpp_auth || cfg.broker_host.strip() == "";
+        if (cfg.discovery_enabled && !is_xmpp_mode) {
+            if (!discovery_managers.has_key(label)) {
+                var dm = new MqttDiscoveryManager(this, client, label, cfg.discovery_prefix);
+                discovery_managers[label] = dm;
+                dm.publish_birth();
+                dm.publish_discovery_config();
+                dm.publish_all_states();
+                dm.subscribe_ha_status();
+                debug("[%s] HA Discovery started (live)", label);
+            }
+        } else {
+            if (discovery_managers.has_key(label)) {
+                discovery_managers[label].remove_discovery_configs();
+                discovery_managers.unset(label);
+                debug("[%s] HA Discovery stopped (live)", label);
+            }
+        }
+    }
+
+    /**
+     * Publish offline availability and remove discovery configs for a label.
+     * Must be called BEFORE disconnect_sync() — clean disconnect does NOT
+     * trigger the LWT, so retained "online" would persist on the broker.
+     */
+    private void cleanup_discovery_before_disconnect(string label, MqttClient? client) {
+        if (discovery_managers.has_key(label) && client != null && client.is_connected) {
+            var dm = discovery_managers[label];
+            client.publish_string(dm.get_availability_topic(), dm.get_lwt_payload(), 1, true);
+            dm.remove_discovery_configs();
+            discovery_managers.unset(label);
+            debug("[%s] HA Discovery cleaned up before disconnect", label);
         }
     }
 
@@ -953,6 +1006,8 @@ public class Plugin : RootInterface, Object {
         if (!cfg.enabled) {
             /* Disabled — disconnect if connected */
             if (account_clients.has_key(acct_jid)) {
+                /* Clean up discovery retained messages before disconnect */
+                cleanup_discovery_before_disconnect(acct_jid, account_clients[acct_jid]);
                 account_clients[acct_jid].disconnect_sync();
                 account_clients.unset(acct_jid);
                 debug("[ACCT:%s] Disabled → disconnected", acct_jid);
@@ -972,26 +1027,7 @@ public class Plugin : RootInterface, Object {
                     sync_topics_to_client_cfg(account_clients[jid], cfg, jid);
 
                     /* HA Discovery: live start/stop without requiring reconnect */
-                    bool is_xmpp_mode = cfg.use_xmpp_auth || cfg.broker_host.strip() == "";
-                    if (cfg.discovery_enabled && !is_xmpp_mode) {
-                        if (!discovery_managers.has_key(jid)) {
-                            /* Start discovery on already-connected client */
-                            var dm = new MqttDiscoveryManager(this, account_clients[jid], jid, cfg.discovery_prefix);
-                            discovery_managers[jid] = dm;
-                            dm.publish_birth();
-                            dm.publish_discovery_config();
-                            dm.publish_all_states();
-                            dm.subscribe_ha_status();
-                            debug("[ACCT:%s] HA Discovery started (live)", jid);
-                        }
-                    } else {
-                        if (discovery_managers.has_key(jid)) {
-                            /* Stop discovery — remove configs from broker */
-                            discovery_managers[jid].remove_discovery_configs();
-                            discovery_managers.unset(jid);
-                            debug("[ACCT:%s] HA Discovery stopped (live)", jid);
-                        }
-                    }
+                    sync_discovery(jid, account_clients[jid], cfg);
 
                     /* Notify UI — no connect/disconnect happened so no signal would fire,
                      * but the dialog needs to update status from "Connecting…" to "Connected". */
@@ -1056,6 +1092,16 @@ public class Plugin : RootInterface, Object {
             /* Per-account: disconnect MQTT when XMPP goes offline */
             if (account_clients.has_key(jid)) {
                 debug("[ACCT:%s] XMPP offline → disconnecting per-account MQTT", jid);
+                /* Publish offline availability before clean disconnect —
+                 * LWT only fires on unclean disconnect (TCP timeout). */
+                if (discovery_managers.has_key(jid)) {
+                    var dm = discovery_managers[jid];
+                    var cl = account_clients[jid];
+                    if (cl.is_connected) {
+                        cl.publish_string(dm.get_availability_topic(), dm.get_lwt_payload(), 1, true);
+                    }
+                    /* Don't remove configs — XMPP will reconnect and re-publish */
+                }
                 account_clients[jid].disconnect_sync();
                 account_clients.unset(jid);
                 /* Note: disconnect_sync() already fires connection_changed
@@ -1860,6 +1906,14 @@ public class Plugin : RootInterface, Object {
      */
     public HashMap<string, MqttDiscoveryManager> get_discovery_managers() {
         return discovery_managers;
+    }
+
+    /**
+     * Remove a discovery manager entry from the internal HashMap.
+     * Used by command_handler after calling remove_discovery_configs().
+     */
+    public void remove_discovery_manager(string label) {
+        discovery_managers.unset(label);
     }
 
     /* ── App-DB settings helpers (shared by AlertManager, BridgeManager) ── */
