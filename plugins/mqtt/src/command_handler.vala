@@ -247,11 +247,67 @@ public class MqttCommandHandler : Object {
                 break;
         }
 
+        /* Append navigation footer (skip for help/clear/unknown default) */
+        if (response != "" && subcmd != "help" && subcmd != "?" && subcmd != "clear") {
+            response += nav_footer(subcmd, conversation);
+        }
+
         /* Inject response as incoming bot message */
         if (response != "") {
             bot.inject_bot_message(conversation, response);
         }
         return true;
+    }
+
+    /**
+     * Build a navigation footer with links to the relevant help category
+     * and back to the main menu.  Appended to every command response so
+     * the user can always navigate without typing.
+     */
+    private string nav_footer(string subcmd, Conversation conversation) {
+        string? cat = null;
+        string? cat_cmd = null;
+
+        switch (subcmd) {
+            case "subscribe": case "sub": case "unsubscribe": case "unsub":
+            case "publish": case "pub": case "topics": case "list":
+            case "qos": case "alias": case "aliases": case "rmalias": case "delalias":
+                cat = _("Topics");
+                cat_cmd = "/mqtt help topics";
+                break;
+            case "alert": case "alerts": case "rmalert": case "delalert":
+            case "priority": case "prio":
+                cat = _("Alerts");
+                cat_cmd = "/mqtt help alerts";
+                break;
+            case "bridge": case "bridges": case "rmbridge": case "delbridge":
+                cat = _("Bridges");
+                cat_cmd = "/mqtt help bridges";
+                break;
+            case "preset": case "presets":
+                cat = _("Presets");
+                cat_cmd = "/mqtt help presets";
+                break;
+            case "discovery":
+                cat = _("Discovery");
+                cat_cmd = "/mqtt help discovery";
+                break;
+            case "history": case "hist": case "chart": case "sparkline":
+            case "dbstats": case "db": case "purge": case "manager": case "manage":
+                cat = _("Tools");
+                cat_cmd = "/mqtt help tools";
+                break;
+            default:
+                break;
+        }
+
+        var sb = new StringBuilder();
+        sb.append("\n\n───\n");
+        if (cat != null) {
+            sb.append(cmd_uri(conversation, cat_cmd) + " — " + cat + "  ·  ");
+        }
+        sb.append(cmd_uri(conversation, "/mqtt help") + " — " + _("Menu"));
+        return sb.str;
     }
 
     /* ── Command Implementations ─────────────────────────────────── */
