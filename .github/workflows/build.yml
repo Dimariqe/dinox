@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: "Setup dependencies"
@@ -24,7 +24,7 @@ jobs:
             gstreamer1.0-plugins-good golang-go
       - name: "Cache custom dependencies"
         id: cache-deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/ci-deps-cache
           key: ci-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/ci-build-deps.sh') }}
@@ -123,7 +123,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: "Setup dependencies"
@@ -141,7 +141,7 @@ jobs:
             gstreamer1.0-plugins-good golang-go
       - name: "Cache custom dependencies"
         id: cache-deps-nightly
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/ci-deps-cache
           key: ci-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/ci-build-deps.sh') }}
@@ -181,7 +181,7 @@ jobs:
         run: echo "week=$(date +%Y-W%V)" >> $GITHUB_OUTPUT
       - name: "Cache Vala Nightly"
         id: cache-vala
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/vala-cache
           key: vala-nightly-${{ runner.os }}-${{ runner.arch }}-${{ steps.week.outputs.week }}
@@ -272,7 +272,7 @@ jobs:
       options: --privileged
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: "Build"
@@ -284,7 +284,7 @@ jobs:
           cache-key: flatpak-builder-${{ hashFiles('im.github.rallep71.DinoX.json') }}
 
       - name: "Upload Flatpak bundle"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: im.github.rallep71.DinoX-flatpak-x86_64
           path: im.github.rallep71.DinoX.flatpak

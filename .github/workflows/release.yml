@@ -18,7 +18,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -39,7 +39,7 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: "Cache Flatpak Builder"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .flatpak-builder
           key: flatpak-x86_64-${{ hashFiles('im.github.rallep71.DinoX.json') }}
@@ -60,7 +60,7 @@ jobs:
           sha256sum "dinox-${version}.tar.gz" > "dinox-${version}.tar.gz.sha256"
 
       - name: "Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifacts-x86_64
           path: |
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -84,7 +84,7 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: "Cache Flatpak Builder"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .flatpak-builder
           key: flatpak-aarch64-${{ hashFiles('im.github.rallep71.DinoX.json') }}
@@ -98,7 +98,7 @@ jobs:
           flatpak build-bundle repo dinox-aarch64.flatpak im.github.rallep71.DinoX master
 
       - name: "Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifacts-aarch64
           path: dinox-aarch64.flatpak
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -125,14 +125,14 @@ jobs:
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: "Download x86_64 Artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: build-artifacts-x86_64
           path: ./
 
       - name: "Download aarch64 Artifacts"
         if: needs.build-aarch64.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: build-artifacts-aarch64
           path: ./
