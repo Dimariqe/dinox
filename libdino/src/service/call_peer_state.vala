@@ -527,6 +527,11 @@ public class Dino.PeerState : Object {
     private void on_stream_created(string media, Xep.JingleRtp.Stream stream) {
         if (media == "video" && stream.receiving) {
             counterpart_sends_video = true;
+            // Guard against duplicate on_stream_created() calls (e.g. ICE restart)
+            if (video_connection_ready_extra_handler_id != 0 && video_content_parameter != null &&
+                    SignalHandler.is_connected(video_content_parameter, video_connection_ready_extra_handler_id)) {
+                video_content_parameter.disconnect(video_connection_ready_extra_handler_id);
+            }
             video_connection_ready_extra_handler_id = video_content_parameter.connection_ready.connect((status) => {
                 Idle.add(() => {
                     counterpart_sends_video_updated(false);
