@@ -429,7 +429,7 @@ public class MqttCommandHandler : Object {
      */
     private string cmd_uri(Conversation conversation, string command) {
         string jid = conversation.counterpart.to_string();
-        string encoded = command.replace(" ", "%20");
+        string encoded = GLib.Uri.escape_string(command, "/", true);
         return "xmpp:" + jid + "?message;body=" + encoded;
     }
 
@@ -472,7 +472,7 @@ public class MqttCommandHandler : Object {
         sb.append(cmd_uri(conversation, "/mqtt topics") + " — " + _("List subscriptions") + "\n");
         sb.append(cmd_uri(conversation, "/mqtt alerts") + " — " + _("List alerts") + "\n");
         sb.append(cmd_uri(conversation, "/mqtt presets") + " — " + _("List presets") + "\n");
-        sb.append(cmd_uri(conversation, "/mqtt pause") + " / " + cmd_uri(conversation, "/mqtt resume") + "\n");
+        sb.append(cmd_uri(conversation, "/mqtt pause") + " / " + cmd_uri(conversation, "/mqtt resume") + " — " + _("Pause / Resume messages") + "\n");
         sb.append(cmd_uri(conversation, "/mqtt config") + " — " + _("Show config") + "\n");
         sb.append(cmd_uri(conversation, "/mqtt reconnect") + " — " + _("Force reconnect") + "\n");
         sb.append(cmd_uri(conversation, "/mqtt clear") + " — " + _("Clear chat") + "\n");
@@ -500,7 +500,7 @@ public class MqttCommandHandler : Object {
         sb.append("  + = " + _("single level") + " (home/+/temp)\n");
         sb.append("  # = " + _("all below") + " (home/sensors/#)\n\n");
 
-        sb.append(_("Example:") + " /mqtt alias home/temp 🌡 Wohnzimmer\n\n");
+        sb.append(_("Example:") + " /mqtt alias home/temp 🌡 " + _("Living Room") + "\n\n");
 
         sb.append(_("Back:") + " " + cmd_uri(conversation, "/mqtt help"));
         return sb.str;
@@ -555,8 +555,8 @@ public class MqttCommandHandler : Object {
         sb.append("/mqtt preset <name> — " + _("Execute preset") + "\n\n");
 
         sb.append(_("Example:") + "\n");
-        sb.append("  /mqtt preset add LichtAN home/light/set ON\n");
-        sb.append("  /mqtt preset LichtAN\n\n");
+        sb.append(_("  /mqtt preset add LightON home/light/set ON\n"));
+        sb.append(_("  /mqtt preset LightON\n\n"));
 
         sb.append(_("Back:") + " " + cmd_uri(conversation, "/mqtt help"));
         return sb.str;
@@ -602,8 +602,7 @@ public class MqttCommandHandler : Object {
     private string cmd_alias(string topic, string alias_name,
                               Conversation conversation) {
         if (topic == "") {
-            return _("Usage: /mqtt alias <topic> <name>\n\n" +
-                     "Example:\n  /mqtt alias home/sensors/temp 🌡 Wohnzimmer");
+            return _("Usage: /mqtt alias <topic> <name>\n\nExample:\n  /mqtt alias home/sensors/temp 🌡 Living Room");
         }
         if (alias_name.strip() == "") {
             return _("Usage: /mqtt alias <topic> <name>\n\nAlias name cannot be empty.");
@@ -856,7 +855,7 @@ public class MqttCommandHandler : Object {
                 int count = (entries != null) ? entries.size : 0;
                 sb.append("%d. %s (%d entries)\n".printf(i++, t, count));
             }
-            sb.append("\nUse /mqtt history <topic> [N] to see values.");
+            sb.append(_("\nUse /mqtt history <topic> [N] to see values."));
             return sb.str;
         }
 
@@ -895,7 +894,7 @@ public class MqttCommandHandler : Object {
         }
 
         if (entries.size > max_entries) {
-            sb.append("\n(%d more entries — use /mqtt history %s %d to see all)".printf(
+            sb.append(_("\n(%d more entries — use /mqtt history %s %d to see all)").printf(
                 entries.size - max_entries, topic, entries.size));
         }
 
@@ -979,7 +978,7 @@ public class MqttCommandHandler : Object {
             if (db.topic_stats.topic[srow] == topic) {
                 long total = db.topic_stats.message_count[srow];
                 if (total > max_entries) {
-                    sb.append("\n(%ld total — use /mqtt history %s %ld to see all)".printf(
+                    sb.append(_("\n(%ld total — use /mqtt history %s %ld to see all)").printf(
                         total, topic, total));
                 }
                 break;
@@ -1333,10 +1332,7 @@ public class MqttCommandHandler : Object {
         ArrayList<PresetEntry> presets = parse_presets_json(cfg.publish_presets_json);
 
         if (presets.size == 0) {
-            return _("No publish presets defined.\n\n" +
-                   "Use /mqtt preset add <name> <topic> <payload> to create one.\n\n" +
-                   "Example:\n" +
-                   "  /mqtt preset add LichtAN home/light/set ON");
+            return _("No publish presets defined.\n\nUse /mqtt preset add <name> <topic> <payload> to create one.\n\nExample:\n  /mqtt preset add LightON home/light/set ON");
         }
 
         var sb = new StringBuilder();
@@ -1362,10 +1358,7 @@ public class MqttCommandHandler : Object {
          * split(" ", 4), so arg1="add", arg2=<name>, arg3="<topic> <payload>" */
         string name = topic;  /* arg2 is actually the name */
         if (name == "" || payload == "") {
-            return _("Usage: /mqtt preset add <name> <topic> <payload>\n\n" +
-                   "Example:\n" +
-                   "  /mqtt preset add LichtAN home/light/set ON\n" +
-                   "  /mqtt preset add TempRead home/sensor/get read");
+            return _("Usage: /mqtt preset add <name> <topic> <payload>\n\nExample:\n  /mqtt preset add LightON home/light/set ON\n  /mqtt preset add TempRead home/sensor/get read");
         }
 
         /* payload contains "topic payload" — split on first space */
