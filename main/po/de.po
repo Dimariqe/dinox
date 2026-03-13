@@ -6795,6 +6795,47 @@ msgstr "Unbenannt"
 msgid "MQTT"
 msgstr "MQTT"
 
+#: plugins/tor-manager/src/settings_page.vala:53
+msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+msgstr ""
+"Erforderlich, wenn Tor blockiert ist. Unterstützt obfs4- und WebTunnel-"
+"Brücken."
+
+#: plugins/tor-manager/src/settings_page.vala:142
+msgid "Fetches bridges from Tor Project. Choose transport type:"
+msgstr "Ruft Brücken vom Tor-Projekt ab. Transporttyp wählen:"
+
+#: plugins/tor-manager/src/settings_page.vala:173
+msgid ""
+"WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
+"is more widely available. Both fetch instantly without CAPTCHA."
+msgstr ""
+"WebTunnel (Port 443, sieht wie HTTPS aus) ist am besten für strenge "
+"Firewalls. obfs4 ist weiter verbreitet. Beide werden sofort ohne CAPTCHA "
+"abgerufen."
+
+#: plugins/tor-manager/src/settings_page.vala:237
+msgid "Error fetching bridges"
+msgstr "Fehler beim Abrufen der Brücken"
+
+#: plugins/tor-manager/src/settings_page.vala:286
+msgid "No bridges received. The server may be temporarily unavailable."
+msgstr ""
+"Keine Brücken empfangen. Der Server ist möglicherweise vorübergehend nicht "
+"erreichbar."
+
+#: plugins/tor-manager/src/settings_page.vala:252
+msgid "Received %d %s bridge(s)."
+msgstr "%d %s-Brücke(n) empfangen."
+
+#: plugins/tor-manager/src/settings_page.vala:255
+msgid "%d bridge(s) on standard ports (443/80)."
+msgstr "%d Brücke(n) auf Standardports (443/80)."
+
+#: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Firewall"
+msgstr "Firewall"
+
 #~ msgid "Help: How to join channels"
 #~ msgstr "Hilfe: Wie man Kanälen beitritt"
 

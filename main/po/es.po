@@ -519,8 +519,8 @@ msgid ""
 "Topics, Publish Presets, Alerts and Bridges for this account's MQTT "
 "connection (separate from Standalone MQTT)"
 msgstr ""
-"Topics, plantillas de publicación, alertas y puentes para la conexión MQTT de"
-" esta cuenta (separado del MQTT autónomo)"
+"Topics, plantillas de publicación, alertas y puentes para la conexión MQTT "
+"de esta cuenta (separado del MQTT autónomo)"
 
 #: main/data/preferences_window/change_password_dialog.ui:61
 msgid "Current password"
@@ -6695,6 +6695,45 @@ msgstr "Sin nombre"
 #: plugins/mqtt/src/plugin.vala
 msgid "MQTT"
 msgstr "MQTT"
+
+#: plugins/tor-manager/src/settings_page.vala:53
+msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+msgstr ""
+"Necesario si Tor está bloqueado. Compatible con puentes obfs4 y WebTunnel."
+
+#: plugins/tor-manager/src/settings_page.vala:142
+msgid "Fetches bridges from Tor Project. Choose transport type:"
+msgstr "Obtiene puentes del Proyecto Tor. Elija el tipo de transporte:"
+
+#: plugins/tor-manager/src/settings_page.vala:173
+msgid ""
+"WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
+"is more widely available. Both fetch instantly without CAPTCHA."
+msgstr ""
+"WebTunnel (puerto 443, parece HTTPS) es mejor para cortafuegos estrictos. "
+"obfs4 está más disponible. Ambos se obtienen instantáneamente sin CAPTCHA."
+
+#: plugins/tor-manager/src/settings_page.vala:237
+msgid "Error fetching bridges"
+msgstr "Error al obtener puentes"
+
+#: plugins/tor-manager/src/settings_page.vala:286
+msgid "No bridges received. The server may be temporarily unavailable."
+msgstr ""
+"No se recibieron puentes. El servidor puede estar temporalmente no "
+"disponible."
+
+#: plugins/tor-manager/src/settings_page.vala:252
+msgid "Received %d %s bridge(s)."
+msgstr "%d puente(s) %s recibido(s)."
+
+#: plugins/tor-manager/src/settings_page.vala:255
+msgid "%d bridge(s) on standard ports (443/80)."
+msgstr "%d puente(s) en puertos estándar (443/80)."
+
+#: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Firewall"
+msgstr "Cortafuegos"
 
 #~ msgid "Help: How to join channels"
 #~ msgstr "Ayuda: Cómo unirse a canales"
