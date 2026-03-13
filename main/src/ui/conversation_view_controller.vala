@@ -377,10 +377,31 @@ public class ConversationViewController : Object {
 
     private void send_location() {
         debug("ConversationViewController: send_location called");
-        LocationManager.get_default().get_location.begin(null, (obj, res) => {
+
+        var loc_mgr = LocationManager.get_default();
+
+        // Guard: prevent double-click / concurrent requests
+        if (loc_mgr.is_busy()) {
+            debug("ConversationViewController: Location request already in progress, ignoring");
+            return;
+        }
+
+        // Disable button while GeoClue works
+        view.chat_input.send_location_button.sensitive = false;
+
+        // Timeout after 15 s so a GPS cold-start doesn't freeze the UI
+        var cancel = new Cancellable();
+        uint timeout_id = Timeout.add_seconds(15, () => {
+            cancel.cancel();
+            return Source.REMOVE;
+        });
+
+        loc_mgr.get_location.begin(cancel, (obj, res) => {
+            Source.remove(timeout_id);
+            view.chat_input.send_location_button.sensitive = true;
             try {
                 double lat, lon, accuracy;
-                LocationManager.get_default().get_location.end(res, out lat, out lon, out accuracy);
+                loc_mgr.get_location.end(res, out lat, out lon, out accuracy);
                 debug("ConversationViewController: Location retrieved successfully");
                 send_location_message(lat, lon, accuracy);
             } catch (Error e) {
@@ -444,9 +465,15 @@ public class ConversationViewController : Object {
             if (response == "send") {
                 string lat_text = lat_entry.text.strip().replace(",", ".");
                 string lon_text = lon_entry.text.strip().replace(",", ".");
+                if (lat_text == "" || lon_text == "") {
+                    var err_dialog = new Adw.AlertDialog(_("Invalid coordinates"), _("Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."));
+                    err_dialog.add_response("close", _("Close"));
+                    err_dialog.present(main_window);
+                    return;
+                }
                 double lat = double.parse(lat_text);
                 double lon = double.parse(lon_text);
-                if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && (lat != 0 || lon != 0)) {
+                if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
                     send_location_message(lat, lon, 0);
                 } else {
                     var err_dialog = new Adw.AlertDialog(_("Invalid coordinates"), _("Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."));

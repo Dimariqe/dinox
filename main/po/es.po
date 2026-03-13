@@ -6739,7 +6739,11 @@ msgstr "Cortafuegos"
 msgid "Open in OpenStreetMap"
 msgstr "Abrir en OpenStreetMap"
 
-#: main/src/ui/util/location_manager.vala:30
+#: main/src/ui/util/location_manager.vala:28
+msgid "A location request is already in progress."
+msgstr "Ya hay una solicitud de ubicación en curso."
+
+#: main/src/ui/util/location_manager.vala:37
 msgid "Location services are not available (GeoClue2 not installed)."
 msgstr "Los servicios de ubicación no están disponibles (GeoClue2 no instalado)."
 

@@ -6762,7 +6762,11 @@ msgstr "Pare-feu"
 msgid "Open in OpenStreetMap"
 msgstr "Ouvrir dans OpenStreetMap"
 
-#: main/src/ui/util/location_manager.vala:30
+#: main/src/ui/util/location_manager.vala:28
+msgid "A location request is already in progress."
+msgstr "Une demande de localisation est déjà en cours."
+
+#: main/src/ui/util/location_manager.vala:37
 msgid "Location services are not available (GeoClue2 not installed)."
 msgstr "Les services de localisation ne sont pas disponibles (GeoClue2 non installé)."
 

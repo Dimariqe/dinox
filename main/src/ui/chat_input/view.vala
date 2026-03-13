@@ -63,6 +63,12 @@ public class View : Box {
             sticker_button.visible = app.settings.stickers_enabled;
         });
 
+        // Hide location button when location sharing is disabled in settings
+        send_location_button.visible = app.settings.location_sharing_enabled;
+        app.settings.notify["location-sharing-enabled"].connect(() => {
+            send_location_button.visible = app.settings.location_sharing_enabled;
+        });
+
         // Defensive: keep MenuButton state in sync when the popover is dismissed programmatically
         // (e.g. by selecting a sticker) or by outside clicks.
         sticker_chooser.closed.connect(() => {

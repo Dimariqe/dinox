@@ -6433,7 +6433,11 @@ msgstr "Firewall"
 msgid "Open in OpenStreetMap"
 msgstr "Open in OpenStreetMap"
 
-#: main/src/ui/util/location_manager.vala:30
+#: main/src/ui/util/location_manager.vala:28
+msgid "A location request is already in progress."
+msgstr "A location request is already in progress."
+
+#: main/src/ui/util/location_manager.vala:37
 msgid "Location services are not available (GeoClue2 not installed)."
 msgstr "Location services are not available (GeoClue2 not installed)."
 
