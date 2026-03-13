@@ -17,7 +17,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="accelerator">&lt;ctrl&gt;G</property>
-                                <property name="title" translatable="yes">Join Channel</property>
+                                <property name="title" translatable="yes">Join Group</property>
                             </object>
                         </child>
                         <child>

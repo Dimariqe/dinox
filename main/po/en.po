@@ -21,8 +21,8 @@ msgid "Use account:"
 msgstr ""
 
 #: main/data/add_conversation/select_jid_fragment.ui:38
-msgid "Search or enter channel address..."
-msgstr "Search or enter channel address..."
+msgid "Search or enter group address..."
+msgstr "Search or enter group address..."
 
 #: main/data/add_conversation/select_jid_fragment.ui:85
 #: main/src/ui/add_conversation/select_jid_fragment.vala:276
@@ -117,8 +117,8 @@ msgstr "Start Conversation"
 #: main/data/menu_add.ui:11
 #: main/src/ui/add_conversation/add_conference_dialog.vala:25
 #: main/src/ui/application.vala:2464 main/src/ui/main_window.vala:175
-msgid "Join Channel"
-msgstr "Join Channel"
+msgid "Join Group"
+msgstr "Join Group"
 
 #: main/data/gtk/help-overlay.ui:26
 msgid "Show preferences"
@@ -1733,8 +1733,8 @@ msgid "Delete message"
 msgstr "Delete message"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:164
-msgid "Do you want to remove this message from the channel?"
-msgstr "Do you want to remove this message from the channel?"
+msgid "Do you want to remove this message from the group?"
+msgstr "Do you want to remove this message from the group?"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:165
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:873

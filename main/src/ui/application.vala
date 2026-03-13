@@ -2413,7 +2413,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
     private void show_join_muc_dialog (Account? account, string jid) {
         var dialog = new Adw.Dialog ();
-        dialog.title = _("Join Channel");
+        dialog.title = _("Join Group");
         dialog.content_width = 400;
         dialog.content_height = 300;
 

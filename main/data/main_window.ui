@@ -49,7 +49,7 @@
                                                         <child>
                                                             <object class="GtkButton" id="add_group_button">
                                                                 <property name="has-frame">False</property>
-                                                                <property name="tooltip-text" translatable="yes">Join Channel</property>
+                                                                <property name="tooltip-text" translatable="yes">Join Group</property>
                                                                 <property name="action-name">app.add_conference</property>
                                                                 <child>
                                                                     <object class="GtkImage">

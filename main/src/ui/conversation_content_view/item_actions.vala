@@ -161,7 +161,7 @@ namespace Dino.Ui {
                 );
 
                 if (is_moderation) {
-                    dialog.detail = _("Do you want to remove this message from the channel?");
+                    dialog.detail = _("Do you want to remove this message from the group?");
                     dialog.buttons = new string[] { _("Cancel"), _("Remove") };
                 } else {
                     dialog.detail = _("Do you want to delete this message just for yourself or for everyone?");
