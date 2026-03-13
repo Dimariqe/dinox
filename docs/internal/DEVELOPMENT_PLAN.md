@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 12, 2026 (v1.1.6.4)
+> **Last Updated**: March 13, 2026 (v1.1.6.5)
 > **Current Release Line**: 1.1.6.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.6.4 |
+| **Current Version** | 1.1.6.5 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (~85% translated) |
 | **Build Status** | Clean |
@@ -20,6 +20,18 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.6.5 (Location Sharing, Tor WebTunnel, i18n Audit, MQTT Fixes)
+
+- **Location Sharing (XEP-0080)**: GeoClue2 integration with manual fallback, 256×256 OSM map preview with red marker, Google Maps route planner on click, accuracy warning when >1km, meson build option `location-sharing`
+- **Tor WebTunnel/lyrebird**: Pluggable transport support for censorship circumvention, Windows cross-compilation
+- **i18n audit**: 25 hardcoded strings wrapped in `_()`, 8 Tor settings, OMEMO strings, Channel→Group rename, location strings — DE/EN/ES/FR complete
+- **MQTT fixes**: 60% CPU menu rendering fix, retained message flood fix, 7 HA Discovery bugs, plugin interference with calls/transfers, clickable menu structure with navigation
+- **Performance**: `mallopt()` heap fragmentation fix, video frame texture release, PresenceManager signal guard
+- **OMEMO**: SG_ERR_NO_SESSION warning suppressed during video calls
+- **CI/Build**: GitHub Actions Node.js 24, Windows `#if WINDOWS` guard, Flatpak lyrebird build fix, release automation fixes
+- **Docs**: BUILD.md Location Sharing section, GeoClue2 deps in all lists, golang-go build dep
+- 37 commits, major areas: location (10), MQTT (10), i18n (5), perf (3), Tor (3), CI (4), docs (2)
 
 ### v1.1.6.4 (MQTT Binary Transfer, Stream Detection, Security Hardening)
 
