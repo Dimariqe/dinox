@@ -47,6 +47,7 @@ public class OmemoPreferencesWidget : Adw.PreferencesGroup {
 
     construct {
         // If we set the strings in the .ui file, they don't get translated
+        keys_preferences_group.description = _("Each device has its own OMEMO key. Messages can only be decrypted by a device if they are encrypted to its key. Messages are only encrypted to accepted devices.");
         encrypt_by_default_row.title = _("OMEMO by default");
         encrypt_by_default_row.subtitle = _("Enable OMEMO encryption for new conversations");
         automatically_accept_new_row.title = _("Encrypt to new devices");
