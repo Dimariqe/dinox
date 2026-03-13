@@ -1395,6 +1395,15 @@ public class Plugin : RootInterface, Object {
                             if (!bridged) {
                                 /* No rule matched — clean up unused temp file */
                                 GLib.FileUtils.unlink(temp_path);
+                            } else {
+                                /* Delayed cleanup: multiple bridge rules may
+                                 * match the same binary file — give uploads
+                                 * time to read before deleting. (Robustness R1) */
+                                string tp = temp_path;
+                                Timeout.add_seconds(120, () => {
+                                    GLib.FileUtils.unlink(tp);
+                                    return false;
+                                });
                             }
                         } else {
                             warning("MQTT Bridge: Binary %s detected but failed to save temp file",

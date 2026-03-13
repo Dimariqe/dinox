@@ -293,8 +293,10 @@ public class MqttBridgeManager : Object {
                 fm.send_file.end(res);
                 debug("MQTT Bridge: Local file sent [%s] → %s: %s",
                         source_copy, jid_copy.to_string(), path_copy);
-                /* Clean up temp file after upload */
-                GLib.FileUtils.unlink(path_copy);
+                /* Temp file cleanup is handled by the caller
+                 * (delayed cleanup) — not here, because multiple
+                 * bridge rules may match the same binary payload
+                 * and each needs to read the file. (Robustness R1) */
             });
             return false;
         });
@@ -643,10 +645,18 @@ public class MqttBridgeManager : Object {
     public void flush_pending() {
         if (pending_messages.size == 0) return;
 
+        /* Snapshot-then-clear: take ownership of the current queue
+         * so that any re-queues during delivery (e.g. deliver_local_file
+         * finding stream==null) go into the fresh pending_messages list
+         * and survive.  (Robustness R4) */
+        var snapshot = new ArrayList<PendingMsg?>();
+        snapshot.add_all(pending_messages);
+        pending_messages.clear();
+
         int delivered = 0;
         var still_pending = new ArrayList<PendingMsg?>();
 
-        foreach (var pm in pending_messages) {
+        foreach (var pm in snapshot) {
             try {
                 Account? acct = find_account(pm.source);
                 if (acct != null) {
@@ -666,12 +676,13 @@ public class MqttBridgeManager : Object {
             }
         }
 
-        pending_messages.clear();
+        /* Merge still_pending (account not found) with any messages
+         * that were re-queued during delivery (e.g. stream null). */
         pending_messages.add_all(still_pending);
 
         if (delivered > 0) {
             debug("MQTT Bridge: Flushed %d pending messages (%d still pending)",
-                    delivered, still_pending.size);
+                    delivered, pending_messages.size);
         }
     }
 
