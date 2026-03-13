@@ -365,6 +365,12 @@ namespace Dino.Plugins.TorManager {
 
         public void stop() {
             if (tor_process != null) {
+#if WINDOWS
+                // Windows has no POSIX signals; terminate the process directly.
+                try {
+                    tor_process.force_exit();
+                } catch (Error e) { /* already dead, fine */ }
+#else
                 // Send SIGTERM first to let Tor clean up its state files gracefully.
                 // force_exit() sends SIGKILL which doesn't allow cleanup and can
                 // corrupt cached-microdescs, state file, etc.
@@ -380,7 +386,7 @@ namespace Dino.Plugins.TorManager {
                     }
                     return Source.REMOVE;
                 });
-
+#endif
                 tor_process = null;
             }
             is_running = false;
