@@ -64,6 +64,12 @@ public class Plugin : RootInterface, Object {
     private HashMap<string, MqttDiscoveryManager> discovery_managers =
         new HashMap<string, MqttDiscoveryManager>();
 
+    /* ── Retained message dedup cache ─────────────────────────────── */
+    /* Key: "label\ttopic", Value: payload hash.
+     * Prevents re-injecting the same retained message on every reconnect. */
+    private HashMap<string, string> retained_cache =
+        new HashMap<string, string>();
+
     /* Auto-purge timer (every 6 hours) */
     private uint purge_timer_id = 0;
     private const uint PURGE_INTERVAL_SECS = 6 * 3600;  /* 6 hours */
@@ -1563,6 +1569,23 @@ public class Plugin : RootInterface, Object {
                                        priority.to_string_key());
             }
 
+            /* Retained message dedup: skip re-injection if the same
+             * retained message was already displayed.  Retained messages
+             * are re-delivered by the broker on every reconnect, which
+             * floods the chat with duplicates after reconnect or dialog
+             * Save & Apply.  Non-retained messages always pass through. */
+            if (retained) {
+                string dedup_key = label + "\t" + topic;
+                string payload_hash = Checksum.compute_for_string(ChecksumType.SHA256, payload_str);
+                if (retained_cache.has_key(dedup_key) &&
+                    retained_cache[dedup_key] == payload_hash) {
+                    /* Same retained payload already seen — skip chat injection
+                     * but still record to DB (done above). */
+                    return;
+                }
+                retained_cache[dedup_key] = payload_hash;
+            }
+
             /* Inject into bot conversation with priority.
              * Always show in bot — even if also forwarded by a bridge rule,
              * so the user sees the full MQTT traffic in the bot chat.
@@ -1914,6 +1937,24 @@ public class Plugin : RootInterface, Object {
      */
     public void remove_discovery_manager(string label) {
         discovery_managers.unset(label);
+    }
+
+    /**
+     * Clear the retained-message dedup cache for a connection label.
+     * Called by /mqtt clear so that retained messages re-appear if the
+     * user explicitly reconnects after clearing history.
+     */
+    public void clear_retained_cache(string label) {
+        var to_remove = new Gee.ArrayList<string>();
+        string prefix = label + "\t";
+        foreach (string key in retained_cache.keys) {
+            if (key.has_prefix(prefix)) {
+                to_remove.add(key);
+            }
+        }
+        foreach (string key in to_remove) {
+            retained_cache.unset(key);
+        }
     }
 
     /* ── App-DB settings helpers (shared by AlertManager, BridgeManager) ── */

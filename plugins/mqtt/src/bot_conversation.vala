@@ -451,6 +451,24 @@ public class MqttBotConversation : Object {
     /* ── Message Injection ───────────────────────────────────────── */
 
     /**
+     * Clear all chat history for a bot conversation.
+     * Delegates to ConversationManager.clear_conversation_history()
+     * which properly removes messages + content_items from DB and
+     * sets history_cleared_at to prevent stale items on reload.
+     */
+    public bool clear_history(string key) {
+        if (!bot_conversations.has_key(key)) return false;
+
+        Conversation conv = bot_conversations[key];
+        var cm = app.stream_interactor.get_module<ConversationManager>(
+            ConversationManager.IDENTITY);
+        if (cm == null) return false;
+
+        cm.clear_conversation_history(conv);
+        return true;
+    }
+
+    /**
      * Inject an incoming MQTT message into the bot conversation.
      * This creates a Message object that appears as a received chat
      * message from the bot, with the topic as a header line.

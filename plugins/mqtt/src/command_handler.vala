@@ -232,6 +232,10 @@ public class MqttCommandHandler : Object {
                 response = cmd_rmalias(arg1, conversation);
                 break;
 
+            case "clear":
+                response = cmd_clear(conversation);
+                break;
+
             case "help":
             case "?":
                 response = cmd_help();
@@ -243,7 +247,9 @@ public class MqttCommandHandler : Object {
         }
 
         /* Inject response as incoming bot message */
-        bot.inject_bot_message(conversation, response);
+        if (response != "") {
+            bot.inject_bot_message(conversation, response);
+        }
         return true;
     }
 
@@ -452,6 +458,7 @@ public class MqttCommandHandler : Object {
                "/mqtt pause               — Pause messages\n" +
                "/mqtt resume              — Resume messages\n" +
                "/mqtt discovery [on|off]  — HA Discovery status/toggle\n" +
+               "/mqtt clear               — Clear chat history\n" +
                "/mqtt help                — This help text\n" +
                "\n" +
                "Topic wildcards:\n" +
@@ -1518,6 +1525,28 @@ public class MqttCommandHandler : Object {
                  "  on      — Enable HA Discovery & publish configs\n" +
                  "  off     — Disable & remove from broker\n" +
                  "  refresh — Re-publish state values");
+    }
+
+    /**
+     * /mqtt clear — Clear all messages from the bot chat history.
+     */
+    private string cmd_clear(Conversation conversation) {
+        string key = get_connection_key(conversation);
+        if (plugin.bot_conversation == null) {
+            return _("Bot conversation not available.");
+        }
+
+        /* Also clear the retained message dedup cache so retained
+         * messages are shown again if the user explicitly wants to
+         * see them (they can /mqtt clear and then /mqtt reconnect). */
+        plugin.clear_retained_cache(key);
+
+        /* Clear Dino conversation history (DB + UI) */
+        bool ok = plugin.bot_conversation.clear_history(key);
+        if (!ok) {
+            return _("Could not clear history — conversation not found.");
+        }
+        return "";  /* Empty = no response injected (history was just cleared) */
     }
 
     /**
