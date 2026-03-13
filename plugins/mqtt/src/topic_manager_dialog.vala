@@ -204,7 +204,7 @@ public class MqttTopicManagerDialog : Adw.Dialog {
 
             var row = new Adw.ActionRow();
             row.title = topic;
-            row.subtitle = "QoS %d · %s".printf(qos, prio.to_string_key());
+            row.subtitle = _("QoS %d \u00b7 %s").printf(qos, prio.to_string_key());
 
             /* Unsubscribe button */
             var unsub_btn = new Button.from_icon_name("list-remove-symbolic");
@@ -328,7 +328,7 @@ public class MqttTopicManagerDialog : Adw.Dialog {
         /* Add row to UI */
         var row = new Adw.ActionRow();
         row.title = topic;
-        row.subtitle = "QoS %d · normal".printf(qos);
+        row.subtitle = _("QoS %d · normal").printf(qos);
 
         var unsub_btn = new Button.from_icon_name("list-remove-symbolic");
         unsub_btn.valign = Align.CENTER;
@@ -360,7 +360,7 @@ public class MqttTopicManagerDialog : Adw.Dialog {
         /* Add row */
         var row = new Adw.ActionRow();
         row.title = "%s → %s".printf(topic, jid);
-        row.subtitle = "Active";
+        row.subtitle = _("Active");
         bridges_group.add(row);
 
         bridge_topic_entry.text = "";

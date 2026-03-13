@@ -734,7 +734,7 @@ public class MqttBotManagerDialog : Adw.Dialog {
         add_group.add(alert_field_entry);
 
         /* Operator dropdown */
-        string[] op_labels = { "contains", "==", "!=", ">", ">=", "<", "<=" };
+        string[] op_labels = { _("contains"), "==", "!=", ">", ">=", "<", "<=" };
         alert_op_dropdown = new DropDown.from_strings(op_labels);
         alert_op_dropdown.selected = 0;
         var op_row = new Adw.ActionRow();
@@ -811,10 +811,10 @@ public class MqttBotManagerDialog : Adw.Dialog {
 
         /* Format dropdown: full, payload, short, file */
         var format_model = new Gtk.StringList(null);
-        format_model.append("full");
-        format_model.append("payload");
-        format_model.append("short");
-        format_model.append("file (URL)");
+        format_model.append(_("full"));
+        format_model.append(_("payload"));
+        format_model.append(_("short"));
+        format_model.append(_("file (URL)"));
         bridge_format_dropdown = new DropDown(format_model, null);
         bridge_format_dropdown.selected = 0;
         var format_row = new Adw.ActionRow();
@@ -999,7 +999,9 @@ public class MqttBotManagerDialog : Adw.Dialog {
     /* ── Topic list ───────────────────────────────────────────────── */
 
     /** Priority labels for the per-topic dropdown. Index = MqttPriority ordinal. */
-    private const string[] PRIORITY_LABELS = { "Silent", "Normal", "Alert", "Critical" };
+    private static string[] get_priority_labels() {
+        return { _("Silent"), _("Normal"), _("Alert"), _("Critical") };
+    }
 
     private void populate_topics_list() {
         /* Clear tracked rows — get_first_child() doesn't work on
@@ -1060,7 +1062,7 @@ public class MqttBotManagerDialog : Adw.Dialog {
             suffix_box.append(qos_dd);
 
             /* Priority dropdown */
-            var prio_dd = new DropDown.from_strings(PRIORITY_LABELS);
+            var prio_dd = new DropDown.from_strings(get_priority_labels());
             prio_dd.selected = (uint) prio;
             prio_dd.tooltip_text = _("Notification priority");
             string t_prio = topic;
@@ -1422,12 +1424,12 @@ public class MqttBotManagerDialog : Adw.Dialog {
             string display_topic = (alias != null) ? alias : rule.topic;
 
             row.title = "%s → %s".printf(display_topic, rule.target_jid);
-            string subtitle = "Format: %s".printf(rule.format ?? "full");
+            string subtitle = _("Format: %s").printf(rule.format ?? "full");
             if (alias != null) {
                 subtitle += " | %s".printf(rule.topic);
             }
             if (rule.send_account != null && rule.send_account.strip() != "") {
-                subtitle += " | via %s".printf(rule.send_account);
+                subtitle += " | " + _("via %s").printf(rule.send_account);
             }
             if (!rule.enabled) {
                 subtitle += " | " + _("disabled");
@@ -1548,7 +1550,7 @@ public class MqttBotManagerDialog : Adw.Dialog {
             }
             for (uint i = 0; i < arr.get_length(); i++) {
                 var obj = arr.get_object_element(i);
-                string name = obj.has_member("name") ? obj.get_string_member("name") : "Unnamed";
+                string name = obj.has_member("name") ? obj.get_string_member("name") : _("Unnamed");
                 string topic = obj.has_member("topic") ? obj.get_string_member("topic") : "";
                 string payload = obj.has_member("payload") ? obj.get_string_member("payload") : "";
 

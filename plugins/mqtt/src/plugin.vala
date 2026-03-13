@@ -900,7 +900,7 @@ public class Plugin : RootInterface, Object {
                     Adw.BreakpointConditionLengthType.MAX_WIDTH, 600,
                     Adw.LengthUnit.PX));
             bp.apply.connect(() => { page.title = ""; });
-            bp.unapply.connect(() => { page.title = "MQTT"; });
+            bp.unapply.connect(() => { page.title = _("MQTT"); });
             dialog.add_breakpoint(bp);
         }
     }

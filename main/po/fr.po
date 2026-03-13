@@ -6643,6 +6643,82 @@ msgstr "Tor désactivé"
 msgid "Tor is disabled"
 msgstr "Tor est désactivé"
 
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…!"
+msgstr "Dring dring… !"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Dependencies for call support not met"
+msgstr "Les dépendances pour le support des appels ne sont pas remplies"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…?"
+msgstr "Dring dring… ?"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Call failed to establish"
+msgstr "L'appel n'a pas pu être établi"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · %s"
+msgstr "QoS %d · %s"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · normal"
+msgstr "QoS %d · normal"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Silent"
+msgstr "Silencieux"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Alert"
+msgstr "Alerte"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Critical"
+msgstr "Critique"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "contains"
+msgstr "contient"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "full"
+msgstr "complet"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "payload"
+msgstr "données utiles"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "short"
+msgstr "court"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "file (URL)"
+msgstr "fichier (URL)"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "Format: %s"
+msgstr "Format : %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "via %s"
+msgstr "via %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Unnamed"
+msgstr "Sans nom"
+
+#: plugins/mqtt/src/plugin.vala
+msgid "MQTT"
+msgstr "MQTT"
+
 #~ msgid "Help: How to join channels"
 #~ msgstr "Aide : Comment rejoindre les canaux"
 

@@ -6261,3 +6261,79 @@ msgstr ""
 #: plugins/tor-manager/src/ui_indicator.vala:218
 msgid "Tor is disabled"
 msgstr ""
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…!"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Dependencies for call support not met"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…?"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Call failed to establish"
+msgstr ""
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · %s"
+msgstr ""
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · normal"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Silent"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Alert"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Critical"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "contains"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "full"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "payload"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "short"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "file (URL)"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "Format: %s"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "via %s"
+msgstr ""
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Unnamed"
+msgstr ""
+
+#: plugins/mqtt/src/plugin.vala
+msgid "MQTT"
+msgstr ""

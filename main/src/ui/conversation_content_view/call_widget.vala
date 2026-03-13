@@ -151,17 +151,17 @@ namespace Dino.Ui {
                         }
 
                         if (stream_interactor.get_module<Calls>(Calls.IDENTITY).can_we_do_calls(call.account)) {
-                            subtitle_label.label = "Ring ring…!";
+                            subtitle_label.label = _("Ring ring…!");
                             incoming_call_box.visible = true;
                             incoming_call_revealer.reveal_child = true;
                             incoming_call_revealer.add_css_class("incoming");
                             outer_additional_box.add_css_class("incoming-call-box");
                         } else {
-                            subtitle_label.label = "Dependencies for call support not met";
+                            subtitle_label.label = _("Dependencies for call support not met");
                         }
                     } else {
                         title_label.label = _("Calling…");
-                        subtitle_label.label = "Ring ring…?";
+                        subtitle_label.label = _("Ring ring…?");
                     }
                     break;
                 case Call.State.ESTABLISHING:
@@ -212,7 +212,7 @@ namespace Dino.Ui {
                 case Call.State.FAILED:
                     image.set_from_icon_name("dino-phone-hangup-symbolic");
                     title_label.label = _("Call failed");
-                    subtitle_label.label = "Call failed to establish";
+                    subtitle_label.label = _("Call failed to establish");
                     break;
             }
 

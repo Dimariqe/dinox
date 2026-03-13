@@ -43,7 +43,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
     public void encryption_activated(Entities.Conversation conversation, Plugins.SetInputFieldStatus input_status_callback) {
         // Null check to prevent assertion failures
         if (conversation == null) {
-            input_status_callback(new Plugins.InputFieldStatus("No conversation selected.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+            input_status_callback(new Plugins.InputFieldStatus(_("No conversation selected."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
             return;
         }
         
@@ -51,7 +51,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
         string? account_key = db.get_account_key(conversation.account);
         
         if (account_key == null || account_key.length == 0) {
-            input_status_callback(new Plugins.InputFieldStatus("You didn't configure OpenPGP for this account. You can do that in the Accounts Dialog.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+            input_status_callback(new Plugins.InputFieldStatus(_("You didn't configure OpenPGP for this account. You can do that in the Accounts Dialog."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
             return;
         }
         
@@ -88,7 +88,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
                             // Clear any error status
                             input_status_callback(new Plugins.InputFieldStatus("", Plugins.InputFieldStatus.MessageType.NONE, Plugins.InputFieldStatus.InputState.NORMAL));
                         } else {
-                            input_status_callback(new Plugins.InputFieldStatus("This contact's OpenPGP key is not in your keyring.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                            input_status_callback(new Plugins.InputFieldStatus(_("This contact's OpenPGP key is not in your keyring."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                         }
                         return false;
                     });
@@ -100,12 +100,12 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
             // No key locally - try to fetch via XEP-0373
             if (xep0373_manager != null) {
                 debug("OpenPGP: No local key for %s, fetching via XEP-0373...", conversation.counterpart.to_string());
-                input_status_callback(new Plugins.InputFieldStatus("Fetching contact's OpenPGP key via PubSub...", Plugins.InputFieldStatus.MessageType.INFO, Plugins.InputFieldStatus.InputState.NO_SEND));
+                input_status_callback(new Plugins.InputFieldStatus(_("Fetching contact's OpenPGP key via PubSub..."), Plugins.InputFieldStatus.MessageType.INFO, Plugins.InputFieldStatus.InputState.NO_SEND));
                 
                 // Async fetch keys and update status when done
                 fetch_key_and_update_status.begin(conversation, input_status_callback);
             } else {
-                input_status_callback(new Plugins.InputFieldStatus("This contact does not support %s encryption.".printf("OpenPGP"), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                input_status_callback(new Plugins.InputFieldStatus(_("This contact does not support %s encryption.").printf("OpenPGP"), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
             }
         } else if (conversation.type_ == Conversation.Type.GROUPCHAT) {
             // Run MUC key checks in background thread
@@ -133,7 +133,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
     private async void check_muc_keys_async(Account account, Gee.List<Jid> muc_jids, Plugins.SetInputFieldStatus input_status_callback) {
         var manager = stream_interactor.get_module<Manager>(Manager.IDENTITY);
         if (manager == null) {
-            input_status_callback(new Plugins.InputFieldStatus("OpenPGP manager not available.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+            input_status_callback(new Plugins.InputFieldStatus(_("OpenPGP manager not available."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
             return;
         }
         
@@ -142,7 +142,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
         foreach (Jid jid in muc_jids) {
             string? key_id = manager.get_key_id(account, jid);
             if (key_id == null) {
-                input_status_callback(new Plugins.InputFieldStatus("A member's OpenPGP key is not configured: %s".printf(jid.to_string()), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                input_status_callback(new Plugins.InputFieldStatus(_("A member's OpenPGP key is not configured: %s").printf(jid.to_string()), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                 return;
             }
             if (!key_ids_to_check.contains(key_id)) {
@@ -178,7 +178,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
             
             Idle.add(() => {
                 if (missing_key != null) {
-                    input_status_callback(new Plugins.InputFieldStatus("A member's OpenPGP key is not in your keyring: %s".printf(missing_key), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                    input_status_callback(new Plugins.InputFieldStatus(_("A member's OpenPGP key is not in your keyring: %s").printf(missing_key), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                 } else {
                     input_status_callback(new Plugins.InputFieldStatus("", Plugins.InputFieldStatus.MessageType.NONE, Plugins.InputFieldStatus.InputState.NORMAL));
                 }
@@ -225,7 +225,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
                             input_status_callback(new Plugins.InputFieldStatus("", Plugins.InputFieldStatus.MessageType.NONE, Plugins.InputFieldStatus.InputState.NORMAL));
                         } else {
                             debug("OpenPGP: Key %s fetched but not in keyring", key_id_copy);
-                            input_status_callback(new Plugins.InputFieldStatus("This contact's OpenPGP key is not in your keyring.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                            input_status_callback(new Plugins.InputFieldStatus(_("This contact's OpenPGP key is not in your keyring."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                         }
                         return false;
                     });
@@ -234,7 +234,7 @@ private class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
             } else {
                 // No key published by contact
                 debug("OpenPGP: No XEP-0373 key published by %s", conversation.counterpart.to_string());
-                input_status_callback(new Plugins.InputFieldStatus("This contact has not published an OpenPGP key.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                input_status_callback(new Plugins.InputFieldStatus(_("This contact has not published an OpenPGP key."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
             }
             return false; // Don't repeat timeout
         });
