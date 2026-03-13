@@ -107,14 +107,14 @@ public class MqttBotConversation : Object {
      *   Per-account → "MQTT Bot (user@example.org)"
      */
     private string compute_display_name(string key, Account account) {
-        string base_name = "MQTT Bot";
+        string base_name = _("MQTT Bot");
 
         if (key == STANDALONE_KEY) {
             var sa_config = plugin.get_standalone_config();
             if (sa_config.bot_name != null && sa_config.bot_name.strip() != "") {
                 base_name = sa_config.bot_name;
             }
-            return "%s (Standalone)".printf(base_name);
+            return _("%s (Standalone)").printf(base_name);
         } else {
             var acct_config = plugin.get_account_config(account);
             if (acct_config.bot_name != null && acct_config.bot_name.strip() != "") {

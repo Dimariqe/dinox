@@ -179,7 +179,7 @@ public class MqttCommandHandler : Object {
 
             case "rmbridge":
             case "delbridge":
-                response = cmd_rmbridge(arg1);
+                response = cmd_rmbridge(arg1, conversation);
                 break;
 
             case "manager":
@@ -1105,9 +1105,9 @@ public class MqttCommandHandler : Object {
     }
 
     /**
-     * /mqtt rmbridge <number> — Remove bridge rule by index.
+     * /mqtt rmbridge <number> — Remove bridge rule by index (scoped to current connection).
      */
-    private string cmd_rmbridge(string index_str) {
+    private string cmd_rmbridge(string index_str, Conversation conversation) {
         if (index_str == "") {
             return _("Usage: /mqtt rmbridge <number>\n\n" +
                    "Use /mqtt bridges to see rule numbers.");
@@ -1121,7 +1121,14 @@ public class MqttCommandHandler : Object {
         MqttBridgeManager? bm = plugin.get_bridge_manager();
         if (bm == null) return _("Bridge manager not available.");
 
-        if (bm.remove_rule_by_index(index)) {
+        string label = get_connection_key(conversation);
+        var client_rules = bm.get_rules_for_client(label);
+        if (index > client_rules.size) {
+            return _("Bridge rule #%d not found.\n\nUse /mqtt bridges to see rule numbers.").printf(index);
+        }
+
+        string rule_id = client_rules[index - 1].id;
+        if (bm.remove_rule(rule_id)) {
             return _("Bridge rule #%d removed ✔").printf(index);
         } else {
             return _("Bridge rule #%d not found.\n\nUse /mqtt bridges to see rule numbers.").printf(index);
