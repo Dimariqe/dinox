@@ -309,6 +309,49 @@ msgid ""
 msgstr ""
 "%s akzeptiert dieses Gerät nicht. Deshalb verpasst du vielleicht Nachrichten."
 
+#: plugins/omemo/src/ui/call_encryption_entry.vala:36
+msgid "This call is <b>encrypted and verified</b> with OMEMO."
+msgstr "Dieser Anruf ist mit OMEMO <b>verschlüsselt und verifiziert</b>."
+
+#: plugins/omemo/src/ui/call_encryption_entry.vala:40
+msgid "This call is encrypted with OMEMO."
+msgstr "Dieser Anruf ist mit OMEMO verschlüsselt."
+
+#: plugins/omemo/src/ui/encryption_list_entry.vala:57
+msgid "Can't use encryption in a groupchat private message."
+msgstr "Verschlüsselung kann in privaten Gruppenchat-Nachrichten nicht verwendet werden."
+
+#: plugins/omemo/src/ui/encryption_list_entry.vala:65
+msgid "OMEMO is initializing, please wait a moment..."
+msgstr "OMEMO wird initialisiert, bitte einen Moment warten…"
+
+#: plugins/omemo/src/ui/encryption_list_entry.vala:76
+msgid "OMEMO initialization failed. Please try again."
+msgstr "OMEMO-Initialisierung fehlgeschlagen. Bitte erneut versuchen."
+
+#: plugins/omemo/src/ui/encryption_list_entry.vala:97
+msgid "OMEMO can't be used in public (non-members-only) rooms."
+msgstr "OMEMO kann in öffentlichen (nicht nur für Mitglieder) Räumen nicht verwendet werden."
+
+#: plugins/omemo/src/ui/encryption_list_entry.vala:112
+#, c-format
+msgid "A member does not support OMEMO: %s"
+msgstr "Ein Mitglied unterstützt OMEMO nicht: %s"
+
+#: plugins/omemo/src/ui/encryption_list_entry.vala:120
+msgid "This contact does not support OMEMO encryption"
+msgstr "Dieser Kontakt unterstützt keine OMEMO-Verschlüsselung"
+
+#: plugins/omemo/src/ui/contact_details_provider.vala:105
+#, c-format
+msgid " (+%d inactive)"
+msgstr " (+%d inaktiv)"
+
+#: plugins/omemo/src/ui/contact_details_provider.vala:107
+#, c-format
+msgid "%d inactive devices"
+msgstr "%d inaktive Geräte"
+
 #~ msgid "OMEMO Key Management"
 #~ msgstr "OMEMO-Schlüssel Verwaltung"
 
