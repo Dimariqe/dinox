@@ -59,16 +59,24 @@ void main(string[] args) {
         // Suppress "Locale not supported by C library" by falling back gracefully.
         // This happens when the system locale (e.g. a custom locale on openSUSE)
         // isn't available in the C library or in AppImage's bundled glibc.
+        // We must also update LANG so that Gtk.init() (which re-reads the
+        // environment) does not fail with the same warning.
         if (Intl.setlocale(LocaleCategory.ALL, "") == null) {
-            // Current locale is unsupported — try common fallbacks
             string? lang = Environment.get_variable("LANG");
+            string? working_locale = null;
             if (lang != null) {
-                // Try the base language without encoding (e.g. "de_DE" from "de_DE.UTF-8")
                 string base_lang = lang.split(".")[0];
-                if (Intl.setlocale(LocaleCategory.ALL, base_lang + ".UTF-8") == null) {
-                    Intl.setlocale(LocaleCategory.ALL, "C.UTF-8");
+                string candidate = base_lang + ".UTF-8";
+                if (Intl.setlocale(LocaleCategory.ALL, candidate) != null) {
+                    working_locale = candidate;
                 }
             }
+            if (working_locale == null) {
+                Intl.setlocale(LocaleCategory.ALL, "C.UTF-8");
+                working_locale = "C.UTF-8";
+            }
+            // Update environment so Gtk.init() picks up the working locale
+            Environment.set_variable("LC_ALL", working_locale, true);
         }
 
         // GTK4 does not support legacy GTK3-era IM modules.  If GTK_IM_MODULE
