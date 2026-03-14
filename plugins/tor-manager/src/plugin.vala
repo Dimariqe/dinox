@@ -48,7 +48,7 @@ namespace Dino.Plugins.TorManager {
                     page.title = "";
                 });
                 bp.unapply.connect(() => {
-                    page.title = "Tor";
+                    page.title = _("Tor");
                 });
                 dialog.add_breakpoint(bp);
              }

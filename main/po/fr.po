@@ -6643,6 +6643,177 @@ msgstr "Tor désactivé"
 msgid "Tor is disabled"
 msgstr "Tor est désactivé"
 
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…!"
+msgstr "Dring dring… !"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Dependencies for call support not met"
+msgstr "Les dépendances pour le support des appels ne sont pas remplies"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…?"
+msgstr "Dring dring… ?"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Call failed to establish"
+msgstr "L'appel n'a pas pu être établi"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · %s"
+msgstr "QoS %d · %s"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · normal"
+msgstr "QoS %d · normal"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Silent"
+msgstr "Silencieux"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Alert"
+msgstr "Alerte"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Critical"
+msgstr "Critique"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "contains"
+msgstr "contient"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "full"
+msgstr "complet"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "payload"
+msgstr "données utiles"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "short"
+msgstr "court"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "file (URL)"
+msgstr "fichier (URL)"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "Format: %s"
+msgstr "Format : %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "via %s"
+msgstr "via %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Unnamed"
+msgstr "Sans nom"
+
+#: plugins/mqtt/src/plugin.vala
+msgid "MQTT"
+msgstr "MQTT"
+
+#: plugins/tor-manager/src/settings_page.vala:53
+msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+msgstr ""
+"Nécessaire si Tor est bloqué. Prend en charge les ponts obfs4 et WebTunnel."
+
+#: plugins/tor-manager/src/settings_page.vala:142
+msgid "Fetches bridges from Tor Project. Choose transport type:"
+msgstr "Récupère des ponts du projet Tor. Choisissez le type de transport :"
+
+#: plugins/tor-manager/src/settings_page.vala:173
+msgid ""
+"WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
+"is more widely available. Both fetch instantly without CAPTCHA."
+msgstr ""
+"WebTunnel (port 443, ressemble à HTTPS) est idéal pour les pare-feux "
+"stricts. obfs4 est plus disponible. Les deux se récupèrent instantanément "
+"sans CAPTCHA."
+
+#: plugins/tor-manager/src/settings_page.vala:237
+msgid "Error fetching bridges"
+msgstr "Erreur lors de la récupération des ponts"
+
+#: plugins/tor-manager/src/settings_page.vala:286
+msgid "No bridges received. The server may be temporarily unavailable."
+msgstr ""
+"Aucun pont reçu. Le serveur est peut-être temporairement indisponible."
+
+#: plugins/tor-manager/src/settings_page.vala:252
+msgid "Received %d %s bridge(s)."
+msgstr "%d pont(s) %s reçu(s)."
+
+#: plugins/tor-manager/src/settings_page.vala:255
+msgid "%d bridge(s) on standard ports (443/80)."
+msgstr "%d pont(s) sur les ports standard (443/80)."
+
+#: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Firewall"
+msgstr "Pare-feu"
+
+#: main/src/ui/conversation_content_view/message_widget.vala:345
+msgid "Navigate to location"
+msgstr "Naviguer vers le lieu"
+
+#: main/src/ui/util/location_manager.vala:28
+msgid "A location request is already in progress."
+msgstr "Une demande de localisation est déjà en cours."
+
+#: main/src/ui/util/location_manager.vala:37
+msgid "Location services are not available (GeoClue2 not installed)."
+msgstr "Les services de localisation ne sont pas disponibles (GeoClue2 non installé)."
+
+#: main/src/ui/conversation_view_controller.vala:394
+msgid "Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"
+msgstr "Entrez des coordonnées ou collez un lien geo: (par ex. geo:48.2082,16.3738)"
+
+#: main/src/ui/conversation_view_controller.vala:401
+msgid "Latitude"
+msgstr "Latitude"
+
+#: main/src/ui/conversation_view_controller.vala:408
+msgid "Longitude"
+msgstr "Longitude"
+
+#: main/src/ui/conversation_view_controller.vala:415
+msgid "or geo: link"
+msgstr "ou lien geo:"
+
+#: main/src/ui/conversation_view_controller.vala:435
+msgid "Send"
+msgstr "Envoyer"
+
+#: main/src/ui/conversation_view_controller.vala:452
+msgid "Invalid coordinates"
+msgstr "Coordonnées invalides"
+
+#: main/src/ui/conversation_view_controller.vala:452
+msgid "Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."
+msgstr "Veuillez entrer une latitude valide (-90 à 90) et une longitude (-180 à 180)."
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Low location accuracy"
+msgstr "Faible précision de localisation"
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "The detected location has an accuracy of approximately %.0f km. This may be very inaccurate. You can send it anyway or enter coordinates manually."
+msgstr "La position détectée a une précision d'environ %.0f km. Cela peut être très imprécis. Vous pouvez l'envoyer quand même ou entrer les coordonnées manuellement."
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Enter manually"
+msgstr "Saisir manuellement"
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Send anyway"
+msgstr "Envoyer quand même"
+
 #~ msgid "Help: How to join channels"
 #~ msgstr "Aide : Comment rejoindre les canaux"
 
@@ -7042,9 +7213,6 @@ msgstr "Tor est désactivé"
 
 #~ msgid "Check the spelling or try to remove filters"
 #~ msgstr "Vérifiez l’orthographe ou essayez de supprimer des filtres"
-
-#~ msgid "Send"
-#~ msgstr "Envoyer"
 
 #, c-format
 #~ msgid "Sign in to %s"

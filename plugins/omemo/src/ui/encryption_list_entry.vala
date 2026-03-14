@@ -55,7 +55,7 @@ public class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
 
     public async void encryption_activated_async(Entities.Conversation conversation, Plugins.SetInputFieldStatus input_status_callback) {
         if (conversation.type_ == Conversation.Type.GROUPCHAT_PM) {
-            input_status_callback(new Plugins.InputFieldStatus("Can't use encryption in a groupchat private message.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+            input_status_callback(new Plugins.InputFieldStatus(_("Can't use encryption in a groupchat private message."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
             return;
         }
         
@@ -63,7 +63,7 @@ public class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
         int identity_id = db.identity.get_id(conversation.account.id);
         if (identity_id < 0) {
             // Identity not yet created - OMEMO is still initializing (e.g. after Panic Wipe)
-            input_status_callback(new Plugins.InputFieldStatus("OMEMO is initializing, please wait a moment...", Plugins.InputFieldStatus.MessageType.INFO, Plugins.InputFieldStatus.InputState.NO_SEND));
+            input_status_callback(new Plugins.InputFieldStatus(_("OMEMO is initializing, please wait a moment..."), Plugins.InputFieldStatus.MessageType.INFO, Plugins.InputFieldStatus.InputState.NO_SEND));
             
             // Wait for initialization (up to 5 seconds)
             for (int i = 0; i < 10; i++) {
@@ -73,7 +73,7 @@ public class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
             }
             
             if (identity_id < 0) {
-                input_status_callback(new Plugins.InputFieldStatus("OMEMO initialization failed. Please try again.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                input_status_callback(new Plugins.InputFieldStatus(_("OMEMO initialization failed. Please try again."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                 return;
             }
             // Clear the "initializing" message
@@ -96,7 +96,7 @@ public class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
             }
             if (!is_private) {
                 // Still not private after waiting — public room or features unavailable
-                input_status_callback(new Plugins.InputFieldStatus("OMEMO can't be used in public (non-members-only) rooms.", Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                input_status_callback(new Plugins.InputFieldStatus(_("OMEMO can't be used in public (non-members-only) rooms."), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                 return;
             }
             var offline_members = muc_manager.get_offline_members(conversation.counterpart, conversation.account);
@@ -107,7 +107,7 @@ public class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
             foreach (Jid offline_member in offline_members) {
                 bool ok = yield omemo_manager.ensure_get_keys_for_jid(conversation.account, offline_member);
                 if (!ok) {
-                    input_status_callback(new Plugins.InputFieldStatus("A member does not support OMEMO: %s".printf(offline_member.to_string()), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+                    input_status_callback(new Plugins.InputFieldStatus(_("A member does not support OMEMO: %s").printf(offline_member.to_string()), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
                     return;
                 }
             }
@@ -115,7 +115,7 @@ public class EncryptionListEntry : Plugins.EncryptionListEntry, Object {
         }
 
         if (!(yield omemo_manager.ensure_get_keys_for_jid(conversation.account, conversation.counterpart.bare_jid))) {
-            input_status_callback(new Plugins.InputFieldStatus("This contact does not support %s encryption".printf("OMEMO"), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
+            input_status_callback(new Plugins.InputFieldStatus(_("This contact does not support OMEMO encryption"), Plugins.InputFieldStatus.MessageType.ERROR, Plugins.InputFieldStatus.InputState.NO_SEND));
         }
     }
 

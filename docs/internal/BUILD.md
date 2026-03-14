@@ -30,9 +30,10 @@ In particular:
 - **protobuf-c:** Ubuntu 24.04 ships 1.4.1 which has a memory corruption bug in `protobuf_c_message_unpack()` (fixed in 1.5.1). Release builds use **protobuf-c 1.5.2**.
 - **mosquitto:** Ubuntu 24.04 ships 2.0.18. Release builds use **mosquitto 2.1.2** for latest security/protocol fixes.
 - **libomemo-c (OMEMO):** Ubuntu 24.04 ships 0.5.0. Release builds use **libomemo-c 0.5.1** from the [rallep71 fork](https://github.com/rallep71/libomemo-c).
+- **lyrebird (Tor pluggable transport):** Replaces obfs4proxy. Supports both **obfs4** and **WebTunnel** bridges. Release builds use **lyrebird 0.8.1** (built from source, requires `golang-go >= 1.22`). DinoX prefers lyrebird at runtime and falls back to obfs4proxy if lyrebird is not found.
 - **"webrtc" in DinoX does NOT mean Google/libwebrtc:** DinoX uses **GStreamer** (not the full Google WebRTC stack). The relevant pieces are the GStreamer plugins from `gst-plugins-bad` (DTLS/SRTP/WebRTC elements) plus `libnice` for ICE.
 
-> **Recommended:** Use `scripts/ci-build-deps.sh` to build all custom dependencies from source with the same versions as the CI/release builds. This replaces SQLCipher, webrtc-audio-processing, libnice, protobuf-c, libomemo-c, and mosquitto with tested versions.
+> **Recommended:** Use `scripts/ci-build-deps.sh` to build all custom dependencies from source with the same versions as the CI/release builds. This replaces SQLCipher, webrtc-audio-processing, libnice, protobuf-c, libomemo-c, mosquitto, and lyrebird with tested versions.
 - **webrtc-audio-processing (Highly Recommended):** This library provides professional-grade Echo Cancellation (AEC), Noise Suppression (NS), and Automatic Gain Control (AGC).
     - Without it, calls may have echo or background noise.
     - DinoX detects it at build time. If found, it is used automatically.
@@ -120,13 +121,15 @@ sudo apt install \
     libgnutls28-dev \
     libsrtp2-dev \
     libcjson-dev \
-    gstreamer1.0-plugins-good
+    libgeoclue-2-dev \
+    gstreamer1.0-plugins-good \
+    golang-go
 
-# Then build custom dependencies from source (protobuf-c, mosquitto, libomemo-c, etc.)
+# Then build custom dependencies from source (protobuf-c, mosquitto, libomemo-c, lyrebird, etc.)
 ./scripts/ci-build-deps.sh
 ```
 
-> **Note:** `ci-build-deps.sh` builds protobuf-c 1.5.2, mosquitto 2.1.2, libomemo-c 0.5.1, SQLCipher 4.6.1 (FTS5), webrtc-audio-processing 2.1, and libnice 0.1.23 from source. These replace the (often outdated) Ubuntu packages.
+> **Note:** `ci-build-deps.sh` builds protobuf-c 1.5.2, mosquitto 2.1.2, libomemo-c 0.5.1, SQLCipher 4.6.1 (FTS5), webrtc-audio-processing 2.1, libnice 0.1.23, and lyrebird 0.8.1 from source. These replace the (often outdated) Ubuntu packages.
 
 ### Fedora
 
@@ -157,7 +160,9 @@ sudo dnf install \
     libnice-devel \
     gnutls-devel \
     libsrtp2-devel \
-    gstreamer1-plugins-good
+    geoclue2-devel \
+    gstreamer1-plugins-good \
+    golang
 
 # Then build custom dependencies from source
 ./scripts/ci-build-deps.sh
@@ -191,7 +196,9 @@ sudo pacman -S \
     gst-plugin-pipewire \
     libnice \
     gnutls \
-    libsrtp
+    libsrtp \
+    geoclue \
+    go
 
 # Then build custom dependencies from source
 ./scripts/ci-build-deps.sh
@@ -287,6 +294,7 @@ meson configure build -Dplugin-omemo=disabled
 | `plugin-rtp-v4l2-sl` | auto | V4L2 stateless video codec | kernel V4L2 |
 | `plugin-rtp-webrtc-audio-processing` | auto | Echo cancellation, noise suppression, AGC | webrtc-audio-processing |
 | `plugin-mqtt` | auto | MQTT IoT/event integration | libmosquitto |
+| `location-sharing` | auto | Location sharing with map preview (XEP-0080) | libgeoclue-2.0 |
 
 > **auto** = built if the required dependency is found, otherwise silently skipped.
 > **enabled** = build fails if the dependency is missing.
@@ -327,6 +335,39 @@ meson setup build -Dplugin-mqtt=enabled
 | Arch Linux | `sudo pacman -S mosquitto` | latest |
 | MSYS2 (Windows) | `pacman -S mingw-w64-x86_64-mosquitto` | latest |
 | Flatpak | Built from source in manifest | **2.1.2** |
+
+### Location Sharing (Optional)
+
+Location sharing lets users send their GPS position as a map preview in the chat (XEP-0080 User Location). It uses **GeoClue2** (a D-Bus geolocation service) to obtain the device position. GeoClue2 is only available on Linux.
+
+- **Meson option:** `location-sharing` (default: `auto`)
+- **Dependency:** `libgeoclue-2.0` (detected via pkg-config)
+- When set to `auto` (default), location sharing is built if `libgeoclue-2.0` is found, otherwise silently disabled.
+- **Not available on Windows** (GeoClue2 is D-Bus/Linux-only).
+
+```bash
+# Check if libgeoclue is available
+pkg-config --modversion libgeoclue-2.0
+
+# Verify location sharing was built
+meson configure build | grep location
+# Expected: location-sharing  auto  [enabled]
+
+# Force-disable location sharing
+meson setup build -Dlocation-sharing=disabled
+```
+
+#### Install libgeoclue-2.0
+
+| Distro | Command | Notes |
+|--------|---------|-------|
+| Debian/Ubuntu | `sudo apt install libgeoclue-2-dev` | GeoClue2 D-Bus service usually pre-installed |
+| Fedora | `sudo dnf install geoclue2-devel` | |
+| Arch Linux | `sudo pacman -S geoclue` | |
+| Flatpak | Included in GNOME Runtime | D-Bus permission `--talk-name=org.freedesktop.GeoClue2` required (already set) |
+| AppImage | Linked at build time | Uses GeoClue2 D-Bus service from host system |
+
+> **Note:** GeoClue2 is a system D-Bus service. The library (`libgeoclue-2.0`) is only needed at **build time** for the client API. At runtime, DinoX talks to the GeoClue2 service over D-Bus — no special permissions are needed for native builds. Flatpak needs the `--talk-name=org.freedesktop.GeoClue2` finish-arg (already configured). AppImage uses the host D-Bus directly (no sandbox).
 
 ### Windows (MSYS2 / MINGW64)
 
@@ -369,6 +410,7 @@ pacman -S --noconfirm \
     mingw-w64-x86_64-python \
     mingw-w64-x86_64-glib-networking \
     mingw-w64-x86_64-mosquitto \
+    mingw-w64-x86_64-go \
     mingw-w64-x86_64-sqlite3 \
     mingw-w64-x86_64-hicolor-icon-theme \
     mingw-w64-x86_64-adwaita-icon-theme \
@@ -376,7 +418,22 @@ pacman -S --noconfirm \
     tar
 ```
 
-#### 3. Build libomemo-c (required, not available in MSYS2)
+#### 3. Build lyrebird (Tor pluggable transport, not available in MSYS2)
+
+```bash
+cd /tmp
+LYREBIRD_VER=0.8.1
+LYREBIRD_TAG="lyrebird-${LYREBIRD_VER}"
+curl -sL -o "lyrebird-${LYREBIRD_VER}.tar.gz" \
+  "https://gitlab.torproject.org/api/v4/projects/417/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
+tar xf "lyrebird-${LYREBIRD_VER}.tar.gz"
+cd lyrebird-${LYREBIRD_TAG}-*
+CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird.exe ./cmd/lyrebird
+cp lyrebird.exe /mingw64/bin/
+cd -
+```
+
+#### 4. Build libomemo-c (required, not available in MSYS2)
 
 ```bash
 git clone https://github.com/rallep71/libomemo-c.git
@@ -392,7 +449,7 @@ ninja install
 cd ../..
 ```
 
-#### 4. Build DinoX
+#### 5. Build DinoX
 
 ```bash
 git clone https://github.com/rallep71/dinox.git
@@ -401,7 +458,7 @@ meson setup build --prefix=/mingw64
 ninja -C build
 ```
 
-#### 5. Create distribution archive
+#### 6. Create distribution archive
 
 The `scripts/update_dist.sh` script collects the built executable, all required DLLs, and runtime data into a `dist/` folder:
 
@@ -413,7 +470,7 @@ The resulting `dist/` directory contains everything needed to run DinoX on Windo
 
 #### Windows notes
 
-- **Tor/Obfs4proxy**: Bundled and fully functional on Windows. Tor and obfs4proxy bridges work out of the box.
+- **Tor/Lyrebird/Obfs4proxy**: Bundled and fully functional on Windows. Lyrebird (obfs4 + WebTunnel) is preferred at runtime; obfs4proxy serves as fallback. Build lyrebird from source (step 3) — it is not available as an MSYS2 package.
 - **libsecret/D-Bus**: Not used on Windows. Passwords are handled differently.
 - **libcanberra**: Notification sounds (message + call ringtone) are enabled by default on all Linux builds (native, Flatpak, AppImage) via `auto` detection. Not available on Windows (libcanberra is Linux-only). See [Development Plan](DEVELOPMENT_PLAN.md) for cross-platform notification sound plans.
 - **webrtc-audio-processing**: MSYS2 provides version 0.3 and 1.x. DinoX auto-detects and uses whatever is available. Version 2.x is not yet packaged for MSYS2.
@@ -510,8 +567,8 @@ All scripts live in the `scripts/` directory. Debug scripts are documented in [D
 | Script | Purpose |
 |--------|--------|
 | `scripts/build-appimage.sh` | Build a portable AppImage for Linux. Auto-detects architecture (x86_64/aarch64), copies runtime libraries, GStreamer plugins, and icons into an AppDir, then packages it with `appimagetool`. Use on a clean build host for reproducible results. |
-| `scripts/update_dist.sh` | Collect the Windows build into a `dist/` folder: `dinox.exe`, all required DLLs, GStreamer plugins, Tor/obfs4proxy binaries, SSL certs, icons. Run after `ninja -C build` in MSYS2. |
-| `scripts/ci-build-deps.sh` | CI pipeline script: runs `scripts/scan_unicode.py`, then builds **SQLCipher** (with FTS5), **webrtc-audio-processing**, **libnice**, **protobuf-c**, **libomemo-c**, and **mosquitto** from source. Used in automated builds and AppImage CI to prepare dependencies. |
+| `scripts/update_dist.sh` | Collect the Windows build into a `dist/` folder: `dinox.exe`, all required DLLs, GStreamer plugins, Tor/lyrebird/obfs4proxy binaries, SSL certs, icons. Run after `ninja -C build` in MSYS2. |
+| `scripts/ci-build-deps.sh` | CI pipeline script: runs `scripts/scan_unicode.py`, then builds **SQLCipher** (with FTS5), **webrtc-audio-processing**, **libnice**, **protobuf-c**, **libomemo-c**, **mosquitto**, and **lyrebird** from source. Requires `golang-go >= 1.22` for lyrebird. Used in automated builds and AppImage CI to prepare dependencies. |
 | `scripts/dinox.bat` | Windows launcher (legacy/fallback). Sets `PATH` and launches `dinox.exe`. Kept for backward compatibility — `dinox.exe` now sets all environment variables internally. |
 
 ### Release

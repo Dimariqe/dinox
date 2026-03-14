@@ -8,7 +8,7 @@
             </item>
             <item>
                 <attribute name="action">app.add_conference</attribute>
-                <attribute name="label" translatable="yes">Join Channel</attribute>
+                <attribute name="label" translatable="yes">Join Group</attribute>
             </item>
         </section>
     </menu>

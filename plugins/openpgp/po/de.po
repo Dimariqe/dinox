@@ -275,6 +275,45 @@ msgstr "Löschen fehlgeschlagen: "
 #~ msgid "Querying GnuPG"
 #~ msgstr "GnuPG wird abgefragt"
 
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "No conversation selected."
+msgstr "Keine Konversation ausgewählt."
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "You didn't configure OpenPGP for this account. You can do that in the Accounts Dialog."
+msgstr "Du hast OpenPGP für dieses Konto nicht eingerichtet. Das kannst du im Konten-Dialog tun."
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "This contact's OpenPGP key is not in your keyring."
+msgstr "Der OpenPGP-Schlüssel dieses Kontakts ist nicht in deinem Schlüsselbund."
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "Fetching contact's OpenPGP key via PubSub..."
+msgstr "OpenPGP-Schlüssel des Kontakts wird über PubSub abgerufen..."
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+#, c-format
+msgid "This contact does not support %s encryption."
+msgstr "Dieser Kontakt unterstützt keine %s-Verschlüsselung."
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "OpenPGP manager not available."
+msgstr "OpenPGP-Manager nicht verfügbar."
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+#, c-format
+msgid "A member's OpenPGP key is not configured: %s"
+msgstr "Der OpenPGP-Schlüssel eines Mitglieds ist nicht konfiguriert: %s"
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+#, c-format
+msgid "A member's OpenPGP key is not in your keyring: %s"
+msgstr "Der OpenPGP-Schlüssel eines Mitglieds ist nicht in deinem Schlüsselbund: %s"
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "This contact has not published an OpenPGP key."
+msgstr "Dieser Kontakt hat keinen OpenPGP-Schlüssel veröffentlicht."
+
 #~ msgid "Encryption"
 #~ msgstr "Verschlüsselung"
 

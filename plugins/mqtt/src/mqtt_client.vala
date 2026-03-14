@@ -50,6 +50,11 @@ public class MqttClient : Object {
     private uint misc_timer_id = 0;
     private uint reconnect_timer_id = 0;
 
+    /* Exponential reconnect backoff (Robustness R2) */
+    private uint reconnect_delay_secs = 5;
+    private const uint RECONNECT_DELAY_MIN = 5;
+    private const uint RECONNECT_DELAY_MAX = 300;  /* 5 minutes */
+
     /* Stored for reconnection */
     private string broker_host = "";
     private int broker_port = 1883;
@@ -239,6 +244,8 @@ public class MqttClient : Object {
             warning("MQTT: TCP connect to %s:%d failed (rc=%d: %s)",
                     host, port, tcp_rc, rc_to_string(tcp_rc));
             mosq = null;
+            /* Notify listeners so UI doesn’t stay stuck on “Connecting…” (R3) */
+            on_connection_changed(false);
             return false;
         }
 
@@ -282,6 +289,8 @@ public class MqttClient : Object {
             mosq.disconnect();
             mosq = null;
             initial_connect_done = false;
+            /* Notify listeners so UI doesn’t stay stuck on “Connecting…” (R3) */
+            on_connection_changed(false);
             return false;
         }
 
@@ -426,7 +435,8 @@ public class MqttClient : Object {
 
         if (rc == 0) {
             is_connected = true;
-
+            /* Reset reconnect backoff on success (R2) */
+            reconnect_delay_secs = RECONNECT_DELAY_MIN;
             /* Re-subscribe topics BEFORE signal — prevents double-subscribe
              * because on_connection_changed handlers won't re-subscribe */
             foreach (var entry in subscribed_topics.entries) {
@@ -458,8 +468,8 @@ public class MqttClient : Object {
 
         if (was_connected) {
             on_connection_changed(false);
-            warning("MQTT: Connection lost (rc=%d: %s), reconnecting in 5 s…",
-                    rc, rc_to_string(rc));
+            warning("MQTT: Connection lost (rc=%d: %s), reconnecting in %u s…",
+                    rc, rc_to_string(rc), reconnect_delay_secs);
             schedule_reconnect();
         }
     }
@@ -517,11 +527,16 @@ public class MqttClient : Object {
         if (reconnect_timer_id != 0) return;
         if (!initial_connect_done) return;    /* first connect never succeeded */
 
-        reconnect_timer_id = Timeout.add_seconds(5, () => {
+        debug("MQTT: Scheduling reconnect in %u s…", reconnect_delay_secs);
+        reconnect_timer_id = Timeout.add_seconds(reconnect_delay_secs, () => {
             reconnect_timer_id = 0;
             attempt_reconnect.begin();
             return false;
         });
+
+        /* Exponential backoff: double delay for next failure, capped (R2) */
+        reconnect_delay_secs = uint.min(
+            reconnect_delay_secs * 2, RECONNECT_DELAY_MAX);
     }
 
     private async void attempt_reconnect() {

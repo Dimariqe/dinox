@@ -267,3 +267,42 @@ msgstr ""
 #: plugins/openpgp/src/key_management_dialog.vala:538
 msgid "Delete failed: "
 msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "No conversation selected."
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "You didn't configure OpenPGP for this account. You can do that in the Accounts Dialog."
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "This contact's OpenPGP key is not in your keyring."
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "Fetching contact's OpenPGP key via PubSub..."
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+#, c-format
+msgid "This contact does not support %s encryption."
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "OpenPGP manager not available."
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+#, c-format
+msgid "A member's OpenPGP key is not configured: %s"
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+#, c-format
+msgid "A member's OpenPGP key is not in your keyring: %s"
+msgstr ""
+
+#: plugins/openpgp/src/encryption_list_entry.vala
+msgid "This contact has not published an OpenPGP key."
+msgstr ""

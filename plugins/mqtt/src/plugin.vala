@@ -64,9 +64,21 @@ public class Plugin : RootInterface, Object {
     private HashMap<string, MqttDiscoveryManager> discovery_managers =
         new HashMap<string, MqttDiscoveryManager>();
 
+    /* ── Retained message dedup cache ─────────────────────────────── */
+    /* Key: "label\ttopic", Value: payload hash.
+     * Prevents re-injecting the same retained message on every reconnect. */
+    private HashMap<string, string> retained_cache =
+        new HashMap<string, string>();
+
     /* Auto-purge timer (every 6 hours) */
     private uint purge_timer_id = 0;
     private const uint PURGE_INTERVAL_SECS = 6 * 3600;  /* 6 hours */
+
+    /** Build an xmpp: URI that opens /mqtt help when clicked. */
+    private string mqtt_help_uri(Conversation conv) {
+        return "xmpp:" + conv.counterpart.to_string() + "?message;body=" +
+               GLib.Uri.escape_string("/mqtt help", "/", true);
+    }
 
     /* ── Backward-compat: legacy global flags (read-only after migration) ── */
     private bool mqtt_enabled = false;
@@ -81,6 +93,12 @@ public class Plugin : RootInterface, Object {
     private string? cfg_user = null;
     private string? cfg_pass = null;
     private string[] cfg_topics = {};
+
+    /* ── Signal handler IDs (for proper cleanup) ──────────────────── */
+    private ulong sig_pre_message_send = 0;
+    private ulong sig_connection_state_changed = 0;
+    private ulong sig_configure_preferences = 0;
+    private ulong sig_open_mqtt_manager = 0;
 
     /* ── Sub-systems ──────────────────────────────────────────────── */
     public MqttBotConversation? bot_conversation = null;
@@ -180,17 +198,17 @@ public class Plugin : RootInterface, Object {
         bridge_manager = new MqttBridgeManager(this);
 
         /* Register settings page */
-        app.configure_preferences.connect(on_preferences_configure);
+        sig_configure_preferences = app.configure_preferences.connect(on_preferences_configure);
 
         /* Register account MQTT Bot manager signal */
-        app.open_account_mqtt_manager.connect(on_open_account_mqtt_manager);
+        sig_open_mqtt_manager = app.open_account_mqtt_manager.connect(on_open_account_mqtt_manager);
 
         /* Listen for XMPP connection state changes (per-account MQTT lifecycle) */
-        app.stream_interactor.connection_manager.connection_state_changed.connect(
+        sig_connection_state_changed = app.stream_interactor.connection_manager.connection_state_changed.connect(
             on_xmpp_connection_state_changed);
 
         /* Intercept outgoing messages to the MQTT bot (prevent XMPP send) */
-        app.stream_interactor.get_module<MessageProcessor>(
+        sig_pre_message_send = app.stream_interactor.get_module<MessageProcessor>(
             MessageProcessor.IDENTITY).pre_message_send.connect(
                 on_pre_message_send);
 
@@ -212,6 +230,12 @@ public class Plugin : RootInterface, Object {
     }
 
     public void shutdown() {
+        /* Disconnect signal handlers to prevent interference with
+         * other plugins (video calls, file transfers) after disable.
+         * Without this, handlers on pre_message_send and
+         * connection_state_changed remain active permanently. */
+        disconnect_signal_handlers();
+
         /* Stop periodic purge timer */
         if (purge_timer_id != 0) {
             Source.remove(purge_timer_id);
@@ -253,6 +277,36 @@ public class Plugin : RootInterface, Object {
         account_clients.clear();
 
         message("MQTT plugin: shutdown");
+    }
+
+    /**
+     * Disconnect all signal handlers from core DinoX components.
+     * This ensures the MQTT plugin doesn't interfere with other
+     * subsystems (RTP video calls, file transfers, etc.) after being
+     * disabled at runtime. Without this, leaked handlers can:
+     * - Block the main loop on every outgoing message
+     * - Trigger bridge flushes and server detection on XMPP reconnect
+     * - Hold stale build_message_stanza handlers that scan every message
+     */
+    private void disconnect_signal_handlers() {
+        if (sig_pre_message_send != 0) {
+            var mp = app.stream_interactor.get_module<MessageProcessor>(
+                MessageProcessor.IDENTITY);
+            if (mp != null) mp.disconnect(sig_pre_message_send);
+            sig_pre_message_send = 0;
+        }
+        if (sig_connection_state_changed != 0) {
+            app.stream_interactor.connection_manager.disconnect(sig_connection_state_changed);
+            sig_connection_state_changed = 0;
+        }
+        if (sig_configure_preferences != 0) {
+            app.disconnect(sig_configure_preferences);
+            sig_configure_preferences = 0;
+        }
+        if (sig_open_mqtt_manager != 0) {
+            app.disconnect(sig_open_mqtt_manager);
+            sig_open_mqtt_manager = 0;
+        }
     }
 
     public void rekey_database(string new_key) throws Error {
@@ -531,6 +585,8 @@ public class Plugin : RootInterface, Object {
                 /* Same connection params — just re-sync topics */
                 debug("[STANDALONE] No connection change — syncing topics only");
                 sync_topics_to_client_cfg(standalone_client, standalone_config, "standalone");
+                /* HA Discovery: live enable/disable without reconnect */
+                sync_discovery("standalone", standalone_client, standalone_config);
                 /* NOTE: Do NOT return here! Per-account handling follows below
                  * and must not be skipped just because standalone didn't change. */
             } else {
@@ -556,6 +612,9 @@ public class Plugin : RootInterface, Object {
             /* Standalone disabled → disconnect if running */
             if (standalone_client != null) {
                 debug("[STANDALONE] Disabled → disconnecting");
+                /* Clean up discovery retained messages before disconnect —
+                 * clean disconnect does NOT trigger LWT. */
+                cleanup_discovery_before_disconnect("standalone", standalone_client);
                 standalone_client.disconnect_sync();
                 standalone_client = null;
                 /* Note: disconnect_sync() already fires connection_changed
@@ -592,10 +651,14 @@ public class Plugin : RootInterface, Object {
                 } else if (account_clients.has_key(jid)) {
                     /* Already connected — re-sync topics */
                     sync_topics_to_client_cfg(account_clients[jid], acfg, jid);
+                    /* HA Discovery: live enable/disable without reconnect */
+                    sync_discovery(jid, account_clients[jid], acfg);
                 }
             } else if (!acfg.enabled && account_clients.has_key(jid)) {
                 /* Disabled → disconnect */
                 debug("[ACCT:%s] Disabled → disconnecting MQTT", jid);
+                /* Clean up discovery retained messages before disconnect */
+                cleanup_discovery_before_disconnect(jid, account_clients[jid]);
                 account_clients[jid].disconnect_sync();
                 account_clients.unset(jid);
                 /* Remove per-account bot conversation */
@@ -615,6 +678,50 @@ public class Plugin : RootInterface, Object {
             if (bot_conversation != null) {
                 bot_conversation.remove_all();
             }
+        }
+    }
+
+    /**
+     * Ensure discovery state matches config for a live connection.
+     * Creates DiscoveryManager + publishes configs if discovery is now enabled,
+     * or removes retained messages + destroys manager if now disabled.
+     *
+     * Does NOT set LWT (requires pre-connect); LWT takes effect on next reconnect.
+     * Safe to call repeatedly — only acts on state transitions.
+     */
+    private void sync_discovery(string label, MqttClient client, MqttConnectionConfig cfg) {
+        bool is_xmpp_mode = cfg.use_xmpp_auth || cfg.broker_host.strip() == "";
+        if (cfg.discovery_enabled && !is_xmpp_mode) {
+            if (!discovery_managers.has_key(label)) {
+                var dm = new MqttDiscoveryManager(this, client, label, cfg.discovery_prefix);
+                discovery_managers[label] = dm;
+                dm.publish_birth();
+                dm.publish_discovery_config();
+                dm.publish_all_states();
+                dm.subscribe_ha_status();
+                debug("[%s] HA Discovery started (live)", label);
+            }
+        } else {
+            if (discovery_managers.has_key(label)) {
+                discovery_managers[label].remove_discovery_configs();
+                discovery_managers.unset(label);
+                debug("[%s] HA Discovery stopped (live)", label);
+            }
+        }
+    }
+
+    /**
+     * Publish offline availability and remove discovery configs for a label.
+     * Must be called BEFORE disconnect_sync() — clean disconnect does NOT
+     * trigger the LWT, so retained "online" would persist on the broker.
+     */
+    private void cleanup_discovery_before_disconnect(string label, MqttClient? client) {
+        if (discovery_managers.has_key(label) && client != null && client.is_connected) {
+            var dm = discovery_managers[label];
+            client.publish_string(dm.get_availability_topic(), dm.get_lwt_payload(), 1, true);
+            dm.remove_discovery_configs();
+            discovery_managers.unset(label);
+            debug("[%s] HA Discovery cleaned up before disconnect", label);
         }
     }
 
@@ -793,7 +900,7 @@ public class Plugin : RootInterface, Object {
                     Adw.BreakpointConditionLengthType.MAX_WIDTH, 600,
                     Adw.LengthUnit.PX));
             bp.apply.connect(() => { page.title = ""; });
-            bp.unapply.connect(() => { page.title = "MQTT"; });
+            bp.unapply.connect(() => { page.title = _("MQTT"); });
             dialog.add_breakpoint(bp);
         }
     }
@@ -911,6 +1018,8 @@ public class Plugin : RootInterface, Object {
         if (!cfg.enabled) {
             /* Disabled — disconnect if connected */
             if (account_clients.has_key(acct_jid)) {
+                /* Clean up discovery retained messages before disconnect */
+                cleanup_discovery_before_disconnect(acct_jid, account_clients[acct_jid]);
                 account_clients[acct_jid].disconnect_sync();
                 account_clients.unset(acct_jid);
                 debug("[ACCT:%s] Disabled → disconnected", acct_jid);
@@ -930,26 +1039,7 @@ public class Plugin : RootInterface, Object {
                     sync_topics_to_client_cfg(account_clients[jid], cfg, jid);
 
                     /* HA Discovery: live start/stop without requiring reconnect */
-                    bool is_xmpp_mode = cfg.use_xmpp_auth || cfg.broker_host.strip() == "";
-                    if (cfg.discovery_enabled && !is_xmpp_mode) {
-                        if (!discovery_managers.has_key(jid)) {
-                            /* Start discovery on already-connected client */
-                            var dm = new MqttDiscoveryManager(this, account_clients[jid], jid, cfg.discovery_prefix);
-                            discovery_managers[jid] = dm;
-                            dm.publish_birth();
-                            dm.publish_discovery_config();
-                            dm.publish_all_states();
-                            dm.subscribe_ha_status();
-                            debug("[ACCT:%s] HA Discovery started (live)", jid);
-                        }
-                    } else {
-                        if (discovery_managers.has_key(jid)) {
-                            /* Stop discovery — remove configs from broker */
-                            discovery_managers[jid].remove_discovery_configs();
-                            discovery_managers.unset(jid);
-                            debug("[ACCT:%s] HA Discovery stopped (live)", jid);
-                        }
-                    }
+                    sync_discovery(jid, account_clients[jid], cfg);
 
                     /* Notify UI — no connect/disconnect happened so no signal would fire,
                      * but the dialog needs to update status from "Connecting…" to "Connected". */
@@ -978,6 +1068,10 @@ public class Plugin : RootInterface, Object {
 
     private void on_xmpp_connection_state_changed(Account account,
                                                   ConnectionManager.ConnectionState state) {
+        /* Early exit: if MQTT is entirely disabled, don't interfere
+         * with XMPP connection handling at all. */
+        if (!mqtt_enabled) return;
+
         string jid = account.bare_jid.to_string();
 
         if (state == ConnectionManager.ConnectionState.CONNECTED) {
@@ -1010,6 +1104,16 @@ public class Plugin : RootInterface, Object {
             /* Per-account: disconnect MQTT when XMPP goes offline */
             if (account_clients.has_key(jid)) {
                 debug("[ACCT:%s] XMPP offline → disconnecting per-account MQTT", jid);
+                /* Publish offline availability before clean disconnect —
+                 * LWT only fires on unclean disconnect (TCP timeout). */
+                if (discovery_managers.has_key(jid)) {
+                    var dm = discovery_managers[jid];
+                    var cl = account_clients[jid];
+                    if (cl.is_connected) {
+                        cl.publish_string(dm.get_availability_topic(), dm.get_lwt_payload(), 1, true);
+                    }
+                    /* Don't remove configs — XMPP will reconnect and re-publish */
+                }
                 account_clients[jid].disconnect_sync();
                 account_clients.unset(jid);
                 /* Note: disconnect_sync() already fires connection_changed
@@ -1113,8 +1217,8 @@ public class Plugin : RootInterface, Object {
                             _("💡 Your XMPP server (%s) supports MQTT!\n\n").printf(server_label) +
                             _("MQTT is not yet enabled for %s.\n").printf(account.bare_jid.to_string()) +
                             _("To enable it, go to:\n" +
-                            "  Account Settings → MQTT Bot → Enable MQTT\n\n" +
-                            "Or type: /mqtt help"));
+                            "  Account Settings → MQTT Bot → Enable MQTT\n\n") +
+                            mqtt_help_uri(conv) + " — " + _("Show commands"));
                     }
                 }
             }
@@ -1300,10 +1404,10 @@ public class Plugin : RootInterface, Object {
                         var conv = bot_conversation.ensure_standalone_conversation();
                         if (conv != null) {
                             /* Register under "standalone" key */
-                            bot_conversation.inject_bot_message(conv,
-                                _("MQTT Bot connected ✔\n\n" +
-                                "Type /mqtt help for available commands.\n" +
-                                "Subscribed MQTT messages will appear here."));
+                        bot_conversation.inject_bot_message(conv,
+                                _("MQTT Bot connected ✔\n\n") +
+                                mqtt_help_uri(conv) + " — " + _("Show commands") + "\n" +
+                                _("Subscribed MQTT messages will appear here."));
                         }
                     } else {
                         /* Per-account: label is the account JID */
@@ -1314,7 +1418,7 @@ public class Plugin : RootInterface, Object {
                                 if (conv != null) {
                                     bot_conversation.inject_bot_message(conv,
                                         _("MQTT Bot connected for %s ✔\n\n").printf(label) +
-                                        _("Type /mqtt help for available commands."));
+                                        mqtt_help_uri(conv) + " — " + _("Show commands"));
                                 }
                                 break;
                             }
@@ -1375,8 +1479,67 @@ public class Plugin : RootInterface, Object {
              * If a bridge rule matched, the message goes to the configured
              * MUC/chat — do NOT also show it in the bot conversation. */
             bool bridged = false;
+            bool is_html = is_html_payload(payload_str);
+            string? stream_url = extract_stream_url(payload_str);
+            string? binary_ext = detect_binary_type(payload);
             if (bridge_manager != null && !is_own_freetext) {
-                bridged = bridge_manager.evaluate(label, topic, payload_str);
+                /* Check for binary payload (images etc.) — save to temp
+                 * file and pass as local path instead of garbled text. */
+                if (binary_ext != null) {
+                    /* Reject oversized binary payloads (10 MB limit) */
+                    if (payload.length > 10 * 1024 * 1024) {
+                        debug("MQTT Bridge: Binary %s too large (%d bytes) — skipping",
+                              binary_ext, payload.length);
+                    } else {
+                        /* Offload file write to a background thread to avoid
+                         * blocking the main loop — large payloads (up to 10 MB)
+                         * would otherwise stall RTP/Jingle video calls and
+                         * ICE negotiation. */
+                        uint8[] payload_copy = payload;
+                        string ext_copy = binary_ext;
+                        string label_copy = label;
+                        string topic_copy = topic;
+                        new Thread<void*>("mqtt-binary-save", () => {
+                            string? temp_path = save_binary_payload(payload_copy, ext_copy);
+                            Idle.add(() => {
+                                if (temp_path != null && bridge_manager != null) {
+                                    debug("MQTT Bridge: Binary %s detected (%d bytes), saved to %s",
+                                          ext_copy, payload_copy.length, temp_path);
+                                    bool b = bridge_manager.evaluate_binary(label_copy, topic_copy, temp_path);
+                                    if (!b) {
+                                        GLib.FileUtils.unlink(temp_path);
+                                    } else {
+                                        string tp = temp_path;
+                                        Timeout.add_seconds(120, () => {
+                                            GLib.FileUtils.unlink(tp);
+                                            return false;
+                                        });
+                                    }
+                                } else if (temp_path == null) {
+                                    warning("MQTT Bridge: Binary %s detected but failed to save temp file",
+                                            ext_copy);
+                                }
+                                return false;
+                            });
+                            return null;
+                        });
+                        bridged = true;  /* assume bridged — actual result on main loop */
+                    }
+                } else if (stream_url != null) {
+                    /* M3U/PLS playlist — forward the extracted stream URL */
+                    debug("MQTT Bridge: Stream URL extracted from playlist on '%s': %s",
+                          topic, stream_url);
+                    bridged = bridge_manager.evaluate(label, topic, stream_url);
+                } else if (is_html) {
+                    /* HTML pages (e.g. from Node-RED http-request with ret=txt)
+                     * contain thousands of broken URL fragments that crash
+                     * URL preview widgets or produce garbage in XMPP chats.
+                     * Don't forward HTML verbatim — just log it. */
+                    debug("MQTT Bridge: HTML payload detected (%d bytes) on topic '%s' — skipping bridge",
+                          payload_str.length, topic);
+                } else {
+                    bridged = bridge_manager.evaluate(label, topic, payload_str);
+                }
             }
 
             /* Phase 3: Evaluate alert rules and determine priority */
@@ -1385,24 +1548,38 @@ public class Plugin : RootInterface, Object {
                 var result = alert_manager.evaluate(topic, payload_str);
                 priority = result.priority;
 
-                /* If paused, still record history (done in evaluate)
-                 * but don't display as chat bubble */
-                if (alert_manager.paused && priority < MqttPriority.ALERT) {
-                    /* Still record to DB even when paused */
-                    if (mqtt_db != null) {
-                        mqtt_db.record_message(label, topic, payload_str,
-                                               qos, retained,
-                                               priority.to_string_key());
-                    }
-                    return;
-                }
-
                 /* Log triggered alerts */
                 if (result.triggered_rules.size > 0) {
                     debug("MQTT [%s]: Alert triggered on %s (%d rules, priority=%s)",
                             label, topic, result.triggered_rules.size,
                             priority.to_string_key());
                 }
+            }
+
+            /* Retained message dedup: skip if the same retained message
+             * was already seen.  Retained messages are re-delivered by
+             * the broker on every reconnect — without this check they
+             * flood both the DB and the chat with duplicates.
+             * Non-retained messages always pass through. */
+            if (retained) {
+                string dedup_key = label + "\t" + topic;
+                string payload_hash = Checksum.compute_for_string(ChecksumType.SHA256, payload_str);
+                if (retained_cache.has_key(dedup_key) &&
+                    retained_cache[dedup_key] == payload_hash) {
+                    return;
+                }
+                retained_cache[dedup_key] = payload_hash;
+            }
+
+            /* If paused, record to DB but don't display as chat bubble */
+            if (alert_manager != null && alert_manager.paused
+                    && priority < MqttPriority.ALERT) {
+                if (mqtt_db != null) {
+                    mqtt_db.record_message(label, topic, payload_str,
+                                           qos, retained,
+                                           priority.to_string_key());
+                }
+                return;
             }
 
             /* Record message to DB */
@@ -1414,13 +1591,42 @@ public class Plugin : RootInterface, Object {
 
             /* Inject into bot conversation with priority.
              * Always show in bot — even if also forwarded by a bridge rule,
-             * so the user sees the full MQTT traffic in the bot chat. */
+             * so the user sees the full MQTT traffic in the bot chat.
+             * For binary payloads, show a description instead of garbled text.
+             * For HTML payloads, show a summary instead of the raw HTML. */
             if (bot_conversation != null) {
                 Conversation? conv = bot_conversation.get_conversation(label);
                 if (conv == null) conv = bot_conversation.get_any_conversation();
                 if (conv != null) {
-                    bot_conversation.inject_mqtt_message(
-                        conv, topic, payload_str, priority);
+                    if (binary_ext != null) {
+                        string info = "📎 [%s] %s (%d bytes)".printf(
+                            topic, binary_ext.up(), payload.length);
+                        if (bridged) {
+                            info += " → bridge forwarded";
+                        }
+                        bot_conversation.inject_mqtt_message(
+                            conv, topic, info, priority);
+                    } else if (stream_url != null) {
+                        string info = "📻 [%s] Stream: %s".printf(topic, stream_url);
+                        if (bridged) {
+                            info += " → bridge forwarded";
+                        }
+                        bot_conversation.inject_mqtt_message(
+                            conv, topic, info, priority);
+                    } else if (is_html) {
+                        string info = "🌐 [%s] HTML (%d bytes)".printf(
+                            topic, payload_str.length);
+                        bot_conversation.inject_mqtt_message(
+                            conv, topic, info, priority);
+                    } else {
+                        /* Truncate very large text payloads to prevent UI hangs */
+                        string display_str = payload_str;
+                        if (display_str.length > 4096) {
+                            display_str = display_str.substring(0, 4096) + "\n… (%d bytes truncated)".printf(payload_str.length - 4096);
+                        }
+                        bot_conversation.inject_mqtt_message(
+                            conv, topic, display_str, priority);
+                    }
                 }
             }
         });
@@ -1518,9 +1724,9 @@ public class Plugin : RootInterface, Object {
                 Idle.add(() => {
                     message.marked = Entities.Message.Marked.SENT;
                     bot_conversation.inject_bot_message(conversation,
-                        _("I only understand /mqtt commands.\n\n" +
-                        "Type /mqtt help for available commands.\n" +
-                        "To enable free-text publishing, configure it in\n" +
+                        _("I only understand /mqtt commands.") + "\n\n" +
+                        mqtt_help_uri(conversation) + " — " + _("Show commands") + "\n" +
+                        _("To enable free-text publishing, configure it in\n" +
                         "Account Settings → MQTT Bot → Publish &amp; Free Text."));
                     return false;
                 });
@@ -1728,6 +1934,32 @@ public class Plugin : RootInterface, Object {
         return discovery_managers;
     }
 
+    /**
+     * Remove a discovery manager entry from the internal HashMap.
+     * Used by command_handler after calling remove_discovery_configs().
+     */
+    public void remove_discovery_manager(string label) {
+        discovery_managers.unset(label);
+    }
+
+    /**
+     * Clear the retained-message dedup cache for a connection label.
+     * Called by /mqtt clear so that retained messages re-appear if the
+     * user explicitly reconnects after clearing history.
+     */
+    public void clear_retained_cache(string label) {
+        var to_remove = new Gee.ArrayList<string>();
+        string prefix = label + "\t";
+        foreach (string key in retained_cache.keys) {
+            if (key.has_prefix(prefix)) {
+                to_remove.add(key);
+            }
+        }
+        foreach (string key in to_remove) {
+            retained_cache.unset(key);
+        }
+    }
+
     /* ── App-DB settings helpers (shared by AlertManager, BridgeManager) ── */
 
     public string? get_app_db_setting(string key) {
@@ -1762,6 +1994,167 @@ public class Plugin : RootInterface, Object {
      * source = account JID (per-account) or "standalone".
      */
     public signal void connection_changed(string source, bool connected);
+
+    /* ── Binary payload detection ────────────────────────────────── */
+
+    /**
+     * Detect binary file type from magic bytes in MQTT payload.
+     * Returns file extension (e.g. "png", "jpg") or null if not binary.
+     */
+    private static string? detect_binary_type(uint8[] data) {
+        if (data.length < 12) return null;
+
+        /* ── Images ── */
+        /* PNG: \x89PNG\r\n\x1A\n */
+        if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47) return "png";
+        /* JPEG: \xFF\xD8\xFF */
+        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF) return "jpg";
+        /* GIF: GIF87a or GIF89a */
+        if (data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38) return "gif";
+        /* WebP: RIFF....WEBP */
+        if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46
+            && data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50) return "webp";
+        /* BMP: BM + valid file-size field (bytes 2-5, little-endian, must match data length)
+         * and reserved bytes 6-9 must be zero. Prevents false positive on text like "BMS voltage". */
+        if (data[0] == 0x42 && data[1] == 0x4D
+            && data[6] == 0x00 && data[7] == 0x00 && data[8] == 0x00 && data[9] == 0x00) {
+            uint32 bmp_size = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+            if (bmp_size >= 54 && bmp_size == data.length) return "bmp";
+        }
+
+        /* ── Audio ── */
+        /* MP3: ID3 tag or MPEG sync word with valid version/layer bits.
+         * Sync: 11 bits set (0xFF + 3 MSBs of byte 1), then version != 01, layer != 00 */
+        if (data[0] == 0x49 && data[1] == 0x44 && data[2] == 0x33) return "mp3";
+        if (data[0] == 0xFF && (data[1] & 0xE0) == 0xE0) {
+            uint8 version = (data[1] >> 3) & 0x03;  /* 00=2.5, 01=reserved, 10=2, 11=1 */
+            uint8 layer   = (data[1] >> 1) & 0x03;  /* 00=reserved, 01=III, 10=II, 11=I */
+            if (version != 0x01 && layer != 0x00) return "mp3";
+        }
+        /* OGG: OggS */
+        if (data[0] == 0x4F && data[1] == 0x67 && data[2] == 0x67 && data[3] == 0x53) return "ogg";
+        /* FLAC: fLaC */
+        if (data[0] == 0x66 && data[1] == 0x4C && data[2] == 0x61 && data[3] == 0x43) return "flac";
+        /* WAV: RIFF....WAVE */
+        if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46
+            && data[8] == 0x57 && data[9] == 0x41 && data[10] == 0x56 && data[11] == 0x45) return "wav";
+
+        /* ── Video ── */
+        /* MP4/M4A/M4V: ....ftyp (offset 4) */
+        if (data[4] == 0x66 && data[5] == 0x74 && data[6] == 0x79 && data[7] == 0x70) return "mp4";
+        /* MKV/WebM: \x1A\x45\xDF\xA3 (EBML header) */
+        if (data[0] == 0x1A && data[1] == 0x45 && data[2] == 0xDF && data[3] == 0xA3) return "mkv";
+        /* AVI: RIFF....AVI  */
+        if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46
+            && data[8] == 0x41 && data[9] == 0x56 && data[10] == 0x49 && data[11] == 0x20) return "avi";
+
+        /* ── Documents ── */
+        /* PDF: %PDF */
+        if (data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46) return "pdf";
+        /* ZIP (also DOCX/XLSX/etc.): PK\x03\x04 */
+        if (data[0] == 0x50 && data[1] == 0x4B && data[2] == 0x03 && data[3] == 0x04) return "zip";
+
+        return null;
+    }
+
+    /**
+     * Save binary MQTT payload to a temp file.
+     * Returns the temp file path, or null on error.
+     */
+    private static string? save_binary_payload(uint8[] data, string extension) {
+        string temp_dir = GLib.Environment.get_tmp_dir();
+        string filename = "dinox-mqtt-%s.%s".printf(
+            GLib.Random.next_int().to_string("%08x"), extension);
+        string path = GLib.Path.build_filename(temp_dir, filename);
+        try {
+            GLib.FileUtils.set_data(path, data);
+            return path;
+        } catch (GLib.FileError e) {
+            warning("MQTT: Failed to save binary payload: %s", e.message);
+            return null;
+        }
+    }
+
+    /**
+     * Detect if a text payload looks like an HTML page.
+     * Checks for common HTML markers in the first 512 bytes.
+     */
+    private static bool is_html_payload(string text) {
+        if (text.length < 15) return false;
+        string head = text.substring(0, int.min(512, text.length)).down();
+        return head.contains("<!doctype html") || head.contains("<html")
+            || head.contains("<head>") || head.contains("<head ")
+            || head.contains("<meta ");
+    }
+
+    /**
+     * Detect M3U/PLS playlist content and extract the first stream URL.
+     * Returns the stream URL or null if not a playlist.
+     */
+    private static string? extract_stream_url(string text) {
+        if (text.length < 10) return null;
+        /* Strip Unicode replacement chars (U+FFFD) that make_valid() inserts
+         * for binary garbage at the end of HTTP responses from Node-RED. */
+        string cleaned = text.replace("\xef\xbf\xbd", "");
+        string trimmed = cleaned.strip();
+        string lower = trimmed.down();
+
+        /* M3U: starts with #EXTM3U or first non-comment line is a URL */
+        if (lower.has_prefix("#extm3u") || lower.has_prefix("#extinf")) {
+            int line_count = 0;
+            foreach (string line in trimmed.split("\n")) {
+                if (++line_count > 100) break;
+                string l = line.strip().replace("\xef\xbf\xbd", "");
+                if (l.has_prefix("http://") || l.has_prefix("https://")) {
+                    try {
+                        GLib.Uri.parse(l, GLib.UriFlags.NONE);
+                        return l;
+                    } catch { return null; }
+                }
+            }
+            return null;
+        }
+
+        /* PLS: starts with [playlist] */
+        if (lower.has_prefix("[playlist]")) {
+            int line_count = 0;
+            foreach (string line in trimmed.split("\n")) {
+                if (++line_count > 100) break;
+                string l = line.strip();
+                /* File1=http://... */
+                if (l.down().has_prefix("file") && l.contains("=")) {
+                    string val = l.substring(l.index_of("=") + 1).strip().replace("\xef\xbf\xbd", "");
+                    if (val.has_prefix("http://") || val.has_prefix("https://")) {
+                        try {
+                            GLib.Uri.parse(val, GLib.UriFlags.NONE);
+                            return val;
+                        } catch { return null; }
+                    }
+                }
+            }
+            return null;
+        }
+
+        /* Direct URL to a stream/playlist file (.m3u, .m3u8, .pls, .xspf)
+         * e.g. https://frontend.streamonkey.net/antthue-90er/mp3-stream.m3u */
+        if ((lower.has_prefix("http://") || lower.has_prefix("https://"))
+            && !trimmed.contains("\n")) {
+            /* Check for stream-related file extensions or path patterns */
+            string path_lower = lower;
+            /* Strip query string for extension check */
+            int qpos = path_lower.index_of("?");
+            if (qpos > 0) path_lower = path_lower.substring(0, qpos);
+            if (path_lower.has_suffix(".m3u") || path_lower.has_suffix(".m3u8")
+                || path_lower.has_suffix(".pls") || path_lower.has_suffix(".xspf")) {
+                try {
+                    GLib.Uri.parse(trimmed, GLib.UriFlags.NONE);
+                    return trimmed;
+                } catch { return null; }
+            }
+        }
+
+        return null;
+    }
 }
 
 }

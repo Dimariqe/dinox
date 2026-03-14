@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: dino-0.0\n"
@@ -21,8 +22,8 @@ msgid "Use account:"
 msgstr ""
 
 #: main/data/add_conversation/select_jid_fragment.ui:38
-msgid "Search or enter channel address..."
-msgstr "Search or enter channel address..."
+msgid "Search or enter group address..."
+msgstr "Search or enter group address..."
 
 #: main/data/add_conversation/select_jid_fragment.ui:85
 #: main/src/ui/add_conversation/select_jid_fragment.vala:276
@@ -117,8 +118,8 @@ msgstr "Start Conversation"
 #: main/data/menu_add.ui:11
 #: main/src/ui/add_conversation/add_conference_dialog.vala:25
 #: main/src/ui/application.vala:2464 main/src/ui/main_window.vala:175
-msgid "Join Channel"
-msgstr "Join Channel"
+msgid "Join Group"
+msgstr "Join Group"
 
 #: main/data/gtk/help-overlay.ui:26
 msgid "Show preferences"
@@ -853,16 +854,14 @@ msgstr ""
 msgid ""
 "Wrong password.\n"
 "\n"
-"Please enter the password that was active for the database when the backup "
-"was created."
+"Please enter the password that was active for the database when the backup was created."
 msgstr ""
 
 #: main/src/ui/application.vala:509
 msgid ""
 "A backup has been restored.\n"
 "\n"
-"Please enter the password that was active for the database when the backup "
-"was created."
+"Please enter the password that was active for the database when the backup was created."
 msgstr ""
 
 #: main/src/ui/application.vala:512
@@ -957,11 +956,11 @@ msgstr "Info:"
 
 #: main/src/ui/application.vala:1340
 msgid ""
-"Your personal data (accounts, messages, files) is stored separately from the "
-"application."
+"Your personal data (accounts, messages, files) is stored separately from the"
+" application."
 msgstr ""
-"Your personal data (accounts, messages, files) is stored separately from the "
-"application."
+"Your personal data (accounts, messages, files) is stored separately from the"
+" application."
 
 #: main/src/ui/application.vala:1342
 msgid "When you update DinoX, your data remains intact."
@@ -1084,11 +1083,11 @@ msgstr "Unknown error"
 
 #: main/src/ui/application.vala:1777
 msgid ""
-"Your personal data (accounts, messages, files) is stored separately from the "
-"application. When you update DinoX, your data remains intact."
+"Your personal data (accounts, messages, files) is stored separately from the"
+" application. When you update DinoX, your data remains intact."
 msgstr ""
-"Your personal data (accounts, messages, files) is stored separately from the "
-"application. When you update DinoX, your data remains intact."
+"Your personal data (accounts, messages, files) is stored separately from the"
+" application. When you update DinoX, your data remains intact."
 
 #: main/src/ui/application.vala:1782 main/src/ui/application.vala:2287
 #: main/src/ui/application.vala:2431
@@ -1102,8 +1101,7 @@ msgstr "Close"
 
 #: main/src/ui/application.vala:1792
 msgid ""
-"This will delete cached files, avatars, previews and database caches (entity "
-"discovery, roster, MAM sync state, stickers).\n"
+"This will delete cached files, avatars, previews and database caches (entity discovery, roster, MAM sync state, stickers).\n"
 "\n"
 "All data will be re-fetched from the server when needed."
 msgstr ""
@@ -1121,15 +1119,13 @@ msgstr "Failed to clear cache"
 msgid ""
 "This will delete all messages, files and OMEMO encryption keys.\n"
 "\n"
-"<b>Your accounts will remain, but you will lose all chat history and need to "
-"re-verify encryption with your contacts.</b>\n"
+"<b>Your accounts will remain, but you will lose all chat history and need to re-verify encryption with your contacts.</b>\n"
 "\n"
 "This action cannot be undone!"
 msgstr ""
 "This will delete all messages, files and OMEMO encryption keys.\n"
 "\n"
-"<b>Your accounts will remain, but you will lose all chat history and need to "
-"re-verify encryption with your contacts.</b>\n"
+"<b>Your accounts will remain, but you will lose all chat history and need to re-verify encryption with your contacts.</b>\n"
 "\n"
 "This action cannot be undone!"
 
@@ -1195,13 +1191,11 @@ msgstr "Set Backup Password"
 msgid ""
 "Enter a password to encrypt the backup.\n"
 "\n"
-"<b>Important:</b> Remember this password! Without it, the backup cannot be "
-"restored."
+"<b>Important:</b> Remember this password! Without it, the backup cannot be restored."
 msgstr ""
 "Enter a password to encrypt the backup.\n"
 "\n"
-"<b>Important:</b> Remember this password! Without it, the backup cannot be "
-"restored."
+"<b>Important:</b> Remember this password! Without it, the backup cannot be restored."
 
 #: main/src/ui/application.vala:2113
 msgid "Password (minimum 4 characters)"
@@ -1385,8 +1379,7 @@ msgstr ""
 msgid ""
 "The video encoder could not be initialized: %s\n"
 "\n"
-"Please ensure GStreamer plugins are installed (gst-plugins-good, gst-plugins-"
-"ugly, gst-libav)."
+"Please ensure GStreamer plugins are installed (gst-plugins-good, gst-plugins-ugly, gst-libav)."
 msgstr ""
 
 #: main/src/ui/chat_input/chat_input_controller.vala:309
@@ -1733,8 +1726,8 @@ msgid "Delete message"
 msgstr "Delete message"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:164
-msgid "Do you want to remove this message from the channel?"
-msgstr "Do you want to remove this message from the channel?"
+msgid "Do you want to remove this message from the group?"
+msgstr "Do you want to remove this message from the group?"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:165
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:873
@@ -6021,7 +6014,8 @@ msgid "Enable Standalone MQTT"
 msgstr ""
 
 #: plugins/mqtt/src/settings_page.vala:113
-msgid "Connect to an external MQTT broker (Mosquitto, Home Assistant, HiveMQ…)"
+msgid ""
+"Connect to an external MQTT broker (Mosquitto, Home Assistant, HiveMQ…)"
 msgstr ""
 
 #: plugins/mqtt/src/settings_page.vala:149
@@ -6177,7 +6171,8 @@ msgstr ""
 
 #: plugins/tor-manager/src/settings_page.vala:79
 msgid ""
-"Warning: Only bridges on port 80/443 will work when Firewall Mode is enabled!"
+"Warning: Only bridges on port 80/443 will work when Firewall Mode is "
+"enabled!"
 msgstr ""
 
 #: plugins/tor-manager/src/settings_page.vala:110
@@ -6322,6 +6317,174 @@ msgstr ""
 msgid "Tor is disabled"
 msgstr ""
 
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…!"
+msgstr "Ring ring…!"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Dependencies for call support not met"
+msgstr "Dependencies for call support not met"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…?"
+msgstr "Ring ring…?"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Call failed to establish"
+msgstr "Call failed to establish"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · %s"
+msgstr "QoS %d · %s"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · normal"
+msgstr "QoS %d · normal"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Silent"
+msgstr "Silent"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Alert"
+msgstr "Alert"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Critical"
+msgstr "Critical"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "contains"
+msgstr "contains"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "full"
+msgstr "full"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "payload"
+msgstr "payload"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "short"
+msgstr "short"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "file (URL)"
+msgstr "file (URL)"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "Format: %s"
+msgstr "Format: %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "via %s"
+msgstr "via %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Unnamed"
+msgstr "Unnamed"
+
+#: plugins/mqtt/src/plugin.vala
+msgid "MQTT"
+msgstr "MQTT"
+
+#: plugins/tor-manager/src/settings_page.vala:53
+msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+msgstr "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+
+#: plugins/tor-manager/src/settings_page.vala:142
+msgid "Fetches bridges from Tor Project. Choose transport type:"
+msgstr "Fetches bridges from Tor Project. Choose transport type:"
+
+#: plugins/tor-manager/src/settings_page.vala:173
+msgid ""
+"WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
+"is more widely available. Both fetch instantly without CAPTCHA."
+msgstr ""
+"WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
+"is more widely available. Both fetch instantly without CAPTCHA."
+
+#: plugins/tor-manager/src/settings_page.vala:237
+msgid "Error fetching bridges"
+msgstr "Error fetching bridges"
+
+#: plugins/tor-manager/src/settings_page.vala:286
+msgid "No bridges received. The server may be temporarily unavailable."
+msgstr "No bridges received. The server may be temporarily unavailable."
+
+#: plugins/tor-manager/src/settings_page.vala:252
+msgid "Received %d %s bridge(s)."
+msgstr "Received %d %s bridge(s)."
+
+#: plugins/tor-manager/src/settings_page.vala:255
+msgid "%d bridge(s) on standard ports (443/80)."
+msgstr "%d bridge(s) on standard ports (443/80)."
+
+#: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Firewall"
+msgstr "Firewall"
+
+#: main/src/ui/conversation_content_view/message_widget.vala:345
+msgid "Navigate to location"
+msgstr "Navigate to location"
+
+#: main/src/ui/util/location_manager.vala:28
+msgid "A location request is already in progress."
+msgstr "A location request is already in progress."
+
+#: main/src/ui/util/location_manager.vala:37
+msgid "Location services are not available (GeoClue2 not installed)."
+msgstr "Location services are not available (GeoClue2 not installed)."
+
+#: main/src/ui/conversation_view_controller.vala:394
+msgid "Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"
+msgstr "Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"
+
+#: main/src/ui/conversation_view_controller.vala:401
+msgid "Latitude"
+msgstr "Latitude"
+
+#: main/src/ui/conversation_view_controller.vala:408
+msgid "Longitude"
+msgstr "Longitude"
+
+#: main/src/ui/conversation_view_controller.vala:415
+msgid "or geo: link"
+msgstr "or geo: link"
+
+#: main/src/ui/conversation_view_controller.vala:435
+msgid "Send"
+msgstr "Send"
+
+#: main/src/ui/conversation_view_controller.vala:452
+msgid "Invalid coordinates"
+msgstr "Invalid coordinates"
+
+#: main/src/ui/conversation_view_controller.vala:452
+msgid "Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."
+msgstr "Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Low location accuracy"
+msgstr "Low location accuracy"
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "The detected location has an accuracy of approximately %.0f km. This may be very inaccurate. You can send it anyway or enter coordinates manually."
+msgstr "The detected location has an accuracy of approximately %.0f km. This may be very inaccurate. You can send it anyway or enter coordinates manually."
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Enter manually"
+msgstr "Enter manually"
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Send anyway"
+msgstr "Send anyway"
+
 #~ msgid "Help: How to join channels"
 #~ msgstr "Help: How to join channels"
 
@@ -6335,8 +6498,8 @@ msgstr ""
 #~ "Bei der ersten Nutzung musst du ein Passwort setzen. Ohne Passwort kann "
 #~ "DinoX die verschlüsselte Datenbank nicht öffnen."
 #~ msgstr ""
-#~ "You must set a password on first use. Without a password, DinoX cannot "
-#~ "open the encrypted database."
+#~ "You must set a password on first use. Without a password, DinoX cannot open "
+#~ "the encrypted database."
 
 #~ msgid ""
 #~ "Dieses Passwort wird verwendet, um deine lokalen DinoX-Daten zu "
@@ -6421,17 +6584,13 @@ msgstr ""
 #~ msgstr "Join Channel Help"
 
 #~ msgid ""
-#~ "To join a channel, click the \"Join Channel\" button and enter the "
-#~ "channel JID (example: room@conference.example.org).\n"
+#~ "To join a channel, click the \"Join Channel\" button and enter the channel JID (example: room@conference.example.org).\n"
 #~ "\n"
-#~ "If you need a password or a nickname, provide them in the dialog. Use the "
-#~ "discovery features in the server to find public rooms."
+#~ "If you need a password or a nickname, provide them in the dialog. Use the discovery features in the server to find public rooms."
 #~ msgstr ""
-#~ "To join a channel, click the \"Join Channel\" button and enter the "
-#~ "channel JID (example: room@conference.example.org).\n"
+#~ "To join a channel, click the \"Join Channel\" button and enter the channel JID (example: room@conference.example.org).\n"
 #~ "\n"
-#~ "If you need a password or a nickname, provide them in the dialog. Use the "
-#~ "discovery features in the server to find public rooms."
+#~ "If you need a password or a nickname, provide them in the dialog. Use the discovery features in the server to find public rooms."
 
 #~ msgid "Set up account"
 #~ msgstr "Set up account"

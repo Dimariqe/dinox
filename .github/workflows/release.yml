@@ -18,7 +18,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -39,7 +39,7 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: "Cache Flatpak Builder"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .flatpak-builder
           key: flatpak-x86_64-${{ hashFiles('im.github.rallep71.DinoX.json') }}
@@ -60,7 +60,7 @@ jobs:
           sha256sum "dinox-${version}.tar.gz" > "dinox-${version}.tar.gz.sha256"
 
       - name: "Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifacts-x86_64
           path: |
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -84,7 +84,7 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: "Cache Flatpak Builder"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .flatpak-builder
           key: flatpak-aarch64-${{ hashFiles('im.github.rallep71.DinoX.json') }}
@@ -98,7 +98,7 @@ jobs:
           flatpak build-bundle repo dinox-aarch64.flatpak im.github.rallep71.DinoX master
 
       - name: "Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifacts-aarch64
           path: dinox-aarch64.flatpak
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout sources"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -125,14 +125,14 @@ jobs:
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: "Download x86_64 Artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: build-artifacts-x86_64
           path: ./
 
       - name: "Download aarch64 Artifacts"
         if: needs.build-aarch64.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: build-artifacts-aarch64
           path: ./
@@ -230,7 +230,7 @@ jobs:
             echo "  libsqlcipher-dev libsecret-1-dev libicu-dev libdbusmenu-glib-dev libgcrypt20-dev \\"
             echo "  libgpgme-dev libqrencode-dev libsoup-3.0-dev libgstreamer1.0-dev \\"
             echo "  libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev \\"
-            echo "  libnice-dev libgnutls28-dev libsrtp2-dev \\"
+            echo "  libnice-dev libgnutls28-dev libsrtp2-dev libgeoclue-2-dev \\"
             echo "  gstreamer1.0-plugins-good gstreamer1.0-pipewire cmake wget"
             echo "${CB}"
             echo ""
@@ -256,6 +256,7 @@ jobs:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: DinoX v${{ steps.get_version.outputs.version }}
           body_path: RELEASE_BODY.md
+          make_latest: "true"
           fail_on_unmatched_files: false
           files: |
             dinox-*-x86_64.flatpak

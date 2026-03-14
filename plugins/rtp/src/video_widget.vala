@@ -5,6 +5,8 @@ private static extern unowned uint8[] gst_video_frame_get_data(Gst.Video.Frame f
 public class Dino.Plugins.Rtp.Paintable : Gdk.Paintable, Object {
     private Gdk.Paintable image;
     private double pixel_aspect_ratio;
+    private bool is_disposed;
+    private bool frozen;
 
     public override Gdk.PaintableFlags get_flags() {
         return 0;
@@ -34,12 +36,30 @@ public class Dino.Plugins.Rtp.Paintable : Gdk.Paintable, Object {
         return 0.0;
     }
 
+    public void release_texture() {
+        frozen = true;
+        if (image != null) {
+            image.dispose();
+            image = null;
+        }
+    }
+
+    public void unfreeze() {
+        frozen = false;
+    }
+
+    public void clear() {
+        release_texture();
+        is_disposed = true;
+    }
+
     public override void dispose() {
-        image = null;
+        clear();
         base.dispose();
     }
 
     private void set_paintable(Gdk.Paintable paintable, double pixel_aspect_ratio) {
+        if (is_disposed || frozen) return;
         if (paintable == image) return;
         bool size_changed = image == null ||
                 this.pixel_aspect_ratio * image.get_intrinsic_width() != pixel_aspect_ratio * paintable.get_intrinsic_width() ||
@@ -55,6 +75,7 @@ public class Dino.Plugins.Rtp.Paintable : Gdk.Paintable, Object {
     }
 
     public void queue_set_texture(Gdk.Texture texture, double pixel_aspect_ratio) {
+        if (is_disposed || frozen) return;
         Idle.add(() => {
             set_paintable(texture, pixel_aspect_ratio);
             return Source.REMOVE;
@@ -237,6 +258,7 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
             return;
         }
         debug("display_stream: connecting stream to video widget");
+        sink.paintable.unfreeze();
         plugin.pause();
         pipe.add(sink);
         try {
@@ -260,6 +282,7 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         detach();
         connected_device = media_device as Device;
         if (connected_device == null) return;
+        sink.paintable.unfreeze();
         plugin.pause();
         pipe.add(sink);
         try {
@@ -320,14 +343,22 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
             sink.set_locked_state(true);
             sink.set_state(Gst.State.NULL);
             if (pipe != null) pipe.remove(sink);
+            // Release the last video frame texture immediately — don't
+            // wait for GTK dispose which may be delayed by ref cycles.
+            sink.paintable.release_texture();
             attached = false;
         }
     }
 
     public override void dispose() {
         detach();
-        // Decrement widget counter (use sink != null as double-dispose guard)
-        if (sink != null && active_widgets > 0) {
+        // Mark paintable as disposed to block late Idle.add frames, then drop sink
+        if (sink != null) {
+            sink.paintable.clear();
+            sink = null;
+        }
+        // Decrement widget counter (use active_widgets > 0 as double-dispose guard)
+        if (active_widgets > 0) {
             active_widgets--;
             debug("Video widget %p disposed. left=%u", this, active_widgets);
             if (active_widgets == 0) {
@@ -336,6 +367,5 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         }
         if (widget != null) widget.unparent();
         widget = null;
-        sink = null;
     }
 }

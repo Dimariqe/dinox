@@ -63,6 +63,20 @@ public class MqttBotConversation : Object {
     /* Standalone bare JID (constant) */
     private Jid? mqtt_standalone_bare_jid = null;
 
+    /* ── MQTT message coalescing ─────────────────────────────────
+     * Rapid sensor data (5-10 msgs/sec) would cause 5-10 full
+     * message-render cycles per second on the GTK main thread.
+     * We buffer MQTT messages per conversation and flush them
+     * as a single combined message after a short delay (200 ms).
+     * Command responses (inject_bot_message) bypass coalescing. */
+    private const uint COALESCE_MS = 200;
+    private HashMap<int, ArrayList<string>> coalesce_buffers =
+        new HashMap<int, ArrayList<string>>();
+    private HashMap<int, uint> coalesce_timers =
+        new HashMap<int, uint>();
+    private HashMap<int, MqttPriority> coalesce_max_prio =
+        new HashMap<int, MqttPriority>();
+
     /* ── Construction ────────────────────────────────────────────── */
 
     public MqttBotConversation(Plugin plugin) {
@@ -107,14 +121,14 @@ public class MqttBotConversation : Object {
      *   Per-account → "MQTT Bot (user@example.org)"
      */
     private string compute_display_name(string key, Account account) {
-        string base_name = "MQTT Bot";
+        string base_name = _("MQTT Bot");
 
         if (key == STANDALONE_KEY) {
             var sa_config = plugin.get_standalone_config();
             if (sa_config.bot_name != null && sa_config.bot_name.strip() != "") {
                 base_name = sa_config.bot_name;
             }
-            return "%s (Standalone)".printf(base_name);
+            return _("%s (Standalone)").printf(base_name);
         } else {
             var acct_config = plugin.get_account_config(account);
             if (acct_config.bot_name != null && acct_config.bot_name.strip() != "") {
@@ -348,6 +362,15 @@ public class MqttBotConversation : Object {
         if (!bot_conversations.has_key(key)) return;
 
         Conversation conv = bot_conversations[key];
+        int cid = conv.id;
+
+        /* Cancel any pending coalesce timer */
+        if (coalesce_timers.has_key(cid) && coalesce_timers[cid] != 0) {
+            Source.remove(coalesce_timers[cid]);
+            coalesce_timers.unset(cid);
+        }
+        coalesce_buffers.unset(cid);
+        coalesce_max_prio.unset(cid);
 
         /* Unpin BEFORE closing — otherwise pinned conversations
          * can remain visible in the sidebar even after deactivation. */
@@ -451,6 +474,24 @@ public class MqttBotConversation : Object {
     /* ── Message Injection ───────────────────────────────────────── */
 
     /**
+     * Clear all chat history for a bot conversation.
+     * Delegates to ConversationManager.clear_conversation_history()
+     * which properly removes messages + content_items from DB and
+     * sets history_cleared_at to prevent stale items on reload.
+     */
+    public bool clear_history(string key) {
+        if (!bot_conversations.has_key(key)) return false;
+
+        Conversation conv = bot_conversations[key];
+        var cm = app.stream_interactor.get_module<ConversationManager>(
+            ConversationManager.IDENTITY);
+        if (cm == null) return false;
+
+        cm.clear_conversation_history(conv);
+        return true;
+    }
+
+    /**
      * Inject an incoming MQTT message into the bot conversation.
      * This creates a Message object that appears as a received chat
      * message from the bot, with the topic as a header line.
@@ -469,11 +510,57 @@ public class MqttBotConversation : Object {
         /* Format: topic on first line, payload on second */
         string body = format_mqtt_message(display_topic, payload, priority);
 
+        /* Silent messages bypass coalescing */
         if (priority == MqttPriority.SILENT) {
             inject_silent_message(conversation, body);
-        } else {
-            inject_bot_message(conversation, body);
+            return;
         }
+
+        /* Alert-priority messages are injected immediately so the
+         * notification fires without delay. */
+        if (priority >= MqttPriority.ALERT) {
+            inject_bot_message(conversation, body);
+            return;
+        }
+
+        /* Coalesce normal-priority messages:
+         * Buffer the body and start a timer. When the timer fires,
+         * all buffered bodies are injected as one combined message. */
+        int cid = conversation.id;
+        if (!coalesce_buffers.has_key(cid)) {
+            coalesce_buffers[cid] = new ArrayList<string>();
+        }
+        coalesce_buffers[cid].add(body);
+
+        /* Track highest priority in batch */
+        if (!coalesce_max_prio.has_key(cid) || priority > coalesce_max_prio[cid]) {
+            coalesce_max_prio[cid] = priority;
+        }
+
+        /* Start flush timer if not already running */
+        if (!coalesce_timers.has_key(cid) || coalesce_timers[cid] == 0) {
+            Conversation conv_ref = conversation;
+            coalesce_timers[cid] = Timeout.add(COALESCE_MS, () => {
+                flush_coalesce_buffer(conv_ref);
+                return false;
+            });
+        }
+    }
+
+    /** Flush buffered MQTT messages for one conversation. */
+    private void flush_coalesce_buffer(Conversation conversation) {
+        int cid = conversation.id;
+        coalesce_timers[cid] = 0;
+
+        if (!coalesce_buffers.has_key(cid) || coalesce_buffers[cid].size == 0) {
+            return;
+        }
+
+        string combined = string.joinv("\n\n", coalesce_buffers[cid].to_array());
+        coalesce_buffers[cid].clear();
+        coalesce_max_prio.unset(cid);
+
+        inject_bot_message(conversation, combined);
     }
 
     /**

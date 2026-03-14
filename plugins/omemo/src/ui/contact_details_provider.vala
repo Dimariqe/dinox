@@ -102,9 +102,9 @@ public class ContactDetailsProvider : Plugins.ContactDetailsProvider, Object {
             var expander = new Adw.ExpanderRow();
             expander.title = is_own ? _("Your devices") : the_jid.bare_jid.to_string();
             if (hidden_count > 0 && total > 0) {
-                expander.subtitle = ngettext("%d device", "%d devices", total).printf(total) + " (+%d inactive)".printf(hidden_count);
+                expander.subtitle = ngettext("%d device", "%d devices", total).printf(total) + _(" (+%d inactive)").printf(hidden_count);
             } else if (hidden_count > 0) {
-                expander.subtitle = "%d inactive devices".printf(hidden_count);
+                expander.subtitle = _("%d inactive devices").printf(hidden_count);
             } else {
                 expander.subtitle = ngettext("%d device", "%d devices", total).printf(total);
             }

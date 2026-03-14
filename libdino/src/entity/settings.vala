@@ -17,7 +17,7 @@ public class Settings : Object {
 
         stickers_enabled_ = col_to_bool_or_default("stickers_enabled", true);
         sticker_animations_enabled_ = col_to_bool_or_default("sticker_animations_enabled", true);
-        location_sharing_enabled_ = col_to_bool_or_default("location_sharing_enabled", false);
+        location_sharing_enabled_ = col_to_bool_or_default("location_sharing_enabled", true);
         bot_features_enabled_ = col_to_bool_or_default("bot_features_enabled", false);
         api_mode_ = col_to_string_or_default("api_mode", "local");
         api_port_ = col_to_int_or_default("api_port", 7842);

@@ -97,6 +97,8 @@ if not dep_webrtc_audio_processing.found()
     dep_webrtc_audio_processing = disabler()
 endif
 
+dep_geoclue = dependency('libgeoclue-2.0', required: get_option('location-sharing'))
+
 prog_git = find_program('git', required: false)
 prog_python = python.find_installation()
 

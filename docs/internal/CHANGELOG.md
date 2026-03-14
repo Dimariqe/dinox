@@ -5,6 +5,105 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6.5] - 2026-03-13
+
+### Added — Location Sharing (XEP-0080)
+- **GeoClue2 location sending**: Real-time location via GeoClue2 D-Bus (WiFi/GPS/IP), with `AccuracyLevel.EXACT`, 15s timeout, automatic `call_stop()` for battery saving
+- **Manual coordinate fallback**: If GeoClue2 fails, a dialog allows entering lat/lon or pasting a `geo:` link
+- **Map preview in chat**: 256×256 OpenStreetMap tile at zoom 15 with red marker overlay, shared `Soup.Session` + LRU tile cache
+- **Google Maps route planner**: Clicking the map opens Google Maps Directions (`https://www.google.com/maps/dir/?api=1&destination=lat,lon`)
+- **Accuracy warning dialog**: When GeoClue2 accuracy >1 km, shows warning with 3 options: "Send anyway", "Enter manually", "Cancel"
+- **Meson build option**: New `location-sharing` feature option (auto), meson summary line under Plugins
+- **Location button default**: Enabled by default in settings
+
+### Added — Tor / WebTunnel
+- **WebTunnel/lyrebird support**: Pluggable transport for censorship circumvention via `lyrebird` (Go binary)
+- **Windows lyrebird build**: Cross-compiled lyrebird bundled in Windows MSYS2 builds
+- **Audit fixes**: Tor robustness improvements
+
+### Added — MQTT
+- **Clickable menu structure**: Bot commands organized in navigable menu with footer links
+- **Navigation footer**: All command responses include back/home navigation
+
+### Added — UI / UX
+- **Panic Wipe shortcut**: Added to keyboard shortcuts dialog
+- **Copyright update**: 2025-2026
+
+### Fixed — MQTT
+- **60% CPU lag**: Fixed MQTT menu rendering performance
+- **Double nav links**: Unknown commands no longer show duplicate navigation
+- **Menu i18n**: German text, duplicate code eliminated
+- **Retained message flood**: Retained messages no longer flood chat on reconnect; added `/mqtt clear` command
+- **Retained dedup**: Deduplication moved before DB recording
+- **7 HA Discovery bugs**: Stale online state, missing cleanup, duplicate code
+- **Plugin interference**: MQTT no longer interferes with video calls and file transfers
+- **Robustness**: 4 fixes (connection handling, error recovery)
+- **Audit fixes**: i18n hardcoded strings, rmbridge index mismatch
+
+### Fixed — Performance & Memory
+- **Heap fragmentation**: `mallopt()` + deferred `malloc_trim()` reduces RSS
+- **Video frame textures**: Released immediately on call end (no GPU leak)
+- **PresenceManager signal**: Guard disconnect in `ConversationSelectorRow`
+
+### Fixed — OMEMO / Encryption
+- **SG_ERR_NO_SESSION**: Suppressed harmless warning during video calls
+
+### Fixed — i18n / Translations
+- **25 hardcoded strings**: Wrapped in `_()`, de.po now 100%
+- **8 Tor settings strings**: Missing translations after settings_page refactor
+- **OMEMO strings**: Wrapped in `_()`, description set via `_()` in construct block
+- **Channel → Group**: Renamed Channel/Kanal → Group/Gruppe throughout UI
+- **Location strings**: "Navigate to location", accuracy warning — DE/EN/ES/FR
+
+### Fixed — Build & CI
+- **GitHub Actions Node.js 24**: Updated all workflows, fixed Vala nightly warning
+- **Windows build**: Guard `send_signal` with `#if WINDOWS`
+- **Flatpak lyrebird**: Fixed build — removed cd into stripped archive dir
+- **GitHub Releases**: Don't overwrite release body/name; always mark as Latest
+
+### Changed — Documentation
+- **BUILD.md**: Added Location Sharing section with install table (Debian/Fedora/Arch/Flatpak/AppImage), GeoClue2 D-Bus architecture, meson option docs
+- **Dependency lists**: `libgeoclue-2-dev` added to BUILD.md, README.md, debian/control, CI workflows
+- **golang-go**: Added to build deps, CI availability check
+
+### Changed
+- **Version**: 1.1.6.4 → 1.1.6.5
+
+### Stats
+- 37 commits, 6 files changed in this release commit
+- Major areas: Location sharing (10 commits), MQTT fixes (10 commits), i18n (5 commits), performance (3 commits), Tor/WebTunnel (3 commits), CI/build (4 commits), docs (2 commits)
+
+---
+
+## [1.1.6.4] - 2026-03-12
+
+
+### Added
+- **MQTT Binary Transfer**: Binary payload detection via magic bytes for 17 file formats (PNG, JPEG, GIF, WebP, BMP, PDF, ZIP, MP3, OGG, FLAC, WAV, MP4, MKV, AVI)
+- **MQTT Stream Detection**: M3U/PLS playlist parsing and stream URL extraction with Uri.parse validation
+- **MQTT Bridge Binary Forwarding**: Binary MQTT payloads saved to temp file and forwarded via HTTP Upload to XMPP contacts
+- **MQTT Bot Display**: Emoji indicators for binary (clip), stream (radio), HTML (globe) payloads in bot conversation
+- **Node-RED Flow 3**: Bridge response documentation with binary/audio/stream examples
+
+### Fixed — Security Hardening
+- **extract_local_path file exfiltration**: Whitelisted only `/tmp/dinox-mqtt-*` paths — arbitrary file read via MQTT topic no longer possible
+- **Temp file disk leak**: Binary temp files now cleaned up after HTTP Upload completes or when no bridge rule matches
+- **Binary payload size limit**: 10 MB cap before saving to temp file
+- **BMP false positive**: Validate BMP reserved bytes (must be zero) and file-size field (must match data length) — "BMS voltage: 12.6V" no longer triggers BMP detection
+- **MP3 false positive**: Tightened MPEG sync word — validate version (not reserved 01) and layer (not reserved 00) bits
+- **UTF-8 truncation corruption**: DB 8KB truncation now uses `char_count()` + `index_of_nth_char()` to avoid splitting multi-byte characters
+- **HTML false positive**: `is_html_payload()` matches `<head>` or `<head ` instead of bare `<head` — prevents `<header>` triggering HTML detection
+- **Stream URL heuristic**: Removed overly broad `/stream`/`/live` path matching — only file extensions (.m3u/.m3u8/.pls/.xspf) trigger stream detection
+- **M3U/PLS DoS**: Playlist line iteration capped at 100 lines
+- **U+FFFD in stream URLs**: Strip Unicode replacement characters from extracted stream URLs (caused by Node-RED binary-to-string conversion)
+- **Redundant detect_binary_type()**: Hoisted before bridge block — single call per message instead of two
+
+### Changed
+- **.gitignore**: Added `.venv/` and `__pycache__/`
+- **Version**: 1.1.6.3 -> 1.1.6.4
+
+---
+
 ## [1.1.6.3] - 2026-03-12
 
 ### Added

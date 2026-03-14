@@ -1596,7 +1596,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         about_dialog.title = _("About DinoX");
         about_dialog.version = version;
         about_dialog.website = "https://github.com/rallep71/dinox";
-        about_dialog.copyright = "Copyright © 2025 - Ralf Peter\nCopyright © 2016-2025 - Dino Team";
+        about_dialog.copyright = "Copyright © 2025-2026 - Ralf Peter\nBased on Dino — Copyright © 2016-2025 - Dino Team";
         about_dialog.license_type = License.GPL_3_0;
         about_dialog.comments = _("Modern XMPP client with extended features");
 
@@ -2742,7 +2742,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
     private void show_join_muc_dialog (Account? account, string jid) {
         var dialog = new Adw.Dialog ();
-        dialog.title = _("Join Channel");
+        dialog.title = _("Join Group");
         dialog.content_width = 400;
         dialog.content_height = 300;
 

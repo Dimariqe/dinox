@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 12, 2026 (v1.1.6.3)
+> **Last Updated**: March 13, 2026 (v1.1.6.5)
 > **Current Release Line**: 1.1.6.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.6.3 |
+| **Current Version** | 1.1.6.5 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (~85% translated) |
 | **Build Status** | Clean |
@@ -20,6 +20,26 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.6.5 (Location Sharing, Tor WebTunnel, i18n Audit, MQTT Fixes)
+
+- **Location Sharing (XEP-0080)**: GeoClue2 integration with manual fallback, 256×256 OSM map preview with red marker, Google Maps route planner on click, accuracy warning when >1km, meson build option `location-sharing`
+- **Tor WebTunnel/lyrebird**: Pluggable transport support for censorship circumvention, Windows cross-compilation
+- **i18n audit**: 25 hardcoded strings wrapped in `_()`, 8 Tor settings, OMEMO strings, Channel→Group rename, location strings — DE/EN/ES/FR complete
+- **MQTT fixes**: 60% CPU menu rendering fix, retained message flood fix, 7 HA Discovery bugs, plugin interference with calls/transfers, clickable menu structure with navigation
+- **Performance**: `mallopt()` heap fragmentation fix, video frame texture release, PresenceManager signal guard
+- **OMEMO**: SG_ERR_NO_SESSION warning suppressed during video calls
+- **CI/Build**: GitHub Actions Node.js 24, Windows `#if WINDOWS` guard, Flatpak lyrebird build fix, release automation fixes
+- **Docs**: BUILD.md Location Sharing section, GeoClue2 deps in all lists, golang-go build dep
+- 37 commits, major areas: location (10), MQTT (10), i18n (5), perf (3), Tor (3), CI (4), docs (2)
+
+### v1.1.6.4 (MQTT Binary Transfer, Stream Detection, Security Hardening)
+
+- **MQTT Binary Transfer**: Magic-byte detection for 17 formats (images, audio, video, documents), saved to temp file, forwarded via HTTP Upload
+- **MQTT Stream Detection**: M3U/PLS playlist parsing, stream URL extraction with validation
+- **Security audit fixes**: extract_local_path whitelisted to /tmp/dinox-mqtt-*, temp file cleanup, 10MB binary limit, BMP/MP3 false positive fixes, UTF-8 safe DB truncation, HTML detection fix, M3U line cap, U+FFFD stripping
+- **Redundant code**: detect_binary_type() hoisted to single call per message
+- 1 commit, 14 files changed, 1354 insertions(+), 32 deletions(-)
 
 ### v1.1.6.3 (Plugin i18n, Code Audit, MQTT Bridge Fixes)
 
@@ -680,6 +700,39 @@ This document is organized as a **chronological release timeline** first, follow
 | **MQTT Dashboard** | Bot-conversation paradigm replaces traditional dashboard. Chat commands (`/mqtt subscribe`, `/mqtt status`, `/mqtt history`) provide interactive topic management within XMPP conversations. ASCII sparklines for numeric data. | **DONE** |
 | **MQTT Settings UI** | Broker host/port, TLS, server type detection (ejabberd vs Prosody), XMPP credential reuse. Per-account and standalone mode. Preferences → MQTT panel. | **DONE** |
 | **Home Assistant / Node-RED** | Subscribe to HA discovery topics, control actuators, Node-RED flow integration. 3 network scenarios documented (LAN, mixed, cloud). Bridge formatting for XMPP↔MQTT. | **DONE** |
+| **MQTT Bridge: File Transfer** | Extend bridge to forward files (images, PDFs, etc.) from MQTT to XMPP. Node-RED (or any MQTT publisher) sends URL or base64-Daten → DinoX bridge uploads via HTTP Upload (XEP-0363) → sends OOB download link to target JID. OMEMO encryption applies automatically. Use-case: Node-RED KI-Flows erzeugen Bilder/Reports → publizieren auf MQTT-Topic → DinoX leitet an XMPP-Kontakte/MUCs weiter. | **PLANNED** |
+
+#### MQTT Bridge File Transfer — Implementation Plan
+
+Typischer Flow: **Node-RED** (KI-Flow, Bildgenerierung, Reports) → **MQTT publish** → **DinoX Bridge** (existiert) → **HTTP Upload + OOB** → **XMPP mit OMEMO**
+
+**Phase 1: URL-basiertes File Forwarding**
+- Bridge rule bekommt neues `format`: `"file"` (zusätzlich zu `"full"`, `"payload"`, `"short"`)
+- MQTT payload = plain URL (z.B. Node-RED schickt `https://example.com/report.pdf`)
+- DinoX lädt die Datei runter, re-uploaded via HTTP Upload (XEP-0363), sendet OOB-Message an Ziel-JID
+- OMEMO-Verschlüsselung greift automatisch (wie bei Textmessages)
+
+**Phase 2: Base64/Binary Payload**
+- MQTT payload = JSON: `{"filename": "chart.png", "mime": "image/png", "data": "<base64>"}`
+- Node-RED kann z.B. KI-generierte Bilder direkt als base64 senden
+- DinoX decodiert, schreibt temp-Datei, uploaded via HTTP Upload, sendet OOB
+- Größenlimit konfigurierbar pro Bridge-Rule (Standard: 10 MB)
+
+**Phase 3: Text + Attachments kombiniert**
+- MQTT payload = JSON: `{"text": "Tagesbericht ...", "attachments": [{"url": "...", "filename": "report.pdf"}]}`
+- DinoX sendet Text als normale Nachricht + Dateien als OOB-Messages
+- Ermöglicht Node-RED KI-Flows die Text + Bilder/PDFs in einem Rutsch zu schicken
+
+**Betroffene Dateien:**
+- `plugins/mqtt/src/bridge_manager.vala` — `deliver_message()` erweitert für File-Handling
+- `libdino/src/service/file_manager.vala` — HTTP Upload API (existiert, wiederverwenden)
+- `plugins/mqtt/src/mqtt_bot_manager_dialog.vala` — UI für File-Bridge Format-Option
+- `plugins/mqtt/src/connection_config.vala` — Größenlimit-Config
+
+**Dependencies (alle bereits vorhanden):**
+- HTTP Upload (XEP-0363)
+- OMEMO File Encryption (encrypt-then-upload)
+- ejabberd `mod_mqtt`
 
 ### Q3 2026: Advanced media
 

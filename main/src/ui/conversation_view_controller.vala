@@ -472,19 +472,139 @@ public class ConversationViewController : Object {
 
     private void send_location() {
         debug("ConversationViewController: send_location called");
-        LocationManager.get_default().get_location.begin(null, (obj, res) => {
+
+        var loc_mgr = LocationManager.get_default();
+
+        // Guard: prevent double-click / concurrent requests
+        if (loc_mgr.is_busy()) {
+            debug("ConversationViewController: Location request already in progress, ignoring");
+            return;
+        }
+
+        // Disable button while GeoClue works
+        view.chat_input.send_location_button.sensitive = false;
+
+        // Timeout after 15 s so a GPS cold-start doesn't freeze the UI
+        var cancel = new Cancellable();
+        uint timeout_id = Timeout.add_seconds(15, () => {
+            cancel.cancel();
+            return Source.REMOVE;
+        });
+
+        loc_mgr.get_location.begin(cancel, (obj, res) => {
+            Source.remove(timeout_id);
+            view.chat_input.send_location_button.sensitive = true;
             try {
                 double lat, lon, accuracy;
-                LocationManager.get_default().get_location.end(res, out lat, out lon, out accuracy);
+                loc_mgr.get_location.end(res, out lat, out lon, out accuracy);
                 debug("ConversationViewController: Location retrieved successfully");
-                send_location_message(lat, lon, accuracy);
+                if (accuracy > 1000) {
+                    show_accuracy_warning(lat, lon, accuracy);
+                } else {
+                    send_location_message(lat, lon, accuracy);
+                }
             } catch (Error e) {
-                warning("ConversationViewController: Failed to get location: %s", e.message);
-                var dialog = new Adw.AlertDialog(_("Failed to get location"), e.message);
-                dialog.add_response("close", _("Close"));
-                dialog.present(main_window);
+                warning("ConversationViewController: GeoClue failed: %s — showing manual dialog", e.message);
+                show_manual_location_dialog();
             }
         });
+    }
+
+    private void show_accuracy_warning(double lat, double lon, double accuracy) {
+        double accuracy_km = accuracy / 1000.0;
+        string body_text = _("The detected location has an accuracy of approximately %.0f km. This may be very inaccurate. You can send it anyway or enter coordinates manually.").printf(accuracy_km);
+        var dialog = new Adw.AlertDialog(_("Low location accuracy"), body_text);
+
+        dialog.add_response("cancel", _("Cancel"));
+        dialog.add_response("manual", _("Enter manually"));
+        dialog.add_response("send", _("Send anyway"));
+        dialog.set_response_appearance("manual", Adw.ResponseAppearance.SUGGESTED);
+        dialog.set_response_appearance("send", Adw.ResponseAppearance.DESTRUCTIVE);
+
+        dialog.response.connect((response) => {
+            if (response == "send") {
+                send_location_message(lat, lon, accuracy);
+            } else if (response == "manual") {
+                show_manual_location_dialog();
+            }
+        });
+
+        dialog.present(main_window);
+    }
+
+    private void show_manual_location_dialog() {
+        var dialog = new Adw.AlertDialog(_("Send Location"), _("Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"));
+
+        var grid = new Gtk.Grid();
+        grid.column_spacing = 10;
+        grid.row_spacing = 8;
+        grid.margin_start = grid.margin_end = 12;
+
+        var lat_label = new Gtk.Label(_("Latitude"));
+        lat_label.halign = Gtk.Align.END;
+        var lat_entry = new Gtk.Entry();
+        lat_entry.placeholder_text = "48.2082";
+        lat_entry.input_purpose = Gtk.InputPurpose.NUMBER;
+        lat_entry.hexpand = true;
+
+        var lon_label = new Gtk.Label(_("Longitude"));
+        lon_label.halign = Gtk.Align.END;
+        var lon_entry = new Gtk.Entry();
+        lon_entry.placeholder_text = "16.3738";
+        lon_entry.input_purpose = Gtk.InputPurpose.NUMBER;
+        lon_entry.hexpand = true;
+
+        var geo_label = new Gtk.Label(_("or geo: link"));
+        geo_label.halign = Gtk.Align.END;
+        var geo_entry = new Gtk.Entry();
+        geo_entry.placeholder_text = "geo:48.2082,16.3738";
+        geo_entry.hexpand = true;
+
+        grid.attach(lat_label, 0, 0); grid.attach(lat_entry, 1, 0);
+        grid.attach(lon_label, 0, 1); grid.attach(lon_entry, 1, 1);
+        grid.attach(geo_label, 0, 2); grid.attach(geo_entry, 1, 2);
+
+        dialog.set_extra_child(grid);
+        dialog.add_response("cancel", _("Cancel"));
+        dialog.add_response("send", _("Send"));
+        dialog.set_response_appearance("send", Adw.ResponseAppearance.SUGGESTED);
+
+        // Parse geo: link into lat/lon fields
+        geo_entry.changed.connect(() => {
+            string text = geo_entry.text.strip();
+            if (text.has_prefix("geo:")) {
+                string coords = text.substring(4);
+                string[] parts = coords.split(",");
+                if (parts.length >= 2) {
+                    lat_entry.text = parts[0].strip();
+                    lon_entry.text = parts[1].split("?")[0].strip(); // strip query params
+                }
+            }
+        });
+
+        dialog.response.connect((response) => {
+            if (response == "send") {
+                string lat_text = lat_entry.text.strip().replace(",", ".");
+                string lon_text = lon_entry.text.strip().replace(",", ".");
+                if (lat_text == "" || lon_text == "") {
+                    var err_dialog = new Adw.AlertDialog(_("Invalid coordinates"), _("Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."));
+                    err_dialog.add_response("close", _("Close"));
+                    err_dialog.present(main_window);
+                    return;
+                }
+                double lat = double.parse(lat_text);
+                double lon = double.parse(lon_text);
+                if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                    send_location_message(lat, lon, 0);
+                } else {
+                    var err_dialog = new Adw.AlertDialog(_("Invalid coordinates"), _("Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."));
+                    err_dialog.add_response("close", _("Close"));
+                    err_dialog.present(main_window);
+                }
+            }
+        });
+
+        dialog.present(main_window);
     }
 
     private void send_location_message(double lat, double lon, double accuracy) {

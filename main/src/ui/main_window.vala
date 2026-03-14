@@ -172,7 +172,7 @@ public class MainWindow : Adw.ApplicationWindow {
 
     private void setup_header_bar() {
         add_chat_button.tooltip_text = Util.string_if_tooltips_active(_("Start Conversation"));
-        add_group_button.tooltip_text = Util.string_if_tooltips_active(_("Join Channel"));
+        add_group_button.tooltip_text = Util.string_if_tooltips_active(_("Join Group"));
         status_button.tooltip_text = Util.string_if_tooltips_active(_("Set Status"));
 
         Builder menu_builder = new Builder.from_resource("/im/github/rallep71/DinoX/menu_app.ui");

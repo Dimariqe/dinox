@@ -22,7 +22,7 @@ public class AddConferenceDialog : Adw.Dialog {
     private Adw.HeaderBar header_bar;
 
     public AddConferenceDialog(StreamInteractor stream_interactor) {
-        this.title = _("Join Channel");
+        this.title = _("Join Group");
         this.content_width = 460;
         this.content_height = 550;
         this.stream_interactor = stream_interactor;

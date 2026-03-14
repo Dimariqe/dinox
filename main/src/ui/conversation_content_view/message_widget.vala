@@ -38,6 +38,7 @@ public class MessageMetaItem : ContentMetaItem {
     ulong marked_notify_handler_id = -1;
     uint pending_timeout_id = -1;
     Binding? marked_binding = null;
+    bool cached_dark_theme = false;
 
     public Label label = new Label("") { use_markup=true, xalign=0, selectable=true, wrap=true, wrap_mode=Pango.WrapMode.WORD_CHAR, hexpand=true, vexpand=true };
 
@@ -237,7 +238,14 @@ public class MessageMetaItem : ContentMetaItem {
         }
 
         if (theme_dependent && realize_id == -1) {
-            realize_id = label.realize.connect(update_label);
+            cached_dark_theme = Util.is_dark_theme(label);
+            realize_id = label.realize.connect(() => {
+                bool dark_now = Util.is_dark_theme(label);
+                if (dark_now != cached_dark_theme) {
+                    cached_dark_theme = dark_now;
+                    update_label();
+                }
+            });
         } else if (!theme_dependent && realize_id != -1) {
             label.disconnect(realize_id);
             realize_id = -1;
@@ -254,18 +262,35 @@ public class MessageMetaItem : ContentMetaItem {
         generate_markup_text(content_item, label);
     }
 
+    // Shared session + tile cache for all map widgets (avoids per-widget Soup.Session and duplicate downloads)
+    private static Soup.Session? shared_tile_session = null;
+    private static HashMap<string, Gdk.Texture> tile_cache = new HashMap<string, Gdk.Texture>();
+
+    private static Soup.Session get_tile_session() {
+        if (shared_tile_session == null) {
+            shared_tile_session = new Soup.Session();
+            shared_tile_session.user_agent = @"Dino/$(Dino.get_short_version()) ";
+            shared_tile_session.timeout = 15;
+        }
+        return shared_tile_session;
+    }
+
     private Widget? create_map_widget(string geo_uri) {
         debug("MessageMetaItem: Creating map widget for URI: %s", geo_uri);
-        // geo:lat,lon
-        string content = geo_uri.substring(4);
+        // geo:lat,lon[?params]
+        string content = geo_uri.substring(4).split("?")[0]; // strip query params
         string[] parts = content.split(",");
         if (parts.length < 2) {
             debug("MessageMetaItem: Invalid geo URI format (split count: %d)", parts.length);
             return null;
         }
 
-        double lat = double.parse(parts[0].replace(",", "."));
-        double lon = double.parse(parts[1].replace(",", "."));
+        double lat = double.parse(parts[0].strip());
+        double lon = double.parse(parts[1].strip());
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            warning("MessageMetaItem: Coordinates out of range: %f, %f", lat, lon);
+            return null;
+        }
         debug("MessageMetaItem: Parsed coordinates: %f, %f", lat, lon);
 
         // Calculate OSM tile (Zoom 15)
@@ -279,9 +304,10 @@ public class MessageMetaItem : ContentMetaItem {
         debug("MessageMetaItem: Tile URL: %s", tile_url);
 
         Box box = new Box(Orientation.VERTICAL, 0);
-        box.add_css_class("message-content"); // Reuse message styling if possible
+        box.add_css_class("message-content");
         box.halign = Align.START;
         box.hexpand = false;
+        box.width_request = 256;
         
         Overlay overlay = new Overlay();
         overlay.set_size_request(256, 256);
@@ -291,29 +317,35 @@ public class MessageMetaItem : ContentMetaItem {
         Picture picture = new Picture();
         picture.content_fit = ContentFit.COVER;
         picture.can_shrink = true;
-        
-        // Fetch image
-        var session = new Soup.Session();
-        session.user_agent = "DinoX/0.0"; // Identify nicely
-        var msg = new Soup.Message("GET", tile_url);
-        
-        session.send_and_read_async.begin(msg, Priority.DEFAULT, null, (obj, res) => {
-            try {
-                Bytes bytes = session.send_and_read_async.end(res);
-                if (bytes != null) {
-                    debug("MessageMetaItem: Map tile downloaded (%d bytes)", (int)bytes.get_size());
-                    // Use Pixbuf to decode the PNG data
-                    var stream = new MemoryInputStream.from_bytes(bytes);
-                    var pixbuf = new Gdk.Pixbuf.from_stream(stream);
-                    var texture = Gdk.Texture.for_pixbuf(pixbuf);
-                    picture.set_paintable(texture);
-                } else {
-                    debug("MessageMetaItem: Map tile download returned null bytes");
+
+        // Use cached tile or fetch from network
+        if (tile_cache.has_key(tile_url)) {
+            picture.set_paintable(tile_cache[tile_url]);
+        } else {
+            var cancel = new Cancellable();
+            var msg = new Soup.Message("GET", tile_url);
+
+            // Cancel download when widget is destroyed
+            box.destroy.connect(() => { cancel.cancel(); });
+
+            get_tile_session().send_and_read_async.begin(msg, Priority.DEFAULT, cancel, (obj, res) => {
+                try {
+                    Bytes bytes = get_tile_session().send_and_read_async.end(res);
+                    if (bytes != null && bytes.get_size() > 0) {
+                        debug("MessageMetaItem: Map tile downloaded (%d bytes)", (int)bytes.get_size());
+                        var stream = new MemoryInputStream.from_bytes(bytes);
+                        var pixbuf = new Gdk.Pixbuf.from_stream(stream);
+                        var texture = Gdk.Texture.for_pixbuf(pixbuf);
+                        tile_cache[tile_url] = texture;
+                        picture.set_paintable(texture);
+                    }
+                } catch (Error e) {
+                    if (!(e is IOError.CANCELLED)) {
+                        warning("Failed to load map tile: %s", e.message);
+                    }
                 }
-            } catch (Error e) {
-                warning("Failed to load map tile: %s", e.message);
-            }
-        });
+            });
+        }
 
         overlay.set_child(picture);
 
@@ -322,19 +354,22 @@ public class MessageMetaItem : ContentMetaItem {
         marker.pixel_size = 32;
         marker.halign = Align.CENTER;
         marker.valign = Align.CENTER;
-        marker.add_css_class("error"); // Use error color (usually red) for visibility
+        marker.add_css_class("error");
         overlay.add_overlay(marker);
 
         box.append(overlay);
         
-        Label caption = new Label("Open OpenStreetMap");
+        Label caption = new Label(_("Navigate to location"));
         caption.add_css_class("dim-label");
         caption.margin_top = 5;
         box.append(caption);
 
+        // Use parsed doubles for safe URL construction (prevents injection from malicious geo URIs)
+        string safe_lat = "%.6f".printf(lat).replace(",", ".");
+        string safe_lon = "%.6f".printf(lon).replace(",", ".");
         var gesture = new GestureClick();
         gesture.pressed.connect(() => {
-            string link = "https://www.openstreetmap.org/?mlat=%s&mlon=%s#map=16/%s/%s".printf(parts[0], parts[1], parts[0], parts[1]);
+            string link = "https://www.google.com/maps/dir/?api=1&destination=%s,%s".printf(safe_lat, safe_lon);
             var launcher = new Gtk.UriLauncher(link);
             launcher.launch.begin(null, null, (obj, res) => {
                 try {

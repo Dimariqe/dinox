@@ -279,16 +279,16 @@ public class MqttDiscoveryManager : GLib.Object {
         builder.end_array();
         string device_name;
         if (connection_label == "standalone") {
-            device_name = "DinoX MQTT (Standalone)";
+            device_name = _("DinoX MQTT (Standalone)");
         } else {
-            device_name = "DinoX MQTT (%s)".printf(connection_label);
+            device_name = _("DinoX MQTT (%s)").printf(connection_label);
         }
         builder.set_member_name("name");
         builder.add_string_value(device_name);
         builder.set_member_name("mf");
-        builder.add_string_value("DinoX");
+        builder.add_string_value(_("DinoX"));
         builder.set_member_name("mdl");
-        builder.add_string_value("MQTT Plugin");
+        builder.add_string_value(_("MQTT Plugin"));
         builder.set_member_name("sw");
         builder.add_string_value(Dino.VERSION);
         builder.end_object();

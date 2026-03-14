@@ -27,8 +27,8 @@ msgid "Use account:"
 msgstr "Konto verwenden:"
 
 #: main/data/add_conversation/select_jid_fragment.ui:38
-msgid "Search or enter channel address..."
-msgstr "Kanal suchen oder Adresse eingeben..."
+msgid "Search or enter group address..."
+msgstr "Gruppe suchen oder Adresse eingeben..."
 
 #: main/data/add_conversation/select_jid_fragment.ui:85
 #: main/src/ui/add_conversation/select_jid_fragment.vala:276
@@ -123,8 +123,8 @@ msgstr "Unterhaltung starten"
 #: main/data/menu_add.ui:11
 #: main/src/ui/add_conversation/add_conference_dialog.vala:25
 #: main/src/ui/application.vala:2464 main/src/ui/main_window.vala:175
-msgid "Join Channel"
-msgstr "Kanal beitreten"
+msgid "Join Group"
+msgstr "Gruppe beitreten"
 
 #: main/data/gtk/help-overlay.ui:26
 msgid "Show preferences"
@@ -1763,8 +1763,8 @@ msgid "Delete message"
 msgstr "Nachricht löschen"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:164
-msgid "Do you want to remove this message from the channel?"
-msgstr "Möchten Sie diese Nachricht aus dem Kanal entfernen?"
+msgid "Do you want to remove this message from the group?"
+msgstr "Möchten Sie diese Nachricht aus der Gruppe entfernen?"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:165
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:873
@@ -2657,9 +2657,8 @@ msgid "Notifications disabled"
 msgstr "Benachrichtigungen deaktiviert"
 
 #: main/src/windows/conversation_details.vala:253
-#, fuzzy
 msgid "Profile"
-msgstr "Profil speichern"
+msgstr "Profil"
 
 #: main/src/windows/conversation_details.vala:256
 #: plugins/bot-features/src/botfather_handler.vala:430
@@ -3425,7 +3424,7 @@ msgstr "KI aktivieren"
 #: plugins/bot-features/src/message_router.vala:824
 #: plugins/bot-features/src/message_router.vala:834
 msgid "Current configuration"
-msgstr ""
+msgstr "Aktuelle Konfiguration"
 
 #: plugins/bot-features/src/message_router.vala:505
 #: plugins/bot-features/src/message_router.vala:516
@@ -3449,7 +3448,7 @@ msgstr "Anbieter wechseln"
 #: plugins/bot-features/src/message_router.vala:827
 #: plugins/bot-features/src/message_router.vala:837
 msgid "Set up again"
-msgstr ""
+msgstr "Erneut einrichten"
 
 #: plugins/bot-features/src/message_router.vala:517
 msgid "Show/change system prompt"
@@ -3900,7 +3899,7 @@ msgstr "Telegram aktivieren"
 #: plugins/bot-features/src/message_router.vala:1112
 #, c-format
 msgid "Unknown: /api %s"
-msgstr ""
+msgstr "Unbekannt: /api %s"
 
 #: plugins/bot-features/src/message_router.vala:1127
 #, c-format
@@ -4248,7 +4247,7 @@ msgstr "Ein neues wird beim nächsten Start im Netzwerkmodus generiert."
 #: plugins/bot-features/src/message_router.vala:1552
 #, c-format
 msgid "Unknown: /api server %s"
-msgstr ""
+msgstr "Unbekannt: /api server %s"
 
 #: plugins/bot-features/src/message_router.vala:1563
 msgid "API: Server Settings"
@@ -4646,6 +4645,68 @@ msgid ""
 "  /mqtt discovery on      — Enable & publish\n"
 "  /mqtt discovery off     — Disable & remove"
 msgstr ""
+"MQTT Bot-Befehle\n"
+"─────────────────\n"
+"/mqtt status              — Verbindungsstatus\n"
+"/mqtt subscribe <topic>   — Thema abonnieren\n"
+"/mqtt unsubscribe <topic> — Thema abbestellen\n"
+"/mqtt publish <t> <msg>   — An Thema veröffentlichen\n"
+"/mqtt topics              — Abonnements auflisten\n"
+"/mqtt alias <topic> <name>— Thema-Alias setzen\n"
+"/mqtt aliases             — Alle Aliase auflisten\n"
+"/mqtt rmalias <topic>     — Alias entfernen\n"
+"/mqtt qos <topic> <0|1|2> — QoS-Level für Thema setzen\n"
+"/mqtt chart <topic> [N]   — Sparkline-Diagramm\n"
+"/mqtt bridge <topic> <jid>— An XMPP-Kontakt weiterleiten\n"
+"/mqtt bridges             — Bridge-Regeln auflisten\n"
+"/mqtt rmbridge <number>   — Bridge-Regel entfernen\n"
+"/mqtt preset add <name> <topic> <payload>\n"
+"                          — Veröffentlichungs-Preset hinzufügen\n"
+"/mqtt preset remove <N>   — Preset nach Nummer entfernen\n"
+"/mqtt preset <name>       — Preset ausführen\n"
+"/mqtt presets             — Alle Presets auflisten\n"
+"/mqtt config              — Verbindungskonfiguration anzeigen\n"
+"/mqtt reconnect           — Neuverbindung erzwingen\n"
+"/mqtt manager             — Themen-Manager öffnen\n"
+"/mqtt alert <topic> <op> <value>\n"
+"                          — Schwellenwert-Alarm setzen\n"
+"/mqtt alerts              — Alarmregeln auflisten\n"
+"/mqtt rmalert <number>    — Alarmregel entfernen\n"
+"/mqtt priority <topic> <level>\n"
+"                          — Thema-Priorität setzen\n"
+"/mqtt history [topic] [N] — Thema-Verlauf anzeigen\n"
+"/mqtt dbstats             — Datenbankstatistik\n"
+"/mqtt purge               — Manuelle Datenbereinigung\n"
+"/mqtt pause               — Nachrichten pausieren\n"
+"/mqtt resume              — Nachrichten fortsetzen\n"
+"/mqtt discovery [on|off]  — HA Discovery Status/Umschalten\n"
+"/mqtt help                — Dieser Hilfetext\n"
+"\n"
+"Themen-Platzhalter:\n"
+"  + = eine Ebene (home/+/temp)\n"
+"  # = alle darunter (home/sensors/#)\n"
+"\n"
+"Alarm-Beispiele:\n"
+"  /mqtt alert home/temp > 30\n"
+"  /mqtt alert home/door == OPEN\n"
+"\n"
+"Bridge-Beispiel:\n"
+"  /mqtt bridge home/alerts/# user@example.com\n"
+"\n"
+"Preset-Beispiel:\n"
+"  /mqtt preset add LichtAN home/light/set ON\n"
+"  /mqtt preset LichtAN\n"
+"\n"
+"QoS-Level: 0 (fire&forget), 1 (ack), 2 (genau einmal)\n"
+"Prioritäts-Level: silent, normal, alert, critical\n"
+"\n"
+"Alias-Beispiel:\n"
+"  /mqtt alias home/temp 🌡 Wohnzimmer\n"
+"\n"
+"HA Discovery:\n"
+"  /mqtt discovery         — Discovery-Status anzeigen\n"
+"  /mqtt discovery on      — Aktivieren & veröffentlichen\n"
+"  /mqtt discovery off     — Deaktivieren & entfernen"
 
 #: plugins/mqtt/src/command_handler.vala:493
 msgid ""
@@ -5992,7 +6053,7 @@ msgstr "Alias (optional, z. B. 🌡 Wohnzimmer)"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:633
 msgid "Active Subscriptions"
-msgstr ""
+msgstr "Aktive Abonnements"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:639
 msgid "Topics"
@@ -6140,7 +6201,7 @@ msgstr "Keine Topics abonniert"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1019
 msgid "Add a topic above"
-msgstr ""
+msgstr "Thema oben hinzufügen"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1052
 msgid "Quality of Service level"
@@ -6161,7 +6222,7 @@ msgstr "Keine Alarmregeln konfiguriert"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1350
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1409
 msgid "Add a rule above"
-msgstr ""
+msgstr "Regel oben hinzufügen"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1408
 msgid "No bridge rules configured"
@@ -6193,6 +6254,13 @@ msgid ""
 "\n"
 "Per-account mode uses these credentials automatically."
 msgstr ""
+"ℹ Server: ejabberd (mod_mqtt erkannt)\n"
+"\n"
+"ejabberd teilt XMPP- und MQTT-Authentifizierung.\n"
+"Du kannst deine XMPP-Zugangsdaten verwenden,\n"
+"um dich mit dem MQTT-Broker auf derselben Domain zu verbinden.\n"
+"\n"
+"Der Konto-Modus verwendet diese Zugangsdaten automatisch."
 
 #: plugins/mqtt/src/plugin.vala:1098
 msgid ""
@@ -6651,6 +6719,179 @@ msgstr "Tor deaktiviert"
 msgid "Tor is disabled"
 msgstr "Tor ist deaktiviert"
 
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…!"
+msgstr "Ring ring…!"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Dependencies for call support not met"
+msgstr "Abhängigkeiten für Anrufunterstützung nicht erfüllt"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Ring ring…?"
+msgstr "Ring ring…?"
+
+#: main/src/ui/conversation_content_view/call_widget.vala
+msgid "Call failed to establish"
+msgstr "Anruf konnte nicht aufgebaut werden"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · %s"
+msgstr "QoS %d · %s"
+
+#: plugins/mqtt/src/topic_manager_dialog.vala
+#, c-format
+msgid "QoS %d · normal"
+msgstr "QoS %d · Normal"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Silent"
+msgstr "Stumm"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Alert"
+msgstr "Alarm"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Critical"
+msgstr "Kritisch"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "contains"
+msgstr "enthält"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "full"
+msgstr "Vollständig"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "payload"
+msgstr "Nutzdaten"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "short"
+msgstr "Kurz"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "file (URL)"
+msgstr "Datei (URL)"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "Format: %s"
+msgstr "Format: %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+#, c-format
+msgid "via %s"
+msgstr "über %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
+msgid "Unnamed"
+msgstr "Unbenannt"
+
+#: plugins/mqtt/src/plugin.vala
+msgid "MQTT"
+msgstr "MQTT"
+
+#: plugins/tor-manager/src/settings_page.vala:53
+msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+msgstr ""
+"Erforderlich, wenn Tor blockiert ist. Unterstützt obfs4- und WebTunnel-"
+"Brücken."
+
+#: plugins/tor-manager/src/settings_page.vala:142
+msgid "Fetches bridges from Tor Project. Choose transport type:"
+msgstr "Ruft Brücken vom Tor-Projekt ab. Transporttyp wählen:"
+
+#: plugins/tor-manager/src/settings_page.vala:173
+msgid ""
+"WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
+"is more widely available. Both fetch instantly without CAPTCHA."
+msgstr ""
+"WebTunnel (Port 443, sieht wie HTTPS aus) ist am besten für strenge "
+"Firewalls. obfs4 ist weiter verbreitet. Beide werden sofort ohne CAPTCHA "
+"abgerufen."
+
+#: plugins/tor-manager/src/settings_page.vala:237
+msgid "Error fetching bridges"
+msgstr "Fehler beim Abrufen der Brücken"
+
+#: plugins/tor-manager/src/settings_page.vala:286
+msgid "No bridges received. The server may be temporarily unavailable."
+msgstr ""
+"Keine Brücken empfangen. Der Server ist möglicherweise vorübergehend nicht "
+"erreichbar."
+
+#: plugins/tor-manager/src/settings_page.vala:252
+msgid "Received %d %s bridge(s)."
+msgstr "%d %s-Brücke(n) empfangen."
+
+#: plugins/tor-manager/src/settings_page.vala:255
+msgid "%d bridge(s) on standard ports (443/80)."
+msgstr "%d Brücke(n) auf Standardports (443/80)."
+
+#: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Firewall"
+msgstr "Firewall"
+
+#: main/src/ui/conversation_content_view/message_widget.vala:345
+msgid "Navigate to location"
+msgstr "Zum Standort navigieren"
+
+#: main/src/ui/util/location_manager.vala:28
+msgid "A location request is already in progress."
+msgstr "Eine Standortanfrage läuft bereits."
+
+#: main/src/ui/util/location_manager.vala:37
+msgid "Location services are not available (GeoClue2 not installed)."
+msgstr "Standortdienste sind nicht verfügbar (GeoClue2 nicht installiert)."
+
+#: main/src/ui/conversation_view_controller.vala:394
+msgid "Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"
+msgstr "Koordinaten eingeben oder einen geo:-Link einfügen (z. B. geo:48.2082,16.3738)"
+
+#: main/src/ui/conversation_view_controller.vala:401
+msgid "Latitude"
+msgstr "Breitengrad"
+
+#: main/src/ui/conversation_view_controller.vala:408
+msgid "Longitude"
+msgstr "Längengrad"
+
+#: main/src/ui/conversation_view_controller.vala:415
+msgid "or geo: link"
+msgstr "oder geo:-Link"
+
+#: main/src/ui/conversation_view_controller.vala:435
+msgid "Send"
+msgstr "Senden"
+
+#: main/src/ui/conversation_view_controller.vala:452
+msgid "Invalid coordinates"
+msgstr "Ungültige Koordinaten"
+
+#: main/src/ui/conversation_view_controller.vala:452
+msgid "Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."
+msgstr "Bitte geben Sie einen gültigen Breitengrad (-90 bis 90) und Längengrad (-180 bis 180) ein."
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Low location accuracy"
+msgstr "Geringe Standortgenauigkeit"
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "The detected location has an accuracy of approximately %.0f km. This may be very inaccurate. You can send it anyway or enter coordinates manually."
+msgstr "Der erkannte Standort hat eine Genauigkeit von ca. %.0f km. Dies kann sehr ungenau sein. Sie können ihn trotzdem senden oder die Koordinaten manuell eingeben."
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Enter manually"
+msgstr "Manuell eingeben"
+
+#: main/src/ui/conversation_view_controller.vala
+msgid "Send anyway"
+msgstr "Trotzdem senden"
+
 #~ msgid "Help: How to join channels"
 #~ msgstr "Hilfe: Wie man Kanälen beitritt"
 
@@ -7103,9 +7344,6 @@ msgstr "Tor ist deaktiviert"
 
 #~ msgid "Check the spelling or try to remove filters"
 #~ msgstr "Überprüfe die Schreibweise oder entferne Filter"
-
-#~ msgid "Send"
-#~ msgstr "Senden"
 
 #, c-format
 #~ msgid "Sign in to %s"
