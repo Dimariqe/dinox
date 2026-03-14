@@ -475,9 +475,6 @@ public class Dino.Ui.CallWindowController : Object {
     private void update_audio_device_choices() {
         if (call_plugin.get_devices("audio", true).size == 0 || call_plugin.get_devices("audio", false).size == 0) {
             call_window.bottom_bar.show_audio_device_error();
-        } else if (call_plugin.get_devices("audio", true).size == 1 && call_plugin.get_devices("audio", false).size == 1) {
-            call_window.bottom_bar.show_audio_device_choices(false);
-            return;
         }
 
         AudioSettingsPopover? audio_settings_popover = call_window.bottom_bar.show_audio_device_choices(true);

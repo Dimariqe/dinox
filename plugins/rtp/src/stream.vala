@@ -1150,7 +1150,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
             
             // Add queue to decouple decoding from output (fixes pipeline warnings)
             output_queue = Gst.ElementFactory.make("queue", @"audio_out_queue_$rtpid");
-            // Time-based buffering: hold up to 100ms of decoded audio to
+            // Time-based buffering: hold up to 50ms of decoded audio to
             // absorb jitter between decoder and audio sink.  Disable the
             // buffer-count limit so only wall-clock time governs fullness.
             output_queue.@set("max-size-time", (uint64) 50 * Gst.MSECOND);
