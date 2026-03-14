@@ -1,12 +1,14 @@
 /*
- * Copyright (C) 2025 Ralf Peter <dinox@handwerker.jetzt>
+ * Copyright (C) 2025-2026 Ralf Peter <dinox@handwerker.jetzt>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Windows Systray Stub - No tray icon on Windows, window close = quit.
+ * Windows Systray — Shell_NotifyIcon via systray_win32.c helper.
+ * Provides tray icon with left-click toggle and right-click context menu
+ * (status selection + Quit).
  */
 using Gtk;
 using GLib;
@@ -14,31 +16,163 @@ using GLib;
 namespace Dino.Ui {
 
     public class SystrayManager : Object {
-        
+
         private unowned Application application;
         public MainWindow? window;
-        
+        public bool is_hidden = false;
+        private bool disposed = false;
+        private bool holding = false;
+
+        /* Menu layout:  Online(0) Away(1) Busy(2) N/A(3) sep(4) Quit(5) */
+        private const int MENU_QUIT_ID = 5;
+        private string[] status_keys = {"online", "away", "dnd", "xa"};
+        private string current_status = "online";
+
         public SystrayManager(Application application) {
             this.application = application;
+
+            bool ok = SystrayWin32.init("DinoX", 1, on_tray_callback, (void*) this);
+            if (!ok) {
+                warning("Systray: Shell_NotifyIcon init failed — running without tray");
+                return;
+            }
+
+            rebuild_menu();
+            debug("Systray: Win32 tray icon created");
         }
-        
+
         public void set_window(MainWindow window) {
             this.window = window;
-            
-            // On Windows: closing the window quits the application.
-            // No system tray support (StatusNotifierItem is Linux D-Bus only).
+
             window.close_request.connect(() => {
-                quit_application();
-                return true;
+                if (Dino.Application.get_default().settings.keep_background) {
+                    hide_window();
+                    return true;
+                } else {
+                    quit_application();
+                    return true;
+                }
             });
+
+            /* Track status changes for menu checkmarks */
+            var pm = application.stream_interactor.get_module<PresenceManager>(PresenceManager.IDENTITY);
+            pm.status_changed.connect((show, msg) => {
+                current_status = show;
+                rebuild_menu();
+            });
+            current_status = pm.get_current_show();
+            rebuild_menu();
         }
-        
+
+        /* ---- menu ---- */
+
+        private void rebuild_menu() {
+            string[] status_labels = {_("Online"), _("Away"), _("Busy"), _("Not Available")};
+            string[] active_emojis = {"\xf0\x9f\x9f\xa2", "\xf0\x9f\x9f\xa0", "\xf0\x9f\x94\xb4", "\xe2\xad\x95"};
+            string inactive = "\xe2\x9a\xaa";
+
+            /* Build NULL-terminated label array with a NULL separator. */
+            string?[] labels = new string?[7];
+            uint32 checked = 0;
+            for (int i = 0; i < 4; i++) {
+                string emoji = (status_keys[i] == current_status) ? active_emojis[i] : inactive;
+                labels[i] = emoji + "  " + status_labels[i];
+                if (status_keys[i] == current_status)
+                    checked |= (1u << i);
+            }
+            labels[4] = null;   /* separator */
+            labels[5] = _("Quit");
+            labels[6] = (string?) ((void*) (-1));  /* sentinel */
+
+            SystrayWin32.set_menu(labels, checked);
+        }
+
+        /* ---- callbacks ---- */
+
+        private static void on_tray_callback(int menu_id, void* user_data) {
+            unowned SystrayManager self = (SystrayManager) user_data;
+            if (self.disposed) return;
+
+            if (menu_id == -1) {
+                /* Left-click: toggle window */
+                self.toggle_window_visibility();
+            } else if (menu_id == MENU_QUIT_ID) {
+                /* Quit — use Idle to escape the Win32 message handler stack */
+                Idle.add(() => {
+                    self.quit_application();
+                    return Source.REMOVE;
+                });
+            } else if (menu_id >= 0 && menu_id < 4) {
+                /* Status change */
+                string status = self.status_keys[menu_id];
+                self.application.activate_action("set-status", new Variant.string(status));
+            }
+        }
+
+        /* ---- window visibility ---- */
+
+        public void toggle_window_visibility() {
+            if (window == null) return;
+            if (is_hidden || !window.is_visible()) {
+                show_window();
+            } else {
+                hide_window();
+            }
+        }
+
+        private void show_window() {
+            if (window == null) return;
+            window.present();
+            window.set_visible(true);
+            is_hidden = false;
+        }
+
+        private void hide_window() {
+            if (window == null) return;
+            window.set_visible(false);
+            is_hidden = true;
+            if (!holding) {
+                application.hold();
+                holding = true;
+            }
+        }
+
+        /* ---- quit ---- */
+
         public void quit_application() {
+            debug("Systray: quit_application() called");
+
+            if (window != null)
+                window.hide();
+
+            cleanup();
+
+            debug("Systray: Disconnecting all accounts...");
+            application.stream_interactor.connection_manager.disconnect_all();
+
+            debug("Systray: Calling application.quit()");
             application.quit();
+
+            debug("Systray: Force exit");
+            Process.exit(0);
         }
-        
+
+        /* ---- cleanup ---- */
+
         public void cleanup() {
-            // Nothing to clean up in the Windows stub
+            if (disposed) return;
+            disposed = true;
+
+            SystrayWin32.cleanup();
+
+            if (holding) {
+                application.release();
+                holding = false;
+            }
+        }
+
+        ~SystrayManager() {
+            cleanup();
         }
     }
 }

@@ -150,6 +150,7 @@ sources = files(
 # Platform-specific systray implementation
 if host_machine.system() == 'windows'
     sources += files('src/ui/systray_windows.vala')
+    sources += files('src/ui/systray_win32.c')
 else
     sources += files('src/ui/systray.vala')
     sources += files('src/ui/systray_sni_dbus.c')
@@ -171,7 +172,10 @@ vala_args = [
     '--vapidir=' + (meson.current_source_dir() / 'vapi'),
 ]
 message('VAPI DIR: ' + (meson.current_source_dir() / 'vapi'))
-if host_machine.system() != 'windows'
+if host_machine.system() == 'windows'
+    vala_args += ['--pkg', 'systray_win32']
+    dependencies += [cc.find_library('shell32'), cc.find_library('user32')]
+else
     vala_args += ['--pkg', 'systray_sni_dbus']
     vala_args += ['-D', 'HAVE_MALLOC_TRIM']
 endif

@@ -113,6 +113,7 @@ SYSTEM_DLLS=(
     "libgcrypt-20.dll"
     "libgpg-error-0.dll"
     "libassuan-0.dll"
+    "libnpth-0.dll"
     "libgpgme-11.dll"
     
     # Network
@@ -218,6 +219,12 @@ SYSTEM_DLLS=(
     
     # MQTT (required by mqtt plugin — pacman -S mingw-w64-x86_64-mosquitto)
     "libmosquitto.dll"
+    "libprotobuf-c-1.dll"
+    "libcjson-1.dll"
+    
+    # Tor async networking (transitive dep of tor.exe)
+    "libevent_core-2-1-7.dll"
+    "libevent_extra-2-1-7.dll"
     
     # SQLCipher (if using encrypted DB instead of plain sqlite)
     "libsqlcipher-0.dll"
