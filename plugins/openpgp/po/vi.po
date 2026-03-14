@@ -198,8 +198,6 @@ msgstr "Đang tạo khóa..."
 #: plugins/openpgp/src/key_management_dialog.vala:341
 msgid "Please wait while your key is being generated. This may take a moment."
 msgstr "Vui lòng đợi trong khi khóa của bạn đang được tạo. Việc này có thể mất một lúc."
-"Vui lòng đợi trong khi khóa của bạn đang được tạo. Việc này có thể mất một "
-"chút thời gian."
 
 #: plugins/openpgp/src/key_management_dialog.vala:393
 #: plugins/openpgp/src/key_management_dialog.vala:459

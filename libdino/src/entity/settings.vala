@@ -25,6 +25,7 @@ public class Settings : Object {
         api_tls_key_ = col_to_string_or_default("api_tls_key", "");
         presence_show_ = col_to_string_or_default("presence_show", "online");
         presence_status_msg_ = col_to_string_or_default("presence_status_msg", "");
+        language_ = col_to_string_or_default("language", "system");
     }
 
     private bool col_to_bool_or_default(string key, bool def) {
@@ -244,6 +245,28 @@ public class Settings : Object {
                 .value(db.settings.value, value)
                 .perform();
             presence_status_msg_ = value;
+        }
+    }
+
+    private string language_;
+    public string language {
+        get { return language_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "language", true)
+                .value(db.settings.value, value)
+                .perform();
+            language_ = value;
+            // Also write to plain text file so it can be read at early startup
+            // before the encrypted DB is opened
+            string dir = Path.build_filename(Environment.get_user_data_dir(), "dinox");
+            DirUtils.create_with_parents(dir, 0700);
+            string lang_file = Path.build_filename(dir, "language");
+            try {
+                FileUtils.set_contents(lang_file, value);
+            } catch (FileError e) {
+                warning("Could not write language file: %s", e.message);
+            }
         }
     }
 

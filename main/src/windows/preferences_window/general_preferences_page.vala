@@ -25,6 +25,7 @@ public class Dino.Ui.ViewModel.GeneralPreferencesPage : Object {
     public int api_port { get; set; default = 7842; }
     public string api_tls_cert { get; set; default = ""; }
     public string api_tls_key { get; set; default = ""; }
+    public string language { get; set; default = "system"; }
 }
 
 [GtkTemplate (ui = "/im/github/rallep71/DinoX/preferences_window/general_preferences_page.ui")]
@@ -45,6 +46,7 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
     [GtkChild] private unowned Adw.ActionRow api_cert_renew_row;
     [GtkChild] private unowned Adw.ActionRow api_cert_delete_row;
     [GtkChild] private unowned Adw.ComboRow color_scheme_row;
+    [GtkChild] private unowned Adw.ComboRow language_row;
     [GtkChild] private unowned Adw.ActionRow backup_row;
     [GtkChild] private unowned Adw.ActionRow restore_backup_row;
     [GtkChild] private unowned Adw.ActionRow data_location_row;
@@ -55,6 +57,15 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
 
     public ViewModel.GeneralPreferencesPage model { get; set; default = new ViewModel.GeneralPreferencesPage(); }
     private Binding[] model_bindings = new Binding[0];
+
+    // Language codes matching the order of entries in language_row StringList
+    private const string[] LANGUAGE_CODES = {
+        "system", "ar", "ca", "cs", "da", "de", "el", "en", "eo", "es",
+        "et", "eu", "fa", "fi", "fr", "gl", "hi", "hu", "hy", "ia",
+        "id", "ie", "is", "it", "ja", "kab", "ko", "lb", "lt", "lv",
+        "nb", "nl", "oc", "pl", "pt", "pt_BR", "ro", "ru", "si", "sq",
+        "sv", "ta", "th", "tr", "uk", "vi", "zh_CN", "zh_TW"
+    };
     
     public signal void backup_requested();
     public signal void restore_backup_requested();
@@ -74,6 +85,58 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
         scheme_model.append("Light");
         scheme_model.append("Dark");
         color_scheme_row.model = scheme_model;
+
+        // Setup language options — static list of all available translations
+        var lang_model = new Gtk.StringList(null);
+        lang_model.append("System (Auto)");
+        lang_model.append("العربية");            // ar
+        lang_model.append("Català");             // ca
+        lang_model.append("Čeština");            // cs
+        lang_model.append("Dansk");              // da
+        lang_model.append("Deutsch");            // de
+        lang_model.append("Ελληνικά");           // el
+        lang_model.append("English");            // en
+        lang_model.append("Esperanto");          // eo
+        lang_model.append("Español");            // es
+        lang_model.append("Eesti");              // et
+        lang_model.append("Euskara");            // eu
+        lang_model.append("فارسی");              // fa
+        lang_model.append("Suomi");              // fi
+        lang_model.append("Français");           // fr
+        lang_model.append("Galego");             // gl
+        lang_model.append("हिन्दी");                // hi
+        lang_model.append("Magyar");             // hu
+        lang_model.append("Հայերեն");            // hy
+        lang_model.append("Interlingua");        // ia
+        lang_model.append("Bahasa Indonesia");   // id
+        lang_model.append("Interlingue");        // ie
+        lang_model.append("Íslenska");           // is
+        lang_model.append("Italiano");           // it
+        lang_model.append("日本語");              // ja
+        lang_model.append("Taqbaylit");          // kab
+        lang_model.append("한국어");              // ko
+        lang_model.append("Lëtzebuergesch");     // lb
+        lang_model.append("Lietuvių");           // lt
+        lang_model.append("Latviešu");           // lv
+        lang_model.append("Norsk bokmål");       // nb
+        lang_model.append("Nederlands");         // nl
+        lang_model.append("Occitan");            // oc
+        lang_model.append("Polski");             // pl
+        lang_model.append("Português");          // pt
+        lang_model.append("Português (Brasil)"); // pt_BR
+        lang_model.append("Română");             // ro
+        lang_model.append("Русский");            // ru
+        lang_model.append("සිංහල");              // si
+        lang_model.append("Shqip");              // sq
+        lang_model.append("Svenska");            // sv
+        lang_model.append("தமிழ்");               // ta
+        lang_model.append("ไทย");                // th
+        lang_model.append("Türkçe");             // tr
+        lang_model.append("Українська");         // uk
+        lang_model.append("Tiếng Việt");         // vi
+        lang_model.append("中文 (简体)");          // zh_CN
+        lang_model.append("中文 (繁體)");          // zh_TW
+        language_row.model = lang_model;
 
         // Setup API mode options
         var mode_model = new Gtk.StringList(null);
@@ -165,6 +228,12 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
             model.notify["color-scheme"].connect(on_model_color_scheme_changed);
             color_scheme_row.notify["selected"].connect(on_ui_color_scheme_changed);
             on_model_color_scheme_changed();
+
+            // Bind language with custom conversion
+            initial_language = model.language ?? "system";
+            model.notify["language"].connect(on_model_language_changed);
+            language_row.notify["selected"].connect(on_ui_language_changed);
+            on_model_language_changed();
         } else {
             model_bindings = new Binding[0];
         }
@@ -195,6 +264,36 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
             default:
                 model.color_scheme = "default";
                 break;
+        }
+    }
+
+    private string initial_language = "system";
+    private bool language_updating = false;
+
+    private void on_model_language_changed() {
+        language_updating = true;
+        string code = model.language ?? "system";
+        for (uint i = 0; i < LANGUAGE_CODES.length; i++) {
+            if (LANGUAGE_CODES[i] == code) {
+                language_row.selected = i;
+                language_updating = false;
+                return;
+            }
+        }
+        language_row.selected = 0;
+        language_updating = false;
+    }
+
+    private void on_ui_language_changed() {
+        if (language_updating) return;
+        uint sel = language_row.selected;
+        string new_code = (sel < LANGUAGE_CODES.length) ? LANGUAGE_CODES[sel] : "system";
+        model.language = new_code;
+        // Show restart hint if language changed from initial value
+        if (new_code != initial_language) {
+            language_row.subtitle = _("Restart DinoX to apply the new language");
+        } else {
+            language_row.subtitle = _("Override the system language for the DinoX interface");
         }
     }
 

@@ -24,9 +24,6 @@ msgid ""
 "device if they are encrypted to its key. Messages are only encrypted to "
 "accepted devices."
 msgstr "Minden eszköznek saját OMEMO kulcsa van. Az üzeneteket csak akkor tudja visszafejteni egy eszköz, ha a kulcsával titkosították. Az üzenetek csak az elfogadott eszközökre vannak titkosítva."
-"Minden eszköznek saját OMEMO-kulcsa van. Egy eszköz csak akkor tudja "
-"visszafejteni az üzeneteket, ha azok a saját kulcsával lettek titkosítva. Az "
-"üzenetek csak az elfogadott eszközökre vannak titkosítva."
 
 #: plugins/omemo/src/ui/manage_key_dialog.vala:36
 msgid "Manage Key"

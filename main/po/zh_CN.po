@@ -3102,7 +3102,7 @@ msgstr "格式：/cmd - 描述"
 #: plugins/bot-features/src/botfather_handler.vala:331
 #, c-format
 msgid "%d command(s) set for '%s'."
-msgstr "已为“%s”设置了 %d 条命令。"
+msgstr "已为“%2$s”设置了 %1$d 条命令。"
 
 #: plugins/bot-features/src/botfather_handler.vala:337
 #: plugins/bot-features/src/botfather_handler.vala:344

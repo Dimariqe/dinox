@@ -641,7 +641,6 @@ msgstr "Renovar certificado autofirmado"
 #: main/data/preferences_window/general_preferences_page.ui:128
 msgid "Delete current certificate. A new one will be generated on next start."
 msgstr "Eliminar el certificado actual. Se generará uno nuevo en el próximo inicio."
-"Eliminar el certificado actual. Se generará uno nuevo en el próximo inicio."
 
 #: main/data/preferences_window/general_preferences_page.ui:139
 msgid "Delete Certificate"
@@ -671,7 +670,6 @@ msgstr "Restaurar desde copia"
 #: main/data/preferences_window/general_preferences_page.ui:172
 msgid "Restore accounts, messages and settings from a backup file"
 msgstr "Restaurar cuentas, mensajes y ajustes desde un archivo de respaldo"
-"Restaurar cuentas, mensajes y configuración desde un archivo de respaldo"
 
 #: main/data/preferences_window/general_preferences_page.ui:183
 msgid "Data Storage Location"
@@ -711,8 +709,6 @@ msgstr "Restablecer base de datos"
 #: main/data/preferences_window/general_preferences_page.ui:225
 msgid "Delete all messages, files and OMEMO keys. Your accounts will remain."
 msgstr "Eliminar todos los mensajes, archivos y claves OMEMO. Sus cuentas se conservarán."
-"Eliminar todos los mensajes, archivos y claves OMEMO. Tus cuentas "
-"permanecerán."
 
 #: main/data/preferences_window/general_preferences_page.ui:236
 #: main/src/ui/application.vala:1965
@@ -722,7 +718,6 @@ msgstr "Restablecer de fábrica"
 #: main/data/preferences_window/general_preferences_page.ui:237
 msgid "Delete ALL data including accounts. This cannot be undone!"
 msgstr "Eliminar TODOS los datos incluyendo cuentas. ¡Esta acción no se puede deshacer!"
-"Eliminar TODOS los datos, incluidas las cuentas. ¡Esto no se puede deshacer!"
 
 #: main/data/preferences_window/preferences_dialog.ui:11
 #: main/src/windows/preferences_window/accounts_preferences_page.vala:15
@@ -991,7 +986,6 @@ msgstr "Al actualizar DinoX, sus datos permanecen intactos."
 #: main/src/ui/application.vala:1344
 msgid "Use Settings → General → Backup User Data to create a backup."
 msgstr "Use Ajustes → General → Respaldar datos de usuario para crear un respaldo."
-"Use Configuración → General → Copia de seguridad para crear una copia."
 
 #: main/src/ui/application.vala:1362
 msgid "Select Backup File"
@@ -1260,7 +1254,6 @@ msgstr "Creando copia de seguridad…"
 #: main/src/ui/application.vala:2237
 msgid "Please wait while your data is being backed up."
 msgstr "Espere mientras se realiza el respaldo de sus datos."
-"Por favor, espere mientras se realiza la copia de seguridad de sus datos."
 
 #: main/src/ui/application.vala:2281
 msgid "No data directory found to backup"
@@ -2899,7 +2892,6 @@ msgstr "Vacío = autofirmado generado automáticamente"
 #: main/src/windows/preferences_window/general_preferences_page.vala:264
 msgid "Certificate deleted. Server will restart with new certificate."
 msgstr "Certificado eliminado. El servidor se reiniciará con un nuevo certificado."
-"Certificado eliminado. El servidor se reiniciará con un nuevo certificado."
 
 #: main/src/windows/preferences_window/general_preferences_page.vala:284
 msgid "Certificate and key deleted."
@@ -2913,7 +2905,6 @@ msgstr "Bot #%d no encontrado o no le pertenece."
 #: plugins/bot-features/src/botfather_handler.vala:70
 msgid "Unknown command. Type /help for a list of available commands."
 msgstr "Comando desconocido. Escriba /help para ver la lista de comandos disponibles."
-"Comando desconocido. Escriba /help para una lista de comandos disponibles."
 
 #: plugins/bot-features/src/botfather_handler.vala:77
 #: plugins/bot-features/src/botfather_handler.vala:420
@@ -3100,7 +3091,6 @@ msgstr "Bot '%s' (ID: %d) desactivado."
 #: plugins/bot-features/src/botfather_handler.vala:286
 msgid "The bot is now offline. API requests will be rejected."
 msgstr "El bot está ahora desconectado. Las solicitudes de API serán rechazadas."
-"El bot ahora está fuera de línea. Las solicitudes API serán rechazadas."
 
 #: plugins/bot-features/src/botfather_handler.vala:287
 msgid "Reactivate:"
@@ -5004,7 +4994,6 @@ msgstr ""
 #, c-format
 msgid "Topic '%s' QoS reset to default (0 — at most once) ✔"
 msgstr "QoS del tema '%s' restablecido al predeterminado (0 — como máximo una vez) ✔"
-"QoS del topic '%s' restablecido a predeterminado (0 — como máximo una vez) ✔"
 
 #: plugins/mqtt/src/command_handler.vala:971
 #, c-format
@@ -5487,7 +5476,6 @@ msgstr ""
 #, c-format
 msgid "HA Discovery is enabled (prefix: %s) but not yet connected."
 msgstr "HA Discovery está habilitado (prefijo: %s) pero aún no conectado."
-"El descubrimiento HA está activado (prefijo: %s) pero aún no conectado."
 
 #: plugins/mqtt/src/command_handler.vala:1464
 msgid "HA Discovery already enabled — re-published configs."
@@ -5532,7 +5520,6 @@ msgstr ""
 #: plugins/mqtt/src/command_handler.vala:1503
 msgid "HA Discovery is not active. Enable it first with /mqtt discovery on"
 msgstr "HA Discovery no está activo. Actívelo primero con /mqtt discovery on"
-"El descubrimiento HA no está activo. Actívelo primero con /mqtt discovery on"
 
 #: plugins/mqtt/src/command_handler.vala:1506
 msgid "Published updated state for all entities."
@@ -5803,7 +5790,6 @@ msgstr "TLS desactivado"
 #: plugins/mqtt/src/settings_page.vala:183
 msgid "Credentials and data are sent in plain text to a non-local host!"
 msgstr "¡Las credenciales y datos se envían en texto plano a un host remoto!"
-"¡Las credenciales y datos se envían en texto plano a un host no local!"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:358
 #: plugins/mqtt/src/settings_page.vala:194
@@ -5851,7 +5837,6 @@ msgstr "MQTT autónomo"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:410
 msgid "Connection settings are managed in Preferences → MQTT (Standalone)."
 msgstr "Los ajustes de conexión se gestionan en Preferencias → MQTT (Independiente)."
-"La configuración de conexión se gestiona en Preferencias → MQTT (Autónomo)."
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:443
 msgid "Disabled — enable in Preferences first"
@@ -5909,7 +5894,6 @@ msgstr "En pausa — los mensajes se registran pero no se muestran"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:531
 msgid "Incoming MQTT messages are recorded but not shown in chat"
 msgstr "Los mensajes MQTT entrantes se registran pero no se muestran en el chat"
-"Los mensajes MQTT entrantes se registran pero no se muestran en el chat"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:529
 msgid "Messages paused"
@@ -5980,7 +5964,6 @@ msgstr "Publicación de texto libre (Node-RED)"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:655
 msgid "Type free text in the bot chat to publish directly to a topic"
 msgstr "Escriba texto libre en el chat del bot para publicar directamente en un tema"
-"Escriba texto libre en el chat del bot para publicar directamente a un tema"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:658
 msgid "Enable Free-Text Publish"
@@ -6051,8 +6034,6 @@ msgstr "Agregar alerta"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:773
 msgid "Rules that trigger notifications when MQTT messages match patterns"
 msgstr "Reglas que activan notificaciones cuando los mensajes MQTT coinciden con patrones"
-"Reglas que activan notificaciones cuando los mensajes MQTT coinciden con "
-"patrones"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:794
 msgid "New Bridge Rule"
@@ -6699,7 +6680,6 @@ msgstr "MQTT"
 #: plugins/tor-manager/src/settings_page.vala:53
 msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
 msgstr "Necesario si Tor está bloqueado. Admite puentes obfs4 y WebTunnel."
-"Necesario si Tor está bloqueado. Compatible con puentes obfs4 y WebTunnel."
 
 #: plugins/tor-manager/src/settings_page.vala:142
 msgid "Fetches bridges from Tor Project. Choose transport type:"
@@ -6720,8 +6700,6 @@ msgstr "Error al obtener puentes"
 #: plugins/tor-manager/src/settings_page.vala:286
 msgid "No bridges received. The server may be temporarily unavailable."
 msgstr "No se recibieron puentes. El servidor puede estar temporalmente no disponible."
-"No se recibieron puentes. El servidor puede estar temporalmente no "
-"disponible."
 
 #: plugins/tor-manager/src/settings_page.vala:252
 msgid "Received %d %s bridge(s)."
@@ -7310,3 +7288,12 @@ msgstr "Enviar de todos modos"
 
 #~ msgid "Optional: Custom server connection"
 #~ msgstr "Opcional: Conexión de servidor personalizada"
+#: main/data/preferences_window/general_preferences_page.ui
+msgid "_Language"
+msgstr "Idioma"
+#: main/data/preferences_window/general_preferences_page.ui
+msgid "Override the system language for the DinoX interface"
+msgstr "Anular el idioma del sistema para la interfaz de DinoX"
+#: main/src/windows/preferences_window/general_preferences_page.vala
+msgid "Restart DinoX to apply the new language"
+msgstr "Reinicie DinoX para aplicar el nuevo idioma"

@@ -33,6 +33,24 @@ void main(string[] args) {
     try{
         string? exec_path = args.length > 0 ? args[0] : null;
         SearchPathGenerator search_path_generator = new SearchPathGenerator(exec_path);
+
+        // Apply user language override before gettext init
+        string lang_file = Path.build_filename(Environment.get_user_data_dir(), "dinox", "language");
+        if (FileUtils.test(lang_file, FileTest.EXISTS)) {
+            try {
+                string lang_code;
+                FileUtils.get_contents(lang_file, out lang_code);
+                lang_code = lang_code.strip();
+                if (lang_code != "" && lang_code != "system") {
+                    Environment.set_variable("LANGUAGE", lang_code, true);
+                    Environment.set_variable("LANG", lang_code + ".UTF-8", true);
+                    Intl.setlocale(LocaleCategory.ALL, "");
+                }
+            } catch (FileError e) {
+                // ignore — use system locale
+            }
+        }
+
         Intl.textdomain(GETTEXT_PACKAGE);
         internationalize(GETTEXT_PACKAGE, search_path_generator.get_locale_path(GETTEXT_PACKAGE, LOCALE_INSTALL_DIR));
 

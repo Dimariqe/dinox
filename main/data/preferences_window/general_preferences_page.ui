@@ -53,6 +53,13 @@
             <property name="use-underline">True</property>
           </object>
         </child>
+        <child>
+          <object class="AdwComboRow" id="language_row">
+            <property name="title" translatable="yes">_Language</property>
+            <property name="subtitle" translatable="yes">Override the system language for the DinoX interface</property>
+            <property name="use-underline">True</property>
+          </object>
+        </child>
       </object>
     </child>
     <child>

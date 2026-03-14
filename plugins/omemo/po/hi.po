@@ -5,15 +5,17 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: dino-omemo-0.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-12-31 14:10+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2025-12-31 14:10+0100\n"
+"Last-Translator: DinoX Team\n"
+"Language-Team: Hindi\n"
 "Language: hi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: plugins/omemo/data/encryption_preferences_entry.ui:8
 msgid ""

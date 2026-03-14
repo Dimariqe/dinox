@@ -198,7 +198,6 @@ msgstr "Generacion de la clau..."
 #: plugins/openpgp/src/key_management_dialog.vala:341
 msgid "Please wait while your key is being generated. This may take a moment."
 msgstr "Esperatz mentre vòstra clau es generada. Aquò pòt prendre un moment."
-"Esperatz pendent que vòstra clau es generada. Aquò pòt prene un moment."
 
 #: plugins/openpgp/src/key_management_dialog.vala:393
 #: plugins/openpgp/src/key_management_dialog.vala:459

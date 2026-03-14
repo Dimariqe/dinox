@@ -204,6 +204,7 @@ public class Dino.Ui.ViewModel.PreferencesDialog : Object {
         settings.bind_property("api-port", general_page, "api-port", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("api-tls-cert", general_page, "api-tls-cert", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("api-tls-key", general_page, "api-tls-key", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
+        settings.bind_property("language", general_page, "language", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
     }
 }
 
