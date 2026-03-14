@@ -5,6 +5,12 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7.1] - 2026-03-14
+
+### Fixed — Native Linux SSL/TLS
+- **CRITICAL**: System CA certificate probe was accidentally inside `#if WINDOWS` preprocessor block — never ran on native Linux. Moved probe outside the block so it runs on ALL platforms. AppImage (AppRun) and MQTT client were not affected.
+- **Documentation**: Added CA certificate sections to BUILD.md and DEBUG.md
+
 ## [1.1.7.0] - 2026-03-14
 
 ### Added — In-App Language Selector

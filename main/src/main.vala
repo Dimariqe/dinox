@@ -134,24 +134,10 @@ void main(string[] args) {
                     Environment.set_variable("SSL_CERT_FILE", local_cert_flat, true);
                     message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert_flat);
                  } else {
-                    // Not portable mode — probe system CA certificate locations.
-                    // GnuTLS compiled on Ubuntu defaults to /etc/ssl/certs/ca-certificates.crt
-                    // which doesn't exist on openSUSE, Fedora, etc.
-                    string[] system_ca_paths = {
-                        "/etc/ssl/certs/ca-certificates.crt",       // Debian, Ubuntu, Arch, Gentoo
-                        "/etc/pki/tls/certs/ca-bundle.crt",         // Fedora, RHEL, CentOS
-                        "/etc/ssl/ca-bundle.pem",                   // openSUSE
-                        "/var/lib/ca-certificates/ca-bundle.pem",   // openSUSE (alternative)
-                        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // Fedora p11-kit
-                        "/etc/ssl/cert.pem",                        // Alpine, macOS
-                    };
-                    foreach (string path in system_ca_paths) {
-                        if (FileUtils.test(path, FileTest.EXISTS)) {
-                            Environment.set_variable("GTLS_SYSTEM_CA_FILE", path, true);
-                            message("Set GTLS_SYSTEM_CA_FILE to %s (system CA)", path);
-                            break;
-                        }
-                    }
+                    // Not portable mode on Windows — no bundled CA cert found.
+                    // Windows GnuTLS typically uses the Schannel backend or
+                    // a bundled ca-bundle.crt, so this is a warning case.
+                    warning("No bundled CA certificate found next to executable");
                  }
             }
         }
@@ -181,6 +167,28 @@ void main(string[] args) {
         // but there is no DBus session bus daemon on Windows.
         Environment.set_variable("DBUS_SESSION_BUS_ADDRESS", "nul", true);
 #endif
+
+        // Probe system CA certificate locations on ALL platforms.
+        // GnuTLS compiled on Ubuntu defaults to /etc/ssl/certs/ca-certificates.crt
+        // which doesn't exist on openSUSE, Fedora, Alpine, etc.
+        // On Windows the paths simply don't exist, so the loop is a harmless no-op.
+        if (Environment.get_variable("GTLS_SYSTEM_CA_FILE") == null) {
+            string[] system_ca_paths = {
+                "/etc/ssl/certs/ca-certificates.crt",       // Debian, Ubuntu, Arch, Gentoo
+                "/etc/pki/tls/certs/ca-bundle.crt",         // Fedora, RHEL, CentOS
+                "/etc/ssl/ca-bundle.pem",                   // openSUSE
+                "/var/lib/ca-certificates/ca-bundle.pem",   // openSUSE (alternative)
+                "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // Fedora p11-kit
+                "/etc/ssl/cert.pem",                        // Alpine, macOS
+            };
+            foreach (string path in system_ca_paths) {
+                if (FileUtils.test(path, FileTest.EXISTS)) {
+                    Environment.set_variable("GTLS_SYSTEM_CA_FILE", path, true);
+                    message("Set GTLS_SYSTEM_CA_FILE to %s (system CA)", path);
+                    break;
+                }
+            }
+        }
 
         Plugins.Loader loader = new Plugins.Loader(app);
         app.plugin_loader = loader;

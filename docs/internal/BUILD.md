@@ -254,6 +254,33 @@ sqlcipher :memory: "PRAGMA compile_options;" | grep -i FTS5
 - **Required for A/V calls (RTP/Jingle):** GStreamer core + `gst-plugins-bad` (DTLS/SRTP/WebRTC libs), `libnice` (ICE), `libsrtp2` (SRTP), `gnutls` (DTLS).
 - **Optional (recommended) for better audio quality:** `webrtc-audio-processing` enables AEC/NS/AGC if present. The build works without it.
 
+### TLS / CA Certificates
+
+DinoX uses GnuTLS via GLib-Networking (`gio-2.0`). GnuTLS must be able to find the system CA trust store to verify server certificates. Different Linux distributions install the CA bundle at different paths:
+
+| Path | Distributions |
+|------|---------------|
+| `/etc/ssl/certs/ca-certificates.crt` | Debian, Ubuntu, Arch, Gentoo |
+| `/etc/pki/tls/certs/ca-bundle.crt` | Fedora, RHEL, CentOS |
+| `/etc/ssl/ca-bundle.pem` | openSUSE |
+| `/var/lib/ca-certificates/ca-bundle.pem` | openSUSE (alternative) |
+| `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem` | Fedora p11-kit |
+| `/etc/ssl/cert.pem` | Alpine, macOS |
+
+At startup, DinoX probes these paths in order and sets `GTLS_SYSTEM_CA_FILE` to the first one found. This means a binary built on Ubuntu will also work on openSUSE or Fedora without recompilation.
+
+**Override:** You can force a specific CA bundle by setting the environment variable before launching DinoX:
+
+```bash
+GTLS_SYSTEM_CA_FILE=/path/to/ca-bundle.pem ./build/main/dinox
+```
+
+**Windows:** On Windows, DinoX first looks for a bundled `ssl/certs/ca-bundle.crt` next to `dinox.exe` (portable mode). If not found, the system probe runs but finds nothing (the Linux paths don't exist on Windows) — GnuTLS then uses the Windows Schannel backend.
+
+**AppImage:** The AppRun entry point performs its own CA probe and exports `GTLS_SYSTEM_CA_FILE` before the application starts.
+
+**Flatpak:** The GNOME runtime (`org.gnome.Platform`) provides `/etc/ssl/certs/ca-certificates.crt` inside the sandbox — no special handling needed.
+
 If you want to build DinoX without call support, you can disable the plugin:
 
 ```bash

@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 14, 2026 (v1.1.7.0)
+> **Last Updated**: March 14, 2026 (v1.1.7.1)
 > **Current Release Line**: 1.1.7.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.7.0 |
+| **Current Version** | 1.1.7.1 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
@@ -20,6 +20,11 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.7.1 (Hotfix: Native Linux SSL/TLS)
+- **CRITICAL FIX**: System CA cert probe was inside `#if WINDOWS` — moved outside so it runs on ALL platforms
+- **Docs**: CA cert sections added to BUILD.md and DEBUG.md
+- 1 commit, 3 files changed
 
 ### v1.1.7.0 (Language Selector, Translation Fixes, openSUSE SSL Fix)
 - **In-app language selector**: Settings → General → Appearance — 48 languages, AdwComboRow, dual persistence (DB + plaintext file for early startup)
