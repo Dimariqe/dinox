@@ -21,15 +21,16 @@ This document is organized as a **chronological release timeline** first, follow
 
 ## Timeline (Recent Releases)
 
-### v1.1.6.6 (Retraction Bugs, Chat Window Audit, Audio/Video Hardening, CI Retry)
+### v1.1.6.6 (Retraction Bugs, Chat Window Audit, Audio/Video Hardening, Windows Systray, CI Fixes)
 
 - **Retraction (XEP-0424)**: Desktop notification retraction, empty ID rejection, dead null-check removal, `ContentItem.is_own()` consolidation (6 copies → 1 helper)
 - **Chat window**: O(1) highlight via `main.pick()`, mutex deadlock fix, tile cache LRU (max 100), truncation text fix, reactions i18n, `decrypt_to_temp()` extraction, typo fix
 - **Audio widget**: Position reset on stop, download timeout race fix, `_disposed` guard in callbacks, null duration guard
 - **Video widget**: Preview timeout race fix, paintable flicker fix, temp file leak fix, seek throttle fix
-- **CI/Build**: Lyrebird download retry+gzip validation in windows-build.yml and ci-build-deps.sh
+- **Windows Systray (GitHub Issue #18)**: Full Shell_NotifyIcon implementation replacing stub. C helper (systray_win32.c/h) + VAPI bridge. Left-click toggles window, right-click context menu with status selection (Online/Away/Busy/N/A) + Quit. Meson wiring for shell32/user32.
+- **Windows DLLs (GitHub Issue #18)**: Added 5 missing DLLs to update_dist.sh: libnpth-0, libprotobuf-c-1, libcjson-1, libevent_core/extra
+- **CI/Build**: Lyrebird download retry+gzip validation in windows-build.yml and ci-build-deps.sh. Custom GitHub Pages workflow replacing auto-generated one. `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` env var in all workflows (Node.js 20 deprecation June 2026).
 - **i18n**: Chinese (Simplified) and Kabyle translation updates via Weblate
-- 15 files changed, 293 insertions, 257 deletions
 
 ### v1.1.6.5 (Location Sharing, Tor WebTunnel, i18n Audit, MQTT Fixes)
 
@@ -748,6 +749,7 @@ Typischer Flow: **Node-RED** (KI-Flow, Bildgenerierung, Reports) → **MQTT publ
 
 | Item | Description | Status |
 |------|-------------|--------|
+| **Windows Code Signing (SignPath)** | Authenticode certificate via SignPath Foundation (free for OSS). Eliminates SmartScreen warnings. Build-integrated via GitHub Actions. Application submitted Feb 2026, awaiting approval. | ⏳ Waiting for SignPath approval since Feb 11, 2026 |
 | **Notification Sounds (Windows)** | Linux notification sounds (messages + call ringtone) are complete via libcanberra. Windows needs a native backend (PlaySound/XAudio2) since libcanberra is not available. | TODO |
 | **Screen Sharing** | Share desktop or windows during calls | TODO |
 | **Whiteboard** | Collaborative drawing (protocol TBD) | CONCEPT |
