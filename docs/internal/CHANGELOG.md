@@ -5,6 +5,20 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7.4] - 2026-03-14
+
+### Fixed — Windows: App Exits After Unlock (GitHub #18)
+- **GApplication lifecycle race**: The v1.1.7.2 fix (`hold()`/`release()` around close→activate) was insufficient — on GDK-Win32, `unlock_parent.close()` synchronously destroys the window and re-enters the Win32 message pump, terminating the main loop before `activate()` can create the MainWindow. Fix: call `activate()` FIRST (creates MainWindow while unlock_parent is still alive), THEN `unlock_parent.close()`. Removed `hold()`/`release()` entirely — GApplication always has ≥1 window, no use_count=0 gap.
+- **libevent DLL naming**: MSYS2 renamed `libevent-2-1-7.dll` → `libevent-7.dll` in newer versions. `update_dist.sh` now lists both naming variants (`libevent-7.dll`, `libevent_core-7.dll`, `libevent_extra-7.dll`).
+
+### Fixed — Build (All Distros with GCC 13+)
+- **webrtc-audio-processing v2.1**: `trace_event.h` uses `uint8_t`/`uintptr_t` without `#include <cstdint>` — fails on GCC 13+ (openSUSE Tumbleweed, Fedora 39+, Ubuntu 24.04+, Arch). `ci-build-deps.sh` now auto-patches the header before building.
+
+### Fixed — Documentation (openSUSE)
+- **BUILD.md**: Added `libomemo-c-devel` to `zypper install` list
+- **BUILD.md**: Updated note — `ci-build-deps.sh` overrides with fixed fork from [rallep71/libomemo-c](https://github.com/rallep71/libomemo-c)
+- **BUILD.md**: Added `libcanberra-devel` install example + build-from-source alternative
+
 ## [1.1.7.3] - 2026-03-14
 
 ### Fixed — Locale Warning in AppImage (openSUSE)

@@ -173,23 +173,21 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             });
         });
 
-        // Prevent the GLib main loop from exiting between close() and activate().
-        // Closing unlock_parent drops GApplication.use_count to 0; on GDK-Win32
-        // the Win32 message pump can re-enter and terminate the main loop before
-        // activate() creates the MainWindow.
-        this.hold ();
-
-        if (unlock_parent != null) {
-            unlock_parent.close ();
-            unlock_parent = null;
-        }
-
+        // Create the MainWindow FIRST, while unlock_parent is still alive.
+        // This ensures GApplication always has at least one window registered
+        // and the main loop never exits due to use_count reaching 0.
+        // On GDK-Win32, close() can synchronously destroy the window and
+        // re-enter the Win32 message pump — if no other window exists at
+        // that moment, the main loop terminates.
         if (pending_activate) {
             pending_activate = false;
             activate ();
         }
 
-        this.release ();
+        if (unlock_parent != null) {
+            unlock_parent.close ();
+            unlock_parent = null;
+        }
     }
 
     // Check if a panic wipe happened before this startup.

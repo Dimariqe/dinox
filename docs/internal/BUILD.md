@@ -199,6 +199,7 @@ sudo zypper install \
     libgnutls-devel \
     libsrtp2-devel \
     geoclue2-devel \
+    libomemo-c-devel \
     go
 
 # Then build custom dependencies from source (REQUIRED — libomemo-c, protobuf-c,
@@ -206,11 +207,24 @@ sudo zypper install \
 ./scripts/ci-build-deps.sh
 ```
 
-> **Note (openSUSE):** You MUST run `ci-build-deps.sh` before `meson setup`. Libraries like `libomemo-c`, `protobuf-c`, `mosquitto`, and `lyrebird` are not packaged for openSUSE and must be built from source. The script handles this automatically.
+> **Note (openSUSE):** You MUST run `ci-build-deps.sh` before `meson setup`. It builds fixed/patched versions of `libomemo-c` (from [rallep71/libomemo-c](https://github.com/rallep71/libomemo-c) — do NOT use the openSUSE `libomemo-c-devel` package, it's outdated), `protobuf-c`, `mosquitto`, `lyrebird`, and others from source. The script handles everything automatically.
 
 > **Note (openSUSE):** The CA certificate bundle is at `/etc/ssl/ca-bundle.pem`. DinoX detects this automatically at startup — no manual `GTLS_SYSTEM_CA_FILE` configuration needed.
 
 > **Optional (openSUSE):** For notification sounds install `libcanberra-devel`. This is the core library (not GTK-bound). If not installed, DinoX builds fine — just without notification sounds.
+>
+> ```bash
+> # Option 1: Install from repository
+> sudo zypper install libcanberra-devel
+>
+> # Option 2: Build from source (if package not available)
+> git clone https://github.com/AshtonBrsc/libcanberra.git
+> cd libcanberra
+> meson setup build --prefix=/usr
+> ninja -C build
+> sudo ninja -C build install
+> sudo ldconfig
+> ```
 
 ### Arch Linux / Manjaro
 

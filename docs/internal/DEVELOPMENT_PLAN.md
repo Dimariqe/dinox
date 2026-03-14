@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 14, 2026 (v1.1.7.3)
+> **Last Updated**: March 14, 2026 (v1.1.7.4)
 > **Current Release Line**: 1.1.7.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.7.3 |
+| **Current Version** | 1.1.7.4 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
@@ -20,6 +20,13 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.7.4 (Windows Exit Fix, GCC 13+ Build Fix, openSUSE Docs)
+- **Windows exit-after-unlock**: Reordered `finish_post_unlock()` — `activate()` FIRST (creates MainWindow), THEN `unlock_parent.close()`. Removed `hold()`/`release()`. Fixes silent app exit on Windows (GitHub #18 revisited)
+- **libevent DLL naming**: Added `libevent-7.dll` variants to `update_dist.sh` (MSYS2 renamed DLLs)
+- **webrtc trace_event.h**: Auto-patch `#include <cstdint>` for GCC 13+ compatibility (affects all modern distros)
+- **BUILD.md**: Added `libomemo-c-devel` to zypper, updated libomemo-c note (rallep71 fork), libcanberra install example
+- 5 files changed
 
 ### v1.1.7.3 (Locale Fix for AppImage on openSUSE)
 - **LC_ALL env var**: Set working locale in `LC_ALL` so `Gtk.init()` doesn't re-fail

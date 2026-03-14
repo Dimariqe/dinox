@@ -223,9 +223,13 @@ SYSTEM_DLLS=(
     "libcjson-1.dll"
     
     # Tor async networking (transitive dep of tor.exe)
+    # MSYS2 may use either libevent-2-1-7.dll or libevent-7.dll depending on version
     "libevent-2-1-7.dll"
     "libevent_core-2-1-7.dll"
     "libevent_extra-2-1-7.dll"
+    "libevent-7.dll"
+    "libevent_core-7.dll"
+    "libevent_extra-7.dll"
     
     # SQLCipher (if using encrypted DB instead of plain sqlite)
     "libsqlcipher-0.dll"
