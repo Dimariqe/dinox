@@ -637,7 +637,7 @@ msgstr "Selbstsigniertes Zertifikat erneuern"
 
 #: main/data/preferences_window/general_preferences_page.ui:128
 msgid "Delete current certificate. A new one will be generated on next start."
-msgstr ""
+msgstr "Aktuelles Zertifikat löschen. Beim nächsten Start wird ein neues erzeugt."
 "Aktuelles Zertifikat löschen. Ein neues wird beim nächsten Start generiert."
 
 #: main/data/preferences_window/general_preferences_page.ui:139
@@ -658,7 +658,7 @@ msgstr "Benutzerdaten sichern"
 
 #: main/data/preferences_window/general_preferences_page.ui:160
 msgid "Create a backup of your accounts, messages and settings"
-msgstr ""
+msgstr "Sicherung Ihrer Konten, Nachrichten und Einstellungen erstellen"
 "Erstellen Sie eine Sicherung Ihrer Konten, Nachrichten und Einstellungen"
 
 #: main/data/preferences_window/general_preferences_page.ui:171
@@ -668,7 +668,7 @@ msgstr "Aus Backup wiederherstellen"
 
 #: main/data/preferences_window/general_preferences_page.ui:172
 msgid "Restore accounts, messages and settings from a backup file"
-msgstr ""
+msgstr "Konten, Nachrichten und Einstellungen aus einer Sicherungsdatei wiederherstellen"
 "Konten, Nachrichten und Einstellungen aus einer Backup-Datei "
 "wiederherstellen"
 
@@ -709,7 +709,7 @@ msgstr "Datenbank zurücksetzen"
 
 #: main/data/preferences_window/general_preferences_page.ui:225
 msgid "Delete all messages, files and OMEMO keys. Your accounts will remain."
-msgstr ""
+msgstr "Alle Nachrichten, Dateien und OMEMO-Schlüssel löschen. Ihre Konten bleiben erhalten."
 "Alle Nachrichten, Dateien und OMEMO-Schlüssel löschen. Ihre Konten bleiben "
 "erhalten."
 
@@ -720,7 +720,7 @@ msgstr "Werkseinstellungen"
 
 #: main/data/preferences_window/general_preferences_page.ui:237
 msgid "Delete ALL data including accounts. This cannot be undone!"
-msgstr ""
+msgstr "ALLE Daten einschließlich Konten löschen. Dies kann nicht rückgängig gemacht werden!"
 "ALLE Daten einschließlich Konten löschen. Dies kann nicht rückgängig gemacht"
 " werden!"
 
@@ -945,7 +945,7 @@ msgstr "Neues Passwort bestätigen"
 
 #: main/src/ui/application.vala:1242
 msgid "This password is used to encrypt your local DinoX data."
-msgstr ""
+msgstr "Dieses Passwort wird zur Verschlüsselung Ihrer lokalen DinoX-Daten verwendet."
 "Dieses Passwort wird verwendet, um Ihre lokalen DinoX-Daten zu "
 "verschlüsseln."
 
@@ -993,7 +993,7 @@ msgstr "Wenn Sie DinoX aktualisieren, bleiben Ihre Daten erhalten."
 
 #: main/src/ui/application.vala:1344
 msgid "Use Settings → General → Backup User Data to create a backup."
-msgstr ""
+msgstr "Verwenden Sie Einstellungen → Allgemein → Benutzerdaten sichern, um eine Sicherung zu erstellen."
 "Verwenden Sie Einstellungen → Allgemein → Benutzerdaten sichern, um eine "
 "Sicherung zu erstellen."
 
@@ -1011,7 +1011,7 @@ msgstr "Backup-Passwort eingeben"
 
 #: main/src/ui/application.vala:1401
 msgid "This backup is encrypted. Please enter the password to decrypt it."
-msgstr ""
+msgstr "Diese Sicherung ist verschlüsselt. Bitte geben Sie das Passwort zum Entschlüsseln ein."
 "Dieses Backup ist verschlüsselt. Bitte geben Sie das Passwort ein, um es zu "
 "entschlüsseln."
 
@@ -1777,7 +1777,7 @@ msgstr "Löschen"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:167
 msgid "Do you want to delete this message just for yourself or for everyone?"
-msgstr ""
+msgstr "Möchten Sie diese Nachricht nur für sich selbst oder für alle löschen?"
 "Möchten Sie diese Nachricht nur für sich selbst oder für alle löschen?"
 
 #: main/src/ui/conversation_content_view/item_actions.vala:168
@@ -2507,7 +2507,7 @@ msgstr "Dauerhaft"
 
 #: main/src/ui/util/data_forms.vala:49
 msgid "The room will persist after the last occupant leaves"
-msgstr ""
+msgstr "Der Raum bleibt bestehen, nachdem der letzte Teilnehmer ihn verlassen hat"
 "Der Raum bleibt bestehen, nachdem der letzte Teilnehmer gegangen istDer Raum"
 " bleibt erhalten, nachdem der letzte Benutzer ihn verlassen hat"
 
@@ -2749,7 +2749,7 @@ msgstr "Konto %s löschen?"
 
 #: main/src/windows/preferences_window/account_preferences_subpage.vala:474
 msgid "You won't be able to access your conversation history anymore."
-msgstr ""
+msgstr "Sie können nicht mehr auf Ihren Gesprächsverlauf zugreifen."
 "Sie können danach nicht mehr auf Ihren Unterhaltungsverlauf zugreifen."
 
 #: main/src/windows/preferences_window/account_preferences_subpage.vala:478
@@ -2794,7 +2794,7 @@ msgstr "Der Server konnte nicht beweisen, dass er %s ist."
 
 #: main/src/windows/preferences_window/add_account_dialog.vala:171
 msgid "Its security certificate is not trusted by your operating system."
-msgstr ""
+msgstr "Sein Sicherheitszertifikat wird von Ihrem Betriebssystem nicht als vertrauenswürdig eingestuft."
 "Das Sicherheitszertifikat wird von Ihrem Betriebssystem nicht als "
 "vertrauenswürdig eingestuft.Sein Sicherheitszertifikat wird von deinem "
 "Betriebssystem nicht akzeptiert."
@@ -2931,7 +2931,7 @@ msgstr "Bot #%d nicht gefunden oder gehört nicht Ihnen."
 
 #: plugins/bot-features/src/botfather_handler.vala:70
 msgid "Unknown command. Type /help for a list of available commands."
-msgstr ""
+msgstr "Unbekannter Befehl. Geben Sie /help ein, um eine Liste der verfügbaren Befehle anzuzeigen."
 "Unbekannter Befehl. Geben Sie /help für eine Liste verfügbarer Befehle ein."
 
 #: plugins/bot-features/src/botfather_handler.vala:77
@@ -3082,7 +3082,7 @@ msgstr "Token für '%s' (ID: %d)"
 
 #: plugins/bot-features/src/botfather_handler.vala:239
 msgid "Tokens are shown only once at creation and not stored."
-msgstr ""
+msgstr "Token werden nur einmal bei der Erstellung angezeigt und nicht gespeichert."
 "Token werden nur einmal bei der Erstellung angezeigt und nicht gespeichert."
 
 #: plugins/bot-features/src/botfather_handler.vala:246
@@ -3527,7 +3527,7 @@ msgstr "Modelle:"
 
 #: plugins/bot-features/src/message_router.vala:605
 msgid "No API key needed (local, use - as placeholder)"
-msgstr ""
+msgstr "Kein API-Schlüssel erforderlich (lokal, verwenden Sie - als Platzhalter)"
 "Kein API-Schlüssel erforderlich (lokal, verwenden Sie - als Platzhalter)"
 
 #: plugins/bot-features/src/message_router.vala:607
@@ -5408,7 +5408,7 @@ msgstr ""
 #: plugins/mqtt/src/command_handler.vala:1308
 #, c-format
 msgid "Preset #%d not found. Use /mqtt presets to see numbers."
-msgstr ""
+msgstr "Voreinstellung #%d nicht gefunden. Verwenden Sie /mqtt presets, um die Nummern anzuzeigen."
 "Vorlage #%d nicht gefunden. Verwenden Sie /mqtt presets, um Nummern "
 "anzuzeigen."
 
@@ -5573,7 +5573,7 @@ msgstr "HA Discovery ist aktiviert (Präfix: %s), aber noch nicht verbunden."
 
 #: plugins/mqtt/src/command_handler.vala:1464
 msgid "HA Discovery already enabled — re-published configs."
-msgstr ""
+msgstr "HA Discovery bereits aktiviert — Konfigurationen erneut veröffentlicht."
 "HA Discovery bereits aktiviert — Konfigurationen erneut veröffentlicht."
 
 #: plugins/mqtt/src/command_handler.vala:1477
@@ -5614,7 +5614,7 @@ msgstr ""
 
 #: plugins/mqtt/src/command_handler.vala:1503
 msgid "HA Discovery is not active. Enable it first with /mqtt discovery on"
-msgstr ""
+msgstr "HA Discovery ist nicht aktiv. Aktivieren Sie es zuerst mit /mqtt discovery on"
 "HA Discovery ist nicht aktiv. Aktivieren Sie es zuerst mit /mqtt discovery "
 "on"
 
@@ -5886,7 +5886,7 @@ msgstr "TLS deaktiviert"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:347
 #: plugins/mqtt/src/settings_page.vala:183
 msgid "Credentials and data are sent in plain text to a non-local host!"
-msgstr ""
+msgstr "Anmeldedaten und Daten werden im Klartext an einen externen Host gesendet!"
 "Anmeldedaten und Daten werden im Klartext an einen externen Host gesendet!"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:358
@@ -5934,7 +5934,7 @@ msgstr "Eigenständiges MQTT"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:410
 msgid "Connection settings are managed in Preferences → MQTT (Standalone)."
-msgstr ""
+msgstr "Verbindungseinstellungen werden unter Einstellungen → MQTT (Eigenständig) verwaltet."
 "Verbindungseinstellungen werden unter Einstellungen → MQTT (Eigenständig) "
 "verwaltet."
 
@@ -5993,7 +5993,7 @@ msgstr "Pausiert — Nachrichten werden aufgezeichnet, aber nicht angezeigt"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:520
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:531
 msgid "Incoming MQTT messages are recorded but not shown in chat"
-msgstr ""
+msgstr "Eingehende MQTT-Nachrichten werden aufgezeichnet, aber nicht im Chat angezeigt"
 "Eingehende MQTT-Nachrichten werden aufgezeichnet, aber nicht im Chat "
 "angezeigt"
 
@@ -6065,7 +6065,7 @@ msgstr "Freitext-Veröffentlichung (Node-RED)"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:655
 msgid "Type free text in the bot chat to publish directly to a topic"
-msgstr ""
+msgstr "Geben Sie freien Text im Bot-Chat ein, um direkt in ein Topic zu veröffentlichen"
 "Geben Sie Freitext im Bot-Chat ein, um direkt an ein Topic zu "
 "veröffentlichen"
 
@@ -6137,7 +6137,7 @@ msgstr "Alarm hinzufügen"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:773
 msgid "Rules that trigger notifications when MQTT messages match patterns"
-msgstr ""
+msgstr "Regeln, die Benachrichtigungen auslösen, wenn MQTT-Nachrichten Mustern entsprechen"
 "Regeln, die Benachrichtigungen auslösen, wenn MQTT-Nachrichten Muster "
 "entsprechen"
 
@@ -6536,7 +6536,7 @@ msgstr "Brücken (Zensurumgehung)"
 
 #: plugins/tor-manager/src/settings_page.vala:53
 msgid "Required if Tor is blocked by your ISP or government."
-msgstr ""
+msgstr "Erforderlich, wenn Tor von Ihrem Internetanbieter oder Ihrer Regierung blockiert wird."
 "Erforderlich, wenn Tor von Ihrem ISP oder Ihrer Regierung blockiert wird."
 
 #: plugins/tor-manager/src/settings_page.vala:58
@@ -6577,7 +6577,7 @@ msgstr "Neue Brücken anfordern"
 
 #: plugins/tor-manager/src/settings_page.vala:142
 msgid "Connects to Tor Project (Moat) to fetch unblocked bridges."
-msgstr ""
+msgstr "Verbindet sich mit dem Tor-Projekt (Moat), um nicht blockierte Brücken abzurufen."
 "Verbindet sich mit dem Tor-Projekt (Moat), um nicht blockierte Brücken "
 "abzurufen."
 
@@ -6611,7 +6611,7 @@ msgstr "CAPTCHA lösen"
 
 #: plugins/tor-manager/src/settings_page.vala:284
 msgid "Please type the characters you see in the image to receive bridges."
-msgstr ""
+msgstr "Bitte geben Sie die Zeichen ein, die Sie im Bild sehen, um Brücken zu erhalten."
 "Bitte geben Sie die Zeichen ein, die Sie im Bild sehen, um Brücken zu "
 "erhalten."
 
@@ -6797,7 +6797,7 @@ msgstr "MQTT"
 
 #: plugins/tor-manager/src/settings_page.vala:53
 msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
-msgstr ""
+msgstr "Erforderlich, wenn Tor blockiert ist. Unterstützt obfs4- und WebTunnel-Brücken."
 "Erforderlich, wenn Tor blockiert ist. Unterstützt obfs4- und WebTunnel-"
 "Brücken."
 
@@ -6820,7 +6820,7 @@ msgstr "Fehler beim Abrufen der Brücken"
 
 #: plugins/tor-manager/src/settings_page.vala:286
 msgid "No bridges received. The server may be temporarily unavailable."
-msgstr ""
+msgstr "Keine Brücken empfangen. Der Server ist möglicherweise vorübergehend nicht verfügbar."
 "Keine Brücken empfangen. Der Server ist möglicherweise vorübergehend nicht "
 "erreichbar."
 
