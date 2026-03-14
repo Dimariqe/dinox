@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-03-12 08:28+0100\n"
-"PO-Revision-Date: 2026-03-13 05:28+0000\n"
+"PO-Revision-Date: 2026-03-14 13:39+0000\n"
 "Last-Translator: ButterflyOfFire <boffire@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Kabyle <https://hosted.weblate.org/projects/dinox/"
 "translations/kab/>\n"
@@ -775,9 +775,8 @@ msgid "Password required to enter room"
 msgstr "Awal uffir yettwasra i unekcum ɣer texxamt"
 
 #: main/src/ui/add_conversation/conference_details_fragment.vala:169
-#, fuzzy
 msgid "Banned from joining or creating conference"
-msgstr "Yettwaḥkem-d seg unekcum neɣ seg tmerna n tmuγri"
+msgstr ""
 
 #: main/src/ui/add_conversation/conference_details_fragment.vala:171
 msgid "Room does not exist"
