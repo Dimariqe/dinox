@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/rallep71/dinox)](https://github.com/rallep71/dinox/releases)
 [![Translation status](https://hosted.weblate.org/widget/dinox/translations/svg-badge.svg)](https://hosted.weblate.org/engage/dinox/)
 
-**The Most Secure XMPP Messenger for Linux & Windows**
+**The First XMPP Messenger with Extensible REST API, AI Support, MQTT & Advanced Security Features**
 
 Built for ultimate privacy with OMEMO 1 + 2, integrated OpenPGP Key Manager, integrated Tor & Obfs4proxy and full local database encryption.
 WebRTC Audio/Video Calls, decentralized MUJI Group Video Calls (hardware accelerated), voice messages, video messages, message retraction and advanced MUC moderation — all in a modern GTK4/libadwaita interface with System Tray support.
