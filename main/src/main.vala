@@ -113,7 +113,10 @@ void main(string[] args) {
             }
         }
 
-        // Force GnuTLS to find the ca-bundle if it's in the same directory (portable mode)
+        // Force GnuTLS to find the CA bundle.
+        // Portable mode: look next to the executable.
+        // AppImage/system: probe well-known distro paths so that GnuTLS
+        // works on openSUSE, Fedora, Arch, etc. — not just Debian/Ubuntu.
         string? trusted_certs = Environment.get_variable("GTLS_SYSTEM_CA_FILE");
         if (trusted_certs == null) {
             // Try standard relative paths for portable install
@@ -130,6 +133,25 @@ void main(string[] args) {
                     Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert_flat, true);
                     Environment.set_variable("SSL_CERT_FILE", local_cert_flat, true);
                     message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert_flat);
+                 } else {
+                    // Not portable mode — probe system CA certificate locations.
+                    // GnuTLS compiled on Ubuntu defaults to /etc/ssl/certs/ca-certificates.crt
+                    // which doesn't exist on openSUSE, Fedora, etc.
+                    string[] system_ca_paths = {
+                        "/etc/ssl/certs/ca-certificates.crt",       // Debian, Ubuntu, Arch, Gentoo
+                        "/etc/pki/tls/certs/ca-bundle.crt",         // Fedora, RHEL, CentOS
+                        "/etc/ssl/ca-bundle.pem",                   // openSUSE
+                        "/var/lib/ca-certificates/ca-bundle.pem",   // openSUSE (alternative)
+                        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // Fedora p11-kit
+                        "/etc/ssl/cert.pem",                        // Alpine, macOS
+                    };
+                    foreach (string path in system_ca_paths) {
+                        if (FileUtils.test(path, FileTest.EXISTS)) {
+                            Environment.set_variable("GTLS_SYSTEM_CA_FILE", path, true);
+                            message("Set GTLS_SYSTEM_CA_FILE to %s (system CA)", path);
+                            break;
+                        }
+                    }
                  }
             }
         }

@@ -186,6 +186,16 @@ public class MqttClient : Object {
             /* Linux / macOS: standard CA certificate locations */
             if (FileUtils.test("/etc/ssl/certs/ca-certificates.crt", FileTest.EXISTS)) {
                 cafile = "/etc/ssl/certs/ca-certificates.crt";
+            } else if (FileUtils.test("/etc/pki/tls/certs/ca-bundle.crt", FileTest.EXISTS)) {
+                cafile = "/etc/pki/tls/certs/ca-bundle.crt";
+            } else if (FileUtils.test("/etc/ssl/ca-bundle.pem", FileTest.EXISTS)) {
+                cafile = "/etc/ssl/ca-bundle.pem";
+            } else if (FileUtils.test("/var/lib/ca-certificates/ca-bundle.pem", FileTest.EXISTS)) {
+                cafile = "/var/lib/ca-certificates/ca-bundle.pem";
+            } else if (FileUtils.test("/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", FileTest.EXISTS)) {
+                cafile = "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem";
+            } else if (FileUtils.test("/etc/ssl/cert.pem", FileTest.EXISTS)) {
+                cafile = "/etc/ssl/cert.pem";
             } else if (FileUtils.test("/etc/ssl/certs/ca-bundle.crt", FileTest.EXISTS)) {
                 cafile = "/etc/ssl/certs/ca-bundle.crt";
             } else if (FileUtils.test("/etc/ssl/certs", FileTest.IS_DIR)) {

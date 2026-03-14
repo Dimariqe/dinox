@@ -593,6 +593,23 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 # window icon, and the desktop can find it for systray (SNI icon_name lookup).
 export XDG_DATA_DIRS="$APPDIR/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}:/usr/local/share:/usr/share"
 
+# CA certificates: The bundled GnuTLS defaults to Debian's path which doesn't
+# exist on openSUSE, Fedora, etc. Probe well-known locations and tell GnuTLS.
+if [ -z "$GTLS_SYSTEM_CA_FILE" ]; then
+    for ca in \
+        /etc/ssl/certs/ca-certificates.crt \
+        /etc/pki/tls/certs/ca-bundle.crt \
+        /etc/ssl/ca-bundle.pem \
+        /var/lib/ca-certificates/ca-bundle.pem \
+        /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+        /etc/ssl/cert.pem; do
+        if [ -f "$ca" ]; then
+            export GTLS_SYSTEM_CA_FILE="$ca"
+            break
+        fi
+    done
+fi
+
 # Run DinoX
 exec "$APPDIR/usr/bin/dinox" "$@"
 EOF
