@@ -5,6 +5,31 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7.0] - 2026-03-14
+
+### Added — In-App Language Selector
+- **Language selector**: Settings → General → Appearance — 48 languages selectable via AdwComboRow
+- **Early startup override**: Reads `~/.local/share/dinox/language` before gettext initialization, sets `LANGUAGE` + `LANG` env vars
+- **Dual persistence**: Language choice stored in DB (Settings entity) + plain-text file for pre-DB startup
+- **Restart hint**: Subtitle shows "Restart DinoX to apply" when language changed during runtime
+- **Signal safety**: `language_updating` guard prevents ping-pong between model↔UI language handlers
+
+### Added — Translations (DE/FR/ES 100%)
+- **German**: 31 new translations — full coverage across main, OMEMO, OpenPGP
+- **French**: 58 new translations (56 single-line + 2 multiline MQTT/ejabberd strings)
+- **Spanish**: 51 new translations (49 single-line + 2 multiline)
+- **Language selector strings**: 3 new entries per language (_Language, override subtitle, restart hint)
+
+### Fixed — Translation File Integrity
+- **7 fatal msgfmt errors fixed**: zh_CN format specifier order (`%s`/`%d` swapped → positional `%1$d`/`%2$s`), omemo de/es/fr duplicate msgstr lines, omemo en/hi missing Plural-Forms header, omemo th missing `%d` in plural translation
+- **46 silent duplicate msgstr entries removed**: Batch translation scripts appended second translation variants as continuation lines — syntactically valid but semantically wrong. Affected 14 .po files across main (de: 18, es: 3, fr: 13), omemo (et, hu), openpgp (de, eo, es, fr, gl, ia, lb, oc, vi)
+- **Validated**: 133/133 .po files pass `msgfmt -c` with zero errors
+
+### Fixed — AppImage SSL on openSUSE/Fedora/Alpine
+- **Multi-distro CA cert probing**: GnuTLS compiled on Ubuntu defaults to `/etc/ssl/certs/ca-certificates.crt` which doesn't exist on openSUSE (`/etc/ssl/ca-bundle.pem`), Fedora (`/etc/pki/tls/certs/ca-bundle.crt`), or Alpine (`/etc/ssl/cert.pem`)
+- **3 layers of defense**: AppRun shell script probes 6 paths before launch, `main.vala` probes at startup setting `GTLS_SYSTEM_CA_FILE`, MQTT client probes independently for Mosquitto TLS
+- **Paths probed**: Debian/Ubuntu/Arch, Fedora/RHEL, openSUSE, openSUSE alternative, Fedora p11-kit, Alpine/macOS
+
 ## [1.1.6.9] - 2026-03-14
 
 ### Fixed — Build

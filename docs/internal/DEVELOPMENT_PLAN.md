@@ -1,7 +1,7 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 14, 2026 (v1.1.6.9)
-> **Current Release Line**: 1.1.6.x
+> **Last Updated**: March 14, 2026 (v1.1.7.0)
+> **Current Release Line**: 1.1.7.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
 
@@ -11,15 +11,22 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.6.9 |
+| **Current Version** | 1.1.7.0 |
 | **XEPs Implemented** | ~78 |
-| **Languages** | 47 (~85% translated) |
+| **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
 | **GTK/libadwaita** | GTK4 4.14, libadwaita 1.5 |
 
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.7.0 (Language Selector, Translation Fixes, openSUSE SSL Fix)
+- **In-app language selector**: Settings → General → Appearance — 48 languages, AdwComboRow, dual persistence (DB + plaintext file for early startup)
+- **DE/FR/ES translations 100%**: 140 new translations across main/omemo/openpgp
+- **53 .po file fixes**: 7 fatal msgfmt errors + 46 silent duplicate msgstr entries removed across 14 files
+- **AppImage SSL on openSUSE/Fedora/Alpine**: Probe 6 distro CA cert paths in AppRun + main.vala + MQTT client
+- 3 commits, 30 files changed
 
 ### v1.1.6.9 (Windows Systray LoadIconW Fix)
 - **systray_win32.c**: `MAKEINTRESOURCEW(32512)` statt `IDI_APPLICATION` — UNICODE-Inkompatibilität in MSYS2 MINGW64
