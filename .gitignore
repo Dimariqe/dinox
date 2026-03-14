@@ -97,3 +97,4 @@ RAM_ANALYSE.md
 .venv/
 __pycache__/
 **/__pycache__/
+debug_instructions.md

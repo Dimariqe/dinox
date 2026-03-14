@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 14, 2026 (v1.1.7.4)
+> **Last Updated**: March 15, 2026 (v1.1.7.5)
 > **Current Release Line**: 1.1.7.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.7.4 |
+| **Current Version** | 1.1.7.5 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
@@ -20,6 +20,11 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.7.5 (Windows Exit Fix — hold/release + debug diagnostics)
+- **finish_post_unlock()**: `this.hold()` at start, `this.release()` at end — prevents GApplication from quitting during the entire unlock→main transition
+- **Debug messages**: Strategic `message()` calls at every step of the transition for Windows diagnostics
+- 1 file changed
 
 ### v1.1.7.4 (Windows Exit Fix, GCC 13+ Build Fix, openSUSE Docs)
 - **Windows exit-after-unlock**: Reordered `finish_post_unlock()` — `activate()` FIRST (creates MainWindow), THEN `unlock_parent.close()`. Removed `hold()`/`release()`. Fixes silent app exit on Windows (GitHub #18 revisited)

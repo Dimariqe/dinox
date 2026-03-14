@@ -126,8 +126,18 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     // Shared post-unlock / post-set-password initialization.
     // Extracted to eliminate duplication between prompt_unlock() and prompt_set_password().
     private void finish_post_unlock () {
+        message ("finish_post_unlock: starting");
+
+        // Prevent GApplication from quitting during the entire unlock→main
+        // transition.  On GDK-Win32, window destruction can synchronously
+        // re-enter the Win32 message pump — if use_count ever reaches 0
+        // during that re-entry the main loop terminates.  hold() keeps
+        // use_count > 0 until we release() at the very end.
+        this.hold ();
+
         create_ui_actions ();
         core_ready = true;
+        message ("finish_post_unlock: core_ready=true");
 
         apply_color_scheme (settings.color_scheme);
         settings.notify["color-scheme"].connect (() => {
@@ -155,7 +165,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
         stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
 
+        message ("finish_post_unlock: creating SystrayManager");
         systray_manager = new SystrayManager (this);
+        message ("finish_post_unlock: SystrayManager created");
 
         // Auto-show certificate warning dialog when TLS cert validation fails
         stream_interactor.connection_manager.certificate_validation_required.connect ((account, peer_cert, errors) => {
@@ -173,21 +185,24 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             });
         });
 
-        // Create the MainWindow FIRST, while unlock_parent is still alive.
-        // This ensures GApplication always has at least one window registered
-        // and the main loop never exits due to use_count reaching 0.
-        // On GDK-Win32, close() can synchronously destroy the window and
-        // re-enter the Win32 message pump — if no other window exists at
-        // that moment, the main loop terminates.
+        // Create the MainWindow while unlock_parent is still alive.
+        message ("finish_post_unlock: pending_activate=%s", pending_activate.to_string ());
         if (pending_activate) {
             pending_activate = false;
+            message ("finish_post_unlock: calling activate()");
             activate ();
+            message ("finish_post_unlock: activate() returned, window=%s",
+                     (window != null).to_string ());
         }
 
         if (unlock_parent != null) {
+            message ("finish_post_unlock: closing unlock_parent");
             unlock_parent.close ();
             unlock_parent = null;
         }
+
+        message ("finish_post_unlock: done — releasing hold");
+        this.release ();
     }
 
     // Check if a panic wipe happened before this startup.
@@ -504,14 +519,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
 
         activate.connect (() => {
+            message ("activate handler: core_ready=%s, window=%s",
+                     core_ready.to_string (), (window != null).to_string ());
             if (!core_ready) {
                 pending_activate = true;
+                message ("activate handler: deferred (pending_activate=true)");
                 return;
             }
             if (window == null) {
+                message ("activate handler: creating MainWindow");
                 controller = new MainWindowController (this, stream_interactor, db);
                 config = new Config (db);
                 window = new MainWindow (this, stream_interactor, db, config);
+                message ("activate handler: MainWindow created");
                 controller.set_window (window);
                 // Always enable hide_on_close - we'll control quit behavior in close_request handler
                 window.hide_on_close = true;

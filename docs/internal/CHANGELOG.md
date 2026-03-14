@@ -5,6 +5,12 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7.5] - 2026-03-15
+
+### Fixed — Windows: App Still Exits After Unlock (GitHub #18 — continued)
+- **hold()/release() safety net**: v1.1.7.4 reordered activate-before-close but the app STILL exits silently on Windows. Added `this.hold()` at the start and `this.release()` at the end of the entire `finish_post_unlock()` transition — this guarantees GApplication use_count never reaches 0, regardless of Win32 message pump re-entry or window lifecycle timing.
+- **Strategic debug messages**: Added `message()` calls throughout `finish_post_unlock()` and the `activate` handler so Windows users can provide exact diagnostic output showing where execution stops.
+
 ## [1.1.7.4] - 2026-03-14
 
 ### Fixed — Windows: App Exits After Unlock (GitHub #18)
