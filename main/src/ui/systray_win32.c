@@ -75,8 +75,8 @@ systray_win32_init (const gchar          *tooltip_utf8,
     HICON icon = LoadIconW (GetModuleHandleW (NULL),
                             MAKEINTRESOURCEW (icon_resource_id));
     if (icon == NULL) {
-        /* Fallback to the default application icon. */
-        icon = LoadIconW (NULL, IDI_APPLICATION);
+        /* Fallback to the default application icon (IDI_APPLICATION = 32512). */
+        icon = LoadIconW (NULL, MAKEINTRESOURCEW (32512));
     }
 
     /* Set up NOTIFYICONDATAW. */
