@@ -45,7 +45,14 @@ public class Dino.Ui.FreeDesktopNotifier : NotificationProvider, Object {
         });
 
         dbus_notifications.notification_closed.connect((id) => {
-            action_listeners.unset(id);
+            // Defer cleanup: on KDE Plasma, notification_closed fires
+            // before action_invoked when a button is clicked. Idle runs
+            // at lower priority than DBus signals, so action_invoked
+            // will be processed first.
+            Idle.add(() => {
+                action_listeners.unset(id);
+                return Source.REMOVE;
+            });
         });
     }
 
