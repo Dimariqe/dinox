@@ -150,12 +150,13 @@ sed -i 's/absl::Nullable<\([^>]*\)>/\1/g; s/absl::Nonnull<\([^>]*\)>/\1/g' \
     webrtc/modules/audio_processing/audio_processing_impl.h
 # Fix für MinGW: windows.h zieht intern winsock.h (v1) ein, was mit
 # winsock2.h kollidiert und die Warnung "Please include winsock2.h
-# before windows.h" auslöst. WIN32_LEAN_AND_MEAN verhindert das.
-meson setup build --prefix=/mingw64 \
-  -Dc_args=-DWIN32_LEAN_AND_MEAN -Dcpp_args=-DWIN32_LEAN_AND_MEAN
+# before windows.h" auslöst. WIN32_LEAN_AND_MEAN vor jedem
+# #include <windows.h> einfügen verhindert das.
+grep -rl '#include <windows.h>' webrtc/ | xargs sed -i \
+    's|#include <windows.h>|#ifndef WIN32_LEAN_AND_MEAN\n#define WIN32_LEAN_AND_MEAN\n#endif\n#include <windows.h>|'
+meson setup build --prefix=/mingw64
 # Falls der build-Ordner schon existiert (z.B. nach einem fehlgeschlagenen Versuch):
-# meson setup build --wipe --prefix=/mingw64 \
-#   -Dc_args=-DWIN32_LEAN_AND_MEAN -Dcpp_args=-DWIN32_LEAN_AND_MEAN
+# meson setup build --wipe --prefix=/mingw64
 ninja -C build
 ninja -C build install
 echo "webrtc-audio-processing v2.1 installiert!"
@@ -342,9 +343,9 @@ sed -i 's/absl::Nullable<\([^>]*\)>/\1/g; s/absl::Nonnull<\([^>]*\)>/\1/g' \
     webrtc/modules/audio_processing/aec_dump/null_aec_dump_factory.cc \
     webrtc/modules/audio_processing/audio_processing_impl.cc \
     webrtc/modules/audio_processing/audio_processing_impl.h
-meson setup build --prefix=/mingw64 \
-  -Dc_args=-DWIN32_LEAN_AND_MEAN -Dcpp_args=-DWIN32_LEAN_AND_MEAN \
-  && ninja -C build && ninja -C build install
+grep -rl '#include <windows.h>' webrtc/ | xargs sed -i \
+    's|#include <windows.h>|#ifndef WIN32_LEAN_AND_MEAN\n#define WIN32_LEAN_AND_MEAN\n#endif\n#include <windows.h>|'
+meson setup build --prefix=/mingw64 && ninja -C build && ninja -C build install
 
 # libomemo-c (Schritt 6)
 cd /tmp && git clone --depth 1 https://github.com/rallep71/libomemo-c.git

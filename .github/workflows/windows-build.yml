@@ -135,10 +135,10 @@ jobs:
               echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
               patch -p1 < "${GITHUB_WORKSPACE}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
           fi
-          # WIN32_LEAN_AND_MEAN: prevent windows.h from pulling winsock.h (v1)
-          # which conflicts with winsock2.h used by webrtc code
-          meson setup build --prefix=/mingw64 \
-            -Dc_args=-DWIN32_LEAN_AND_MEAN -Dcpp_args=-DWIN32_LEAN_AND_MEAN
+          # Fix winsock2.h warning: inject WIN32_LEAN_AND_MEAN before every #include <windows.h>
+          grep -rl '#include <windows.h>' webrtc/ | xargs sed -i \
+              's|#include <windows.h>|#ifndef WIN32_LEAN_AND_MEAN\n#define WIN32_LEAN_AND_MEAN\n#endif\n#include <windows.h>|'
+          meson setup build --prefix=/mingw64
           ninja -C build
           ninja -C build install
           echo "✓ webrtc-audio-processing v2.1 installed"
