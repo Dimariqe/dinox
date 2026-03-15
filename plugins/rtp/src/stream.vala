@@ -740,11 +740,12 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         }
         internal_session = null;
         session = null;
-        crypto_session = null;
         
-        // Stop network communication
+        // Stop network communication BEFORE nulling crypto_session,
+        // so on_recv_rtp_data() won't access a NULL crypto_session.
         push_recv_data = false;
         created = false;
+        crypto_session = null;
         if (recv_rtp != null) recv_rtp.end_of_stream();
         if (recv_rtcp != null) recv_rtcp.end_of_stream();
         
