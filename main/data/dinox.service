@@ -1,0 +1,35 @@
+[Unit]
+Description=DinoX — XMPP Instant Messenger
+Documentation=https://github.com/rallep71/dinox
+# Require a graphical session to be available
+Requires=graphical-session.target
+After=graphical-session.target
+# Restart if the XMPP connection drops or the process crashes
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dinox
+Restart=on-failure
+RestartSec=5s
+# Allow up to 3 restarts within 30 seconds before giving up
+StartLimitBurst=3
+StartLimitIntervalSec=30s
+
+# Inherit DISPLAY / WAYLAND_DISPLAY from the user session environment
+# (set via `systemctl --user import-environment` by the session manager)
+Environment=DBUS_SESSION_BUS_ADDRESS=%E/bus
+
+# Pass through desktop portal / accessibility environment
+PassEnvironment=DISPLAY WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
+
+# Harden the service slightly while keeping GUI access
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+# Allow writing to the user's config/data/cache dirs
+ReadWritePaths=%h/.local %h/.config %h/.cache
+
+[Install]
+WantedBy=graphical-session.target
