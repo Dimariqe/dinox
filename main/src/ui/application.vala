@@ -191,6 +191,62 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
     // Shared post-unlock / post-set-password initialization.
     // Extracted to eliminate duplication between prompt_unlock() and prompt_set_password().
+    // ---------------------------------------------------------------------------
+    // Autostart helpers — manage the systemd user service unit
+    // ---------------------------------------------------------------------------
+
+    private static string AUTOSTART_SERVICE = "dinox.service";
+
+    /** Returns true if the systemd user service is currently enabled. */
+    public static bool autostart_get_enabled () {
+#if WINDOWS
+        return false;
+#else
+        try {
+            string stdout_buf, stderr_buf;
+            int exit_status;
+            Process.spawn_sync (null,
+                {"systemctl", "--user", "is-enabled", "--quiet", AUTOSTART_SERVICE},
+                null,
+                SpawnFlags.SEARCH_PATH,
+                null,
+                out stdout_buf, out stderr_buf, out exit_status);
+            return exit_status == 0;
+        } catch (SpawnError e) {
+            debug ("autostart_get_enabled: spawn error: %s", e.message);
+            return false;
+        }
+#endif
+    }
+
+    /** Enable or disable the systemd user service for autostart. */
+    public static void autostart_set_enabled (bool enable) {
+#if WINDOWS
+        return;
+#else
+        string[] cmd;
+        if (enable) {
+            cmd = {"systemctl", "--user", "enable", AUTOSTART_SERVICE};
+        } else {
+            cmd = {"systemctl", "--user", "disable", AUTOSTART_SERVICE};
+        }
+        try {
+            string stdout_buf, stderr_buf;
+            int exit_status;
+            Process.spawn_sync (null, cmd, null,
+                SpawnFlags.SEARCH_PATH,
+                null,
+                out stdout_buf, out stderr_buf, out exit_status);
+            if (exit_status != 0) {
+                warning ("autostart_set_enabled(%s): systemctl exited %d: %s",
+                    enable.to_string (), exit_status, stderr_buf.strip ());
+            }
+        } catch (SpawnError e) {
+            warning ("autostart_set_enabled: spawn error: %s", e.message);
+        }
+#endif
+    }
+
     private void finish_post_unlock () {
         create_ui_actions ();
         core_ready = true;
@@ -222,6 +278,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
 
         systray_manager = new SystrayManager (this);
+
+        // Sync the autostart setting with the actual systemd service state on startup.
+        // If they diverge (e.g. user manually ran systemctl), re-align to the DB value.
+        bool db_autostart = settings.autostart;
+        bool svc_enabled  = autostart_get_enabled ();
+        if (db_autostart != svc_enabled) {
+            autostart_set_enabled (db_autostart);
+        }
+
+        // React to future autostart changes from the preferences dialog.
+        settings.notify["autostart"].connect (() => {
+            autostart_set_enabled (settings.autostart);
+        });
 
         // Auto-show certificate warning dialog when TLS cert validation fails
         stream_interactor.connection_manager.certificate_validation_required.connect ((account, peer_cert, errors) => {
@@ -590,7 +659,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 });
 #endif
             }
-            window.present ();
+
+            // If start_minimized is set, hide to tray instead of presenting the window.
+            // Only applies on the very first activation (window just created or not yet visible).
+            bool start_hidden = settings.start_minimized
+                && systray_manager != null
+                && !window.is_visible ();
+            if (start_hidden) {
+                // Keep app running but do not show the window
+                window.set_visible (false);
+                if (systray_manager != null) systray_manager.is_hidden = true;
+            } else {
+                window.present ();
+            }
 
             if (pending_xmpp_uri != null) {
                 handle_pending_xmpp_uri ((!)pending_xmpp_uri);

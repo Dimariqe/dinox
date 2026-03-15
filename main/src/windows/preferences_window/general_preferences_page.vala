@@ -17,6 +17,9 @@ public class Dino.Ui.ViewModel.GeneralPreferencesPage : Object {
     public bool convert_emojis { get; set; }
     public string color_scheme { get; set; }
 
+    public bool autostart { get; set; }
+    public bool start_minimized { get; set; }
+
     public bool stickers_enabled { get; set; }
     public bool sticker_animations_enabled { get; set; }
     public bool location_sharing_enabled { get; set; }
@@ -33,6 +36,8 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
     [GtkChild] private unowned Adw.SwitchRow marker_row;
     [GtkChild] private unowned Adw.SwitchRow notification_row;
     [GtkChild] private unowned Adw.SwitchRow keep_background_row;
+    [GtkChild] private unowned Adw.SwitchRow autostart_row;
+    [GtkChild] private unowned Adw.SwitchRow start_minimized_row;
     [GtkChild] private unowned Adw.SwitchRow emoji_row;
     [GtkChild] private unowned Adw.SwitchRow stickers_enabled_row;
     [GtkChild] private unowned Adw.SwitchRow sticker_animations_row;
@@ -114,6 +119,8 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
                 model.bind_property("send-marker", marker_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("notifications", notification_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("keep-background", keep_background_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
+                model.bind_property("autostart", autostart_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
+                model.bind_property("start-minimized", start_minimized_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("convert-emojis", emoji_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("stickers-enabled", stickers_enabled_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("sticker-animations-enabled", sticker_animations_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),

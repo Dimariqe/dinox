@@ -19,6 +19,8 @@ public class Settings : Object {
         sticker_animations_enabled_ = col_to_bool_or_default("sticker_animations_enabled", true);
         location_sharing_enabled_ = col_to_bool_or_default("location_sharing_enabled", true);
         bot_features_enabled_ = col_to_bool_or_default("bot_features_enabled", false);
+        autostart_ = col_to_bool_or_default("autostart", false);
+        start_minimized_ = col_to_bool_or_default("start_minimized", false);
         api_mode_ = col_to_string_or_default("api_mode", "local");
         api_port_ = col_to_int_or_default("api_port", 7842);
         api_tls_cert_ = col_to_string_or_default("api_tls_cert", "");
@@ -220,6 +222,30 @@ public class Settings : Object {
                 .value(db.settings.value, value)
                 .perform();
             api_tls_key_ = value;
+        }
+    }
+
+    private bool autostart_;
+    public bool autostart {
+        get { return autostart_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "autostart", true)
+                .value(db.settings.value, value.to_string())
+                .perform();
+            autostart_ = value;
+        }
+    }
+
+    private bool start_minimized_;
+    public bool start_minimized {
+        get { return start_minimized_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "start_minimized", true)
+                .value(db.settings.value, value.to_string())
+                .perform();
+            start_minimized_ = value;
         }
     }
 

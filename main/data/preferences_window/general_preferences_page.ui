@@ -39,6 +39,35 @@
     </child>
     <child>
       <object class="AdwPreferencesGroup">
+        <property name="title" translatable="yes">Startup</property>
+        <child>
+          <object class="AdwSwitchRow" id="autostart_row">
+            <property
+                            name="title"
+                            translatable="yes"
+                        >Start Automatically</property>
+            <property
+                            name="subtitle"
+                            translatable="yes"
+                        >Launch DinoX automatically when you log in (via systemd user service)</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSwitchRow" id="start_minimized_row">
+            <property
+                            name="title"
+                            translatable="yes"
+                        >Start Minimized to Tray</property>
+            <property
+                            name="subtitle"
+                            translatable="yes"
+                        >On startup, hide the main window and show only the tray icon</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup">
         <child>
           <object class="AdwSwitchRow" id="notification_row">
             <property name="title" translatable="yes">_Notifications</property>

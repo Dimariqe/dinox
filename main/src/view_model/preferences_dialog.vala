@@ -200,6 +200,8 @@ public class Dino.Ui.ViewModel.PreferencesDialog : Object {
         settings.bind_property("sticker-animations-enabled", general_page, "sticker-animations-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("location-sharing-enabled", general_page, "location-sharing-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("bot-features-enabled", general_page, "bot-features-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
+        settings.bind_property("autostart", general_page, "autostart", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
+        settings.bind_property("start-minimized", general_page, "start-minimized", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("api-mode", general_page, "api-mode", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("api-port", general_page, "api-port", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("api-tls-cert", general_page, "api-tls-cert", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
@@ -219,4 +221,3 @@ public class Dino.Ui.ViewModel.ChangePasswordDialog : Object {
         return res;
     }
 }
-
