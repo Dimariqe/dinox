@@ -15,6 +15,7 @@ set -e
 #   libnice                0.1.23  https://gitlab.freedesktop.org/libnice/libnice/-/tags
 #   protobuf-c             1.5.2   https://github.com/protobuf-c/protobuf-c/releases
 #   libomemo-c             (fork)  https://github.com/rallep71/libomemo-c
+#   cJSON                  1.7.18  https://github.com/DaveGamble/cJSON/releases
 #   mosquitto              2.1.2   https://mosquitto.org/download/
 #   lyrebird               0.8.1   https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird
 #
@@ -191,16 +192,31 @@ $SUDO ldconfig
 cd ../..
 rm -rf libomemo-c
 
-# 6. mosquitto (client library only — no broker, no CLI tools)
+# 6. cJSON (needed by mosquitto's libcommon even with -DWITH_BROKER=OFF)
+echo "Building cJSON..."
+CJSON_VER=1.7.18
+wget -q -O "cJSON-${CJSON_VER}.tar.gz" "https://github.com/DaveGamble/cJSON/archive/v${CJSON_VER}.tar.gz"
+tar xf "cJSON-${CJSON_VER}.tar.gz"
+cd "cJSON-${CJSON_VER}"
+cmake -DCMAKE_INSTALL_PREFIX=/usr \
+      -DENABLE_CJSON_TEST=OFF \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_INSTALL_LIBDIR=lib \
+      .
+make $MAKE_ARGS
+$SUDO make install
+$SUDO ldconfig
+cd ..
+rm -rf "cJSON-${CJSON_VER}" "cJSON-${CJSON_VER}.tar.gz"
+echo "cJSON ${CJSON_VER} installed."
+
+# 7. mosquitto (client library only — no broker, no CLI tools)
 # Ubuntu 24.04 ships 2.0.18; build 2.1.2 for latest security & protocol fixes.
 echo "Building mosquitto..."
 MOSQUITTO_VER=2.1.2
 wget -q -O "mosquitto-${MOSQUITTO_VER}.tar.gz" "https://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VER}.tar.gz"
 tar xf "mosquitto-${MOSQUITTO_VER}.tar.gz"
 cd "mosquitto-${MOSQUITTO_VER}"
-# cJSON is only needed by the broker/ctrl tools.  We build client-lib only,
-# so make the hard REQUIRED dependency optional to avoid needing cJSON-devel.
-sed -i 's/find_package(cJSON REQUIRED)/find_package(cJSON)/' CMakeLists.txt
 cmake -DCMAKE_INSTALL_PREFIX=/usr \
       -DWITH_BROKER=OFF \
       -DWITH_CLIENTS=OFF \
@@ -217,7 +233,7 @@ cd ..
 rm -rf "mosquitto-${MOSQUITTO_VER}" "mosquitto-${MOSQUITTO_VER}.tar.gz"
 echo "mosquitto $(pkg-config --modversion libmosquitto 2>/dev/null || echo '?') installed."
 
-# 7. lyrebird (pluggable transport for Tor: obfs4 + WebTunnel)
+# 8. lyrebird (pluggable transport for Tor: obfs4 + WebTunnel)
 # Replaces obfs4proxy. Requires Go >= 1.22.
 if ! command -v go &>/dev/null; then
     echo "ERROR: 'go' not found. Install golang-go >= 1.22 for lyrebird build."
