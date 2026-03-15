@@ -134,11 +134,13 @@ if [[ "$ABSEIL_VER" > "20250813" ]]; then
     echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
     patch -p1 < "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
 fi
-# Fix for GCC 13+: trace_event.h uses uint8_t/uintptr_t without including <cstdint>
-if ! grep -q '#include <cstdint>' webrtc/rtc_base/trace_event.h 2>/dev/null; then
-    echo "Patching trace_event.h: adding #include <cstdint> for GCC 13+ compatibility..."
-    sed -i '1s|^|#include <cstdint>\n|' webrtc/rtc_base/trace_event.h
-fi
+# Fix for GCC 13+: missing #include <cstdint> in two headers
+for hdr in webrtc/rtc_base/trace_event.h webrtc/modules/audio_processing/aec3/multi_channel_content_detector.h; do
+    if [ -f "$hdr" ] && ! grep -q '#include <cstdint>' "$hdr"; then
+        echo "Patching $hdr: adding #include <cstdint> for GCC 13+ compatibility..."
+        sed -i '1s|^|#include <cstdint>\n|' "$hdr"
+    fi
+done
 meson setup build --prefix=/usr $MESON_OPTS
 ninja -C build $NINJA_ARGS
 $SUDO ninja -C build install
