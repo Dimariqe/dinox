@@ -544,7 +544,9 @@ public class MessageMetaItem : ContentMetaItem {
             marked_notify_handler_id = -1;
         }
         if (realize_id != -1) {
-            label.disconnect(realize_id);
+            if (label != null && SignalHandler.is_connected(label, realize_id)) {
+                label.disconnect(realize_id);
+            }
             realize_id = -1;
         }
         if (pending_timeout_id != -1) {

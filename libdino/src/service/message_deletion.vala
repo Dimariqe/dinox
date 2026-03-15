@@ -137,7 +137,9 @@ namespace Dino {
                         Xep.MessageProcessingHints.set_message_hint(stanza, Xep.MessageProcessingHints.HINT_STORE);
 
                         // Disconnect self immediately
-                        GLib.SignalHandler.disconnect(message_processor, signal_id);
+                        if (GLib.SignalHandler.is_connected(message_processor, signal_id)) {
+                            GLib.SignalHandler.disconnect(message_processor, signal_id);
+                        }
                     }
                 });
 
