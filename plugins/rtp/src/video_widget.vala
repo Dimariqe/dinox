@@ -152,7 +152,9 @@ public class Dino.Plugins.Rtp.Sink : Gst.Video.Sink {
 
         if (frame.map(info, buffer, Gst.MapFlags.READ)) {
             unowned Gst.Video.Info info = gst_video_frame_get_video_info(frame);
-            Bytes bytes = new Bytes.take(gst_video_frame_get_data(frame));
+            // Copy the data — the pointer belongs to GStreamer's mapped buffer
+            // and must not be passed to Bytes.take() which would g_free() it.
+            Bytes bytes = new Bytes(gst_video_frame_get_data(frame));
             texture = new Gdk.MemoryTexture(info.width, info.height, memory_format_from_video(info.finfo.format), bytes, info.stride[0]);
             pixel_aspect_ratio = ((double) info.par_n) / ((double) info.par_d);
             frame.unmap();

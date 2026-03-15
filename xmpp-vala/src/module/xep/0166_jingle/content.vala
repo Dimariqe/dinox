@@ -171,14 +171,17 @@ public class Xmpp.Xep.Jingle.Content : Object {
     }
 
     public async void select_new_transport() {
+        if (session == null) return;  // weak ref cleared after terminate
         XmppStream stream = session.stream;
         Transport? new_transport = yield stream.get_module<Module>(Module.IDENTITY).select_transport(stream, transport.type_, transport_params.components, peer_full_jid, tried_transport_methods);
+        if (session == null) return;  // session may have ended during yield
         if (new_transport == null) {
             session.terminate(ReasonElement.FAILED_TRANSPORT, null, "failed transport");
             // TODO should we only terminate this content or really the whole session?
             return;
         }
         tried_transport_methods.add(new_transport.ns_uri);
+        if (transport_params == null) return;  // terminated during yield
         try {
             transport_params = new_transport.create_transport_parameters(stream, transport_params.components, local_full_jid, peer_full_jid);
         } catch (Error e) {
@@ -266,6 +269,7 @@ public class Xmpp.Xep.Jingle.Content : Object {
     }
 
     public void send_transport_info(StanzaNode transport) {
+        if (session == null) return;  // weak ref cleared after terminate
         session.send_transport_info(this, transport);
     }
 

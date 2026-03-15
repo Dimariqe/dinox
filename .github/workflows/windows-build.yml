@@ -69,7 +69,6 @@ jobs:
             mingw-w64-x86_64-gst-plugins-bad
             mingw-w64-x86_64-gst-libav
             mingw-w64-x86_64-libnice
-            mingw-w64-x86_64-webrtc-audio-processing-1
             mingw-w64-x86_64-opus
             mingw-w64-x86_64-openh264
             mingw-w64-x86_64-libvpx
@@ -111,6 +110,36 @@ jobs:
           CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird.exe ./cmd/lyrebird
           cp lyrebird.exe /mingw64/bin/
           echo "✓ lyrebird installed"
+
+      # webrtc-audio-processing v2.1 — MSYS2 only has v1.x, build v2.1 from source
+      - name: Build webrtc-audio-processing v2.1
+        run: |
+          echo "=== Building webrtc-audio-processing v2.1 ==="
+          cd /tmp
+          WEBRTC_VER=v2.1
+          curl -fSL --retry 3 -o "webrtc-audio-processing-${WEBRTC_VER}.tar.gz" \
+            "https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/archive/${WEBRTC_VER}/webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
+          tar xf "webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
+          cd "webrtc-audio-processing-${WEBRTC_VER}"
+          # Fix for GCC 13+: some headers use uint8_t/int64_t without including <cstdint>
+          for f in webrtc/rtc_base/trace_event.h \
+                   webrtc/modules/audio_processing/aec3/multi_channel_content_detector.h; do
+              if ! grep -q '#include <cstdint>' "$f" 2>/dev/null; then
+                  echo "Patching $f: adding #include <cstdint> for GCC 13+ compatibility..."
+                  sed -i '1s|^|#include <cstdint>\n|' "$f"
+              fi
+          done
+          # Fix for abseil-cpp >= 20250814: removed deprecated Nullability template aliases
+          ABSEIL_VER=$(pkg-config --modversion absl_base 2>/dev/null || echo "0")
+          if [[ "$ABSEIL_VER" > "20250813" ]] && [ -f "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch" ]; then
+              echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
+              patch -p1 < "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
+          fi
+          meson setup build --prefix=/mingw64
+          ninja -C build
+          ninja -C build install
+          echo "✓ webrtc-audio-processing v2.1 installed"
+          pkg-config --modversion webrtc-audio-processing-2
 
       # libomemo-c is not in MSYS2 repos — build from source
       - name: Build libomemo-c

@@ -154,7 +154,9 @@ public abstract class Xmpp.Xep.JingleIceUdp.IceUdpTransportParameters : Jingle.T
     }
 
     private void check_send_transport_info() {
-        if (this.content != null && !unsent_local_candidates.is_empty) {
+        // content.session is a weak ref — may already be null if the
+        // session was terminated before this Idle callback ran.
+        if (this.content != null && this.content.session != null && !unsent_local_candidates.is_empty) {
             content.send_transport_info(to_transport_stanza_node("transport-info"));
         }
     }

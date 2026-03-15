@@ -458,108 +458,31 @@ meson setup build -Dlocation-sharing=disabled
 
 DinoX can be built on Windows 10/11 using the MSYS2 environment with the MINGW64 toolchain.
 
-#### 1. Install MSYS2
+**Detailed step-by-step guides:**
 
-Download and install MSYS2 from [msys2.org](https://www.msys2.org/). Then open the **MINGW64** shell (not the MSYS shell).
+- **Deutsch:** [WINDOWS_BUILD.md](WINDOWS_BUILD.md) — Vollständige Anleitung zum Kompilieren von DinoX unter Windows
+- **English:** [WINDOWS_BUILD_EN.md](WINDOWS_BUILD_EN.md) — Complete guide for compiling DinoX on Windows
 
-#### 2. Install dependencies
+The guides cover MSYS2 installation, all dependencies, building lyrebird, webrtc-audio-processing v2.1, and libomemo-c from source, icon generation, meson/ninja build, distribution bundle creation, debugging, and troubleshooting.
 
-```bash
-pacman -Syu
-pacman -S --noconfirm \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-vala \
-    mingw-w64-x86_64-meson \
-    mingw-w64-x86_64-ninja \
-    mingw-w64-x86_64-pkg-config \
-    mingw-w64-x86_64-cmake \
-    mingw-w64-x86_64-gtk4 \
-    mingw-w64-x86_64-libadwaita \
-    mingw-w64-x86_64-glib2 \
-    mingw-w64-x86_64-libgee \
-    mingw-w64-x86_64-sqlcipher \
-    mingw-w64-x86_64-icu \
-    mingw-w64-x86_64-libgcrypt \
-    mingw-w64-x86_64-gpgme \
-    mingw-w64-x86_64-qrencode \
-    mingw-w64-x86_64-libsoup3 \
-    mingw-w64-x86_64-gstreamer \
-    mingw-w64-x86_64-gst-plugins-base \
-    mingw-w64-x86_64-gst-plugins-good \
-    mingw-w64-x86_64-gst-plugins-bad \
-    mingw-w64-x86_64-gst-plugins-ugly \
-    mingw-w64-x86_64-gst-libav \
-    mingw-w64-x86_64-libnice \
-    mingw-w64-x86_64-gnutls \
-    mingw-w64-x86_64-libsrtp \
-    mingw-w64-x86_64-python \
-    mingw-w64-x86_64-glib-networking \
-    mingw-w64-x86_64-mosquitto \
-    mingw-w64-x86_64-go \
-    mingw-w64-x86_64-sqlite3 \
-    mingw-w64-x86_64-hicolor-icon-theme \
-    mingw-w64-x86_64-adwaita-icon-theme \
-    git \
-    tar
-```
+#### Quick overview
 
-#### 3. Build lyrebird (Tor pluggable transport, not available in MSYS2)
-
-```bash
-cd /tmp
-LYREBIRD_VER=0.8.1
-LYREBIRD_TAG="lyrebird-${LYREBIRD_VER}"
-curl -sL -o "lyrebird-${LYREBIRD_VER}.tar.gz" \
-  "https://gitlab.torproject.org/api/v4/projects/417/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
-tar xf "lyrebird-${LYREBIRD_VER}.tar.gz"
-cd lyrebird-${LYREBIRD_TAG}-*
-CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird.exe ./cmd/lyrebird
-cp lyrebird.exe /mingw64/bin/
-cd -
-```
-
-#### 4. Build libomemo-c (required, not available in MSYS2)
-
-```bash
-git clone https://github.com/rallep71/libomemo-c.git
-cd libomemo-c
-mkdir build && cd build
-cmake -G Ninja \
-    -DCMAKE_INSTALL_PREFIX=/mingw64 \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON \
-    ..
-ninja
-ninja install
-cd ../..
-```
-
-#### 5. Build DinoX
-
-```bash
-git clone https://github.com/rallep71/dinox.git
-cd dinox
-meson setup build --prefix=/mingw64
-ninja -C build
-```
-
-#### 6. Create distribution archive
-
-The `scripts/update_dist.sh` script collects the built executable, all required DLLs, and runtime data into a `dist/` folder:
-
-```bash
-bash scripts/update_dist.sh
-```
-
-The resulting `dist/` directory contains everything needed to run DinoX on Windows. Run `dinox.exe` directly.
+1. Install [MSYS2](https://www.msys2.org/) and open the **MINGW64** shell
+2. Update: `pacman -Syu` (then `pacman -Su` if terminal closes)
+3. Install ~45 packages via `pacman -S` (see guide for full list)
+4. Build **lyrebird 0.8.1** from source (Tor pluggable transport)
+5. Build **webrtc-audio-processing v2.1** from source (echo cancellation / noise suppression)
+6. Build **libomemo-c** from source (OMEMO encryption)
+7. Clone, configure (`meson setup build`), compile (`ninja -C build`)
+8. Create distribution bundle: `bash scripts/update_dist.sh`
+9. Run: `./dist/dinox.exe`
 
 #### Windows notes
 
-- **Tor/Lyrebird/Obfs4proxy**: Bundled and fully functional on Windows. Lyrebird (obfs4 + WebTunnel) is preferred at runtime; obfs4proxy serves as fallback. Build lyrebird from source (step 3) — it is not available as an MSYS2 package.
+- **Tor/Lyrebird/Obfs4proxy**: Bundled and fully functional on Windows. Lyrebird (obfs4 + WebTunnel) is preferred at runtime; obfs4proxy serves as fallback. Build lyrebird from source — it is not available as an MSYS2 package.
 - **libsecret/D-Bus**: Not used on Windows. Passwords are handled differently.
-- **libcanberra**: Notification sounds (message + call ringtone) are enabled by default on all Linux builds (native, Flatpak, AppImage) via `auto` detection. Not available on Windows (libcanberra is Linux-only). See [Development Plan](DEVELOPMENT_PLAN.md) for cross-platform notification sound plans.
-- **webrtc-audio-processing**: MSYS2 provides version 0.3 and 1.x. DinoX auto-detects and uses whatever is available. Version 2.x is not yet packaged for MSYS2.
-```
+- **libcanberra**: Notification sounds are enabled by default on Linux builds via `auto` detection. Not available on Windows (libcanberra is Linux-only). See [Development Plan](DEVELOPMENT_PLAN.md) for cross-platform notification sound plans.
+- **webrtc-audio-processing**: MSYS2 only provides version 1.x. DinoX needs v2.1 for best audio quality — built from source (see guide Step 5).
 
 ## Build Instructions
 
