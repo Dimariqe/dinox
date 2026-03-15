@@ -152,7 +152,7 @@ public class StatusNotifierItem : Object {
 }
 
 public class SystrayManager : Object {
-    
+
     private unowned Application application;
     public MainWindow? window;
     private StatusNotifierItem? status_notifier;
@@ -164,17 +164,17 @@ public class SystrayManager : Object {
     private uint watcher_id = 0;
     private bool sni_registered = false;
     private bool holding = false;
-    
+
     public bool is_hidden = false;
-    
+
     public SystrayManager(Application application) {
         this.application = application;
         initialize_dbus.begin();
     }
-    
+
     public void set_window(MainWindow window) {
         this.window = window;
-        
+
         window.close_request.connect(() => {
             // Check if background mode is enabled
             if (Dino.Application.get_default().settings.keep_background) {
@@ -188,7 +188,7 @@ public class SystrayManager : Object {
             }
         });
     }
-    
+
     public void quit_application() {
         debug("Systray: quit_application() called");
 
@@ -208,7 +208,7 @@ public class SystrayManager : Object {
 
         finalize_quit();
     }
-    
+
     private void finalize_quit() {
         // Graceful GTK quit — triggers application.shutdown() for final cleanup.
         // shutdown() handles cleanup_temp_files() and disconnect_all() (no-op since
@@ -220,39 +220,45 @@ public class SystrayManager : Object {
         debug("Systray: Force exit - Process.exit(0)");
         Process.exit(0);
     }
-    
+
     private async void initialize_dbus() {
         try {
             var conn = yield Bus.get(BusType.SESSION);
             if (disposed) return;
             connection = conn;
-            
+
             status_notifier = new StatusNotifierItem();
-            
+
             // Set IconThemePath so the desktop can find the icon.
-            // AppImage: use bundled icons; regular install: system icons.
+            // AppImage: use bundled icons (must be set explicitly).
+            // Regular install: leave empty — the icon name is already registered in the
+            // system hicolor theme and Quickshell / other SNI hosts will resolve it via
+            // the normal XDG icon lookup.  Passing "/usr/share/icons" here causes
+            // Quickshell to build the wrong path ("file:///usr/share/icons/<IconName>")
+            // instead of doing a proper hicolor lookup.
             string? appdir = Environment.get_variable("APPDIR");
             if (appdir != null) {
                 string theme_path = Path.build_filename(appdir, "usr", "share", "icons");
                 if (FileUtils.test(theme_path, FileTest.IS_DIR)) {
                     status_notifier.icon_theme_path = theme_path;
-                    debug("Systray: IconThemePath set to %s", theme_path);
+                    debug("Systray: IconThemePath set to %s (AppImage)", theme_path);
                 }
             } else {
-                // Regular install: also set path for Qt trays that need explicit lookup
-                status_notifier.icon_theme_path = "/usr/share/icons";
+                // Empty string: let the SNI host use its own icon-theme lookup for IconName.
+                status_notifier.icon_theme_path = "";
+                debug("Systray: IconThemePath left empty (system install)");
             }
 
             // Load inline pixel data for Qt-based trays (Quickshell, etc.)
             status_notifier.load_icon_pixmaps();
-            
+
             // Initialize Dbusmenu Server
             menu_server = new Dbusmenu.Server("/MenuBar");
-            
+
             var root = new Dbusmenu.Menuitem();
             root.property_set(Dbusmenu.MENUITEM_PROP_CHILD_DISPLAY, "submenu");
             menu_server.set_root(root);
-            
+
             string[] statuses = {"online", "away", "dnd", "xa"};
             string[] labels = {_("Online"), _("Away"), _("Busy"), _("Not Available")};
             status_items = new Dbusmenu.Menuitem[statuses.length];
@@ -282,7 +288,7 @@ public class SystrayManager : Object {
             item_sep.property_set(Dbusmenu.MENUITEM_PROP_TYPE, Dbusmenu.CLIENT_TYPES_SEPARATOR);
             item_sep.property_set_bool(Dbusmenu.MENUITEM_PROP_VISIBLE, true);
             root.child_append(item_sep);
-            
+
             // Quit Item
             var item_quit = new Dbusmenu.Menuitem();
             item_quit.property_set(Dbusmenu.MENUITEM_PROP_LABEL, _("Quit"));
@@ -297,17 +303,17 @@ public class SystrayManager : Object {
                 });
             });
             root.child_append(item_quit);
-            
+
             debug("Systray: Dbusmenu.Server initialized on /MenuBar");
-            
+
             // Register SNI via C helper (supports IconPixmap a(iiay) type)
             dbus_id = SniDbus.register(connection, "/StatusNotifierItem",
                 sni_get_property_cb, sni_method_call_cb, (void*) this);
-            
+
             debug("Systray: StatusNotifierItem registered on D-Bus");
-            
+
             start_watching();
-            
+
         } catch (Error e) {
             warning("Systray: Failed to initialize D-Bus: %s", e.message);
             // Fallback: hold application so it stays alive when window is hidden
@@ -315,8 +321,9 @@ public class SystrayManager : Object {
             debug("Systray: Using GApplication.hold() fallback for background mode");
         }
     }
-    
+
     private void start_watching() {
+        if (disposed || connection == null) return;
         // Watch for KDE/Freedesktop StatusNotifierWatcher
         watcher_id = Bus.watch_name(BusType.SESSION, "org.kde.StatusNotifierWatcher",
             BusNameWatcherFlags.NONE,
@@ -334,7 +341,7 @@ public class SystrayManager : Object {
             }
         );
     }
-    
+
     private async void register_with_watcher() {
         if (disposed || connection == null) return;
 
@@ -342,7 +349,7 @@ public class SystrayManager : Object {
             "org.kde.StatusNotifierWatcher",
             "org.x.StatusNotifierWatcher"
         };
-        
+
         bool registered = false;
         foreach (string watcher_name in watchers) {
             try {
@@ -352,21 +359,21 @@ public class SystrayManager : Object {
                     "/StatusNotifierWatcher",
                     DBusProxyFlags.NONE
                 );
-                
+
                 if (disposed || connection == null) return;
                 string service_name = connection.unique_name;
                 yield watcher.register_status_notifier_item(service_name);
-                
+
                 debug("Systray: Successfully registered with %s as %s", watcher_name, service_name);
                 registered = true;
                 sni_registered = true;
                 break;
-                
+
             } catch (Error e) {
                 continue;
             }
         }
-        
+
         if (!registered) {
             warning("Systray: No StatusNotifierWatcher available - tray icon will not be visible");
             // Fallback: hold application so it stays alive when window is hidden
@@ -374,51 +381,74 @@ public class SystrayManager : Object {
             debug("Systray: Using GApplication.hold() fallback for background mode");
         }
     }
-    
+
     public void toggle_window_visibility() {
         if (window == null) return;
-        
+
         if (is_hidden || !window.is_visible()) {
             show_window();
         } else {
             hide_window();
         }
     }
-    
+
     private void show_window() {
         if (window == null) return;
-        
+
         window.present();
         window.set_visible(true);
         is_hidden = false;
     }
-    
+
     private void hide_window() {
         if (window == null) return;
-        
+
         window.set_visible(false);
         is_hidden = true;
     }
-    
+
     private void update_status_items(string current_status) {
         if (status_items == null) return;
 
         string[] statuses = {"online", "away", "dnd", "xa"};
         string[] labels = {_("Online"), _("Away"), _("Busy"), _("Not Available")};
         string[] active_emojis = {"🟢", "🟠", "🔴", "⭕"};
-        string inactive_emoji = "⚪"; 
+        string inactive_emoji = "⚪";
 
         for (int i = 0; i < statuses.length; i++) {
             if (status_items[i] == null) continue;
-            
+
             string emoji = (statuses[i] == current_status) ? active_emojis[i] : inactive_emoji;
             status_items[i].property_set(Dbusmenu.MENUITEM_PROP_LABEL, emoji + "  " + labels[i]);
         }
 
-        // Notify D-Bus clients that the status changed
-        emit_new_status(current_status);
+        // Notify D-Bus clients that the status changed.
+        // SNI only accepts "Active", "Passive", or "NeedsAttention".
+        // Map XMPP presence show values to the nearest SNI status.
+        string sni_status;
+        switch (current_status) {
+            case "online":
+                sni_status = "Active";
+                break;
+            case "dnd":
+                // Do-not-disturb → NeedsAttention so the icon stays visible but distinct
+                sni_status = "NeedsAttention";
+                break;
+            case "away":
+            case "xa":
+            default:
+                sni_status = "Active";
+                break;
+        }
+
+        // Keep the SNI property in sync so GetProperty("Status") returns the
+        // correct value after the signal is fired.
+        if (status_notifier != null) {
+            status_notifier.status = sni_status;
+        }
+        emit_new_status(sni_status);
     }
-    
+
     private bool disposed = false;
 
     private void hold_app() {
@@ -434,18 +464,18 @@ public class SystrayManager : Object {
             holding = false;
         }
     }
-    
+
     public void cleanup() {
         if (disposed) {
             return;
         }
         disposed = true;
-        
+
         if (watcher_id != 0) {
             Bus.unwatch_name(watcher_id);
             watcher_id = 0;
         }
-        
+
         if (status_changed_id != 0) {
             var pm = application.stream_interactor.get_module<PresenceManager>(PresenceManager.IDENTITY);
             SignalHandler.disconnect(pm, status_changed_id);
@@ -456,7 +486,7 @@ public class SystrayManager : Object {
             connection.unregister_object(dbus_id);
             dbus_id = 0;
         }
-        
+
         release_app();
 
         status_items = null;
