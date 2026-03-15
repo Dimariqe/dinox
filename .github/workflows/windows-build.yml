@@ -131,9 +131,9 @@ jobs:
           done
           # Fix for abseil-cpp >= 20250814: removed deprecated Nullability template aliases
           ABSEIL_VER=$(pkg-config --modversion absl_base 2>/dev/null || echo "0")
-          if [[ "$ABSEIL_VER" > "20250813" ]] && [ -f "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch" ]; then
+          if [[ "$ABSEIL_VER" > "20250813" ]] && [ -f "${GITHUB_WORKSPACE}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch" ]; then
               echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
-              patch -p1 < "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
+              patch -p1 < "${GITHUB_WORKSPACE}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
           fi
           meson setup build --prefix=/mingw64
           ninja -C build
