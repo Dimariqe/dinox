@@ -21,15 +21,19 @@ Vollständige Anleitung zum Bauen von DinoX aus dem GitHub-Quellcode auf Windows
 
 ## Schritt 2: System aktualisieren
 
+Nach der Installation muss MSYS2 **zweimal** aktualisiert werden. Zuerst:
+
 ```bash
 pacman -Syu
 ```
 
-Falls sich das Terminal schließt (weil die MSYS2-Runtime aktualisiert wurde), Terminal erneut öffnen und nochmal:
+Das Terminal schließt sich automatisch, weil die MSYS2-Runtime selbst aktualisiert wird. Das ist normal. **Terminal erneut öffnen** (MINGW64!) und den gleichen Befehl nochmal ausführen:
 
 ```bash
-pacman -Su
+pacman -Syu
 ```
+
+Erst beim zweiten Mal werden alle Pakete tatsächlich heruntergeladen und aktualisiert. Diesen Schritt **nicht** überspringen — sonst sind die Paketdatenbanken veraltet und nachfolgende Installationen schlagen mit „Could not connect to server"-Fehlern fehl.
 
 ---
 
@@ -46,7 +50,7 @@ pacman -S --noconfirm \
     mingw-w64-x86_64-vala \
     mingw-w64-x86_64-meson \
     mingw-w64-x86_64-ninja \
-    mingw-w64-x86_64-pkg-config \
+    mingw-w64-x86_64-pkgconf \
     mingw-w64-x86_64-cmake \
     mingw-w64-x86_64-python \
     mingw-w64-x86_64-gtk4 \
@@ -87,6 +91,8 @@ pacman -S --noconfirm \
 ```
 
 > Bei der Frage `(default=all)` einfach Enter drücken.
+>
+> **Hinweis:** Warnungen wie „dependency cycle detected" (harfbuzz/freetype, libwebp/libtiff) sind normal und harmlos — das sind bekannte zirkuläre Abhängigkeiten in MSYS2, die pacman korrekt auflöst.
 
 ---
 
@@ -294,7 +300,7 @@ Für Eilige — alles ab Schritt 3 in einem Block:
 ```bash
 # Abhängigkeiten (Schritt 3)
 pacman -S --noconfirm git tar base-devel \
-    mingw-w64-x86_64-{toolchain,vala,meson,ninja,pkg-config,cmake,python} \
+    mingw-w64-x86_64-{toolchain,vala,meson,ninja,pkgconf,cmake,python} \
     mingw-w64-x86_64-{gtk4,libadwaita,glib2,glib-networking,gdk-pixbuf2,libgee} \
     mingw-w64-x86_64-{libsoup3,json-glib,sqlcipher,sqlite3,icu} \
     mingw-w64-x86_64-{libgcrypt,gpgme,gnutls,qrencode,libsecret,libsrtp,libnice} \

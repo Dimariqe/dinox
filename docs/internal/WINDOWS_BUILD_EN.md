@@ -21,15 +21,19 @@ Complete guide for compiling DinoX from GitHub source on Windows 10/11.
 
 ## Step 2: Update the system
 
+After the first launch of MINGW64, you **must** run the update twice:
+
 ```bash
 pacman -Syu
 ```
 
-If the terminal closes (because the MSYS2 runtime was updated), reopen it and run:
+The terminal will close automatically (because the MSYS2 runtime itself gets updated). This is normal. **Reopen the MINGW64 terminal** and run the same command again:
 
 ```bash
-pacman -Su
+pacman -Syu
 ```
+
+Only on this second run will MSYS2 actually download and install all package updates. Do **not** skip this step — otherwise the package databases are out of date and subsequent installs may fail with "Could not connect to server" errors.
 
 ---
 
@@ -46,7 +50,7 @@ pacman -S --noconfirm \
     mingw-w64-x86_64-vala \
     mingw-w64-x86_64-meson \
     mingw-w64-x86_64-ninja \
-    mingw-w64-x86_64-pkg-config \
+    mingw-w64-x86_64-pkgconf \
     mingw-w64-x86_64-cmake \
     mingw-w64-x86_64-python \
     mingw-w64-x86_64-gtk4 \
@@ -87,6 +91,8 @@ pacman -S --noconfirm \
 ```
 
 > When prompted with `(default=all)`, just press Enter.
+>
+> **Note:** Warnings like "dependency cycle detected" (harfbuzz/freetype, libwebp/libtiff) are normal and harmless — these are known circular dependencies in MSYS2 that pacman resolves correctly.
 
 ---
 
@@ -294,7 +300,7 @@ For the impatient — everything from step 3 onward in one block:
 ```bash
 # Dependencies (Step 3)
 pacman -S --noconfirm git tar base-devel \
-    mingw-w64-x86_64-{toolchain,vala,meson,ninja,pkg-config,cmake,python} \
+    mingw-w64-x86_64-{toolchain,vala,meson,ninja,pkgconf,cmake,python} \
     mingw-w64-x86_64-{gtk4,libadwaita,glib2,glib-networking,gdk-pixbuf2,libgee} \
     mingw-w64-x86_64-{libsoup3,json-glib,sqlcipher,sqlite3,icu} \
     mingw-w64-x86_64-{libgcrypt,gpgme,gnutls,qrencode,libsecret,libsrtp,libnice} \
