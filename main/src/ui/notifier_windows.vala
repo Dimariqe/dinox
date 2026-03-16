@@ -136,6 +136,9 @@ namespace Dino.Ui {
                 case ConnectionManager.ConnectionError.Source.TLS:
                     body = "Invalid TLS certificate";
                     break;
+                default:
+                    body = error.identifier ?? "Connection error";
+                    break;
             }
             if (toast_available) {
                 string xml = build_simple_toast(title, body,
