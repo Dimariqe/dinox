@@ -135,10 +135,19 @@ jobs:
               echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
               patch -p1 < "${GITHUB_WORKSPACE}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
           fi
-          # Fix winsock2.h warning: inject WIN32_LEAN_AND_MEAN before every #include <windows.h>
-          grep -rl '#include <windows.h>' webrtc/ | xargs sed -i \
-              's|#include <windows.h>|#ifndef WIN32_LEAN_AND_MEAN\n#define WIN32_LEAN_AND_MEAN\n#endif\n#include <windows.h>|'
-          meson setup build --prefix=/mingw64
+          # Suppress harmless winsock2.h warning (WIN32_LEAN_AND_MEAN doesn't help on MinGW)
+          python3 << 'PYEOF'
+          import re
+          text = open('meson.build').read()
+          text = re.sub(r"\nadd_global_arguments[^\n]*Wno-cpp[^\n]*\n", '\n', text)
+          m = re.search(r"^\)", text, re.MULTILINE)
+          if m:
+              pos = m.end()
+              text = text[:pos] + "\nadd_global_arguments('-Wno-cpp', language: ['c', 'cpp'])" + text[pos:]
+          open('meson.build', 'w').write(text)
+          PYEOF
+          grep 'Wno-cpp' meson.build
+          meson setup build --wipe --prefix=/mingw64
           ninja -C build
           ninja -C build install
           echo "✓ webrtc-audio-processing v2.1 installed"
@@ -172,19 +181,22 @@ jobs:
           echo "::add-matcher::.github/matchers/vala-problem-matcher.json"
           echo "::add-matcher::.github/matchers/meson-problem-matcher.json"
 
-      - name: Generate Windows icon (.ico)
+      - name: Verify Windows icon (.ico)
         run: |
-          echo "=== Generating dinox.ico from PNGs ==="
-          # ImageMagick's convert is available in MSYS2
-          pacman -S --noconfirm --needed mingw-w64-x86_64-imagemagick 2>/dev/null || true
-          magick \
-            main/data/icons/hicolor/16x16/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/32x32/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/48x48/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/128x128/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/256x256/apps/im.github.rallep71.DinoX.png \
-            main/data/dinox.ico
-          echo "✓ dinox.ico created ($(wc -c < main/data/dinox.ico) bytes)"
+          if [[ -f main/data/dinox.ico ]]; then
+            echo "✓ dinox.ico found in repo ($(wc -c < main/data/dinox.ico) bytes)"
+          else
+            echo "dinox.ico missing — regenerating from PNGs"
+            pacman -S --noconfirm --needed mingw-w64-x86_64-imagemagick 2>/dev/null || true
+            magick \
+              main/data/icons/hicolor/16x16/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/32x32/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/48x48/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/128x128/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/256x256/apps/im.github.rallep71.DinoX.png \
+              main/data/dinox.ico
+            echo "✓ dinox.ico created ($(wc -c < main/data/dinox.ico) bytes)"
+          fi
 
       - name: Configure (meson setup)
         run: |

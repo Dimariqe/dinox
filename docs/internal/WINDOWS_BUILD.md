@@ -110,7 +110,7 @@ tar xf "lyrebird-${LYREBIRD_VER}.tar.gz"
 cd lyrebird-${LYREBIRD_TAG}-*
 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird.exe ./cmd/lyrebird
 cp lyrebird.exe /mingw64/bin/
-echo "Lyrebird installiert!"
+lyrebird.exe --version
 ```
 
 ---
@@ -149,17 +149,23 @@ sed -i 's/absl::Nullable<\([^>]*\)>/\1/g; s/absl::Nonnull<\([^>]*\)>/\1/g' \
     webrtc/modules/audio_processing/audio_processing_impl.cc \
     webrtc/modules/audio_processing/audio_processing_impl.h
 # Fix für MinGW: windows.h zieht intern winsock.h (v1) ein, was mit
-# winsock2.h kollidiert und die Warnung "Please include winsock2.h
-# before windows.h" auslöst. WIN32_LEAN_AND_MEAN vor jedem
-# #include <windows.h> einfügen verhindert das.
-grep -rl '#include <windows.h>' webrtc/ | xargs sed -i \
-    's|#include <windows.h>|#ifndef WIN32_LEAN_AND_MEAN\n#define WIN32_LEAN_AND_MEAN\n#endif\n#include <windows.h>|'
-meson setup build --prefix=/mingw64
-# Falls der build-Ordner schon existiert (z.B. nach einem fehlgeschlagenen Versuch):
-# meson setup build --wipe --prefix=/mingw64
+# winsock2.h kollidiert. WIN32_LEAN_AND_MEAN hilft bei MinGW leider nicht
+# (nur bei MSVC). Deshalb wird die harmlose Warnung per -Wno-cpp unterdrückt.
+python3 << 'PYEOF'
+import re
+text = open('meson.build').read()
+text = re.sub(r"\nadd_global_arguments[^\n]*Wno-cpp[^\n]*\n", '\n', text)
+m = re.search(r"^\)", text, re.MULTILINE)
+if m:
+    pos = m.end()
+    text = text[:pos] + "\nadd_global_arguments('-Wno-cpp', language: ['c', 'cpp'])" + text[pos:]
+open('meson.build', 'w').write(text)
+PYEOF
+grep 'Wno-cpp' meson.build  # Muss genau 1x erscheinen
+meson setup build --wipe --prefix=/mingw64
 ninja -C build
 ninja -C build install
-echo "webrtc-audio-processing v2.1 installiert!"
+pkg-config --modversion webrtc-audio-processing-2
 ```
 
 ---
@@ -181,7 +187,6 @@ cmake -G Ninja \
     ..
 ninja
 ninja install
-echo "libomemo-c installiert!"
 ```
 
 Prüfen ob es erkannt wird:
@@ -204,9 +209,9 @@ cd dinox
 
 ---
 
-## Schritt 8: Windows-Icon generieren (optional)
+## Schritt 8: Windows-Icon (nur bei Icon-Änderungen)
 
-Damit DinoX ein echtes Icon in der Taskleiste hat:
+Die Datei `main/data/dinox.ico` ist bereits im Repo enthalten. Dieser Schritt ist nur nötig, wenn du die App-Icons geändert hast und die `.ico` neu generieren willst:
 
 ```bash
 magick \
@@ -343,9 +348,17 @@ sed -i 's/absl::Nullable<\([^>]*\)>/\1/g; s/absl::Nonnull<\([^>]*\)>/\1/g' \
     webrtc/modules/audio_processing/aec_dump/null_aec_dump_factory.cc \
     webrtc/modules/audio_processing/audio_processing_impl.cc \
     webrtc/modules/audio_processing/audio_processing_impl.h
-grep -rl '#include <windows.h>' webrtc/ | xargs sed -i \
-    's|#include <windows.h>|#ifndef WIN32_LEAN_AND_MEAN\n#define WIN32_LEAN_AND_MEAN\n#endif\n#include <windows.h>|'
-meson setup build --prefix=/mingw64 && ninja -C build && ninja -C build install
+python3 << 'PYEOF'
+import re
+text = open('meson.build').read()
+text = re.sub(r"\nadd_global_arguments[^\n]*Wno-cpp[^\n]*\n", '\n', text)
+m = re.search(r"^\)", text, re.MULTILINE)
+if m:
+    pos = m.end()
+    text = text[:pos] + "\nadd_global_arguments('-Wno-cpp', language: ['c', 'cpp'])" + text[pos:]
+open('meson.build', 'w').write(text)
+PYEOF
+meson setup build --wipe --prefix=/mingw64 && ninja -C build && ninja -C build install
 
 # libomemo-c (Schritt 6)
 cd /tmp && git clone --depth 1 https://github.com/rallep71/libomemo-c.git
@@ -356,9 +369,21 @@ ninja && ninja install
 
 # DinoX klonen und bauen (Schritte 7-11)
 cd ~ && git clone https://github.com/rallep71/dinox.git && cd dinox
-meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled
+meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
 ninja -C build
 bash scripts/update_dist.sh
+
+# Neubauen (wenn Repo schon vorhanden)
+cd ~/dinox && git pull
+# Nur Code-Änderungen:
+ninja -C build && bash scripts/update_dist.sh
+# Bei meson.build-Änderungen (--wipe rekonfiguriert komplett):
+meson setup build --wipe -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
+ninja -C build && bash scripts/update_dist.sh
+# Falls --wipe fehlschlägt (korrupter Build-Ordner):
+rm -rf build
+meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
+ninja -C build && bash scripts/update_dist.sh
 
 # Starten
 ./dist/dinox.exe
