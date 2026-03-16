@@ -179,15 +179,13 @@ libomemo-c ist nicht in den MSYS2-Repos verfügbar und muss aus dem Quellcode ge
 cd /tmp
 git clone --depth 1 https://github.com/rallep71/libomemo-c.git
 cd libomemo-c
-mkdir build && cd build
-cmake -G Ninja \
+cmake -G Ninja -S . -B build \
     -DCMAKE_INSTALL_PREFIX=/mingw64 \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-    ..
-ninja
-ninja install
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+ninja -C build
+ninja -C build install
 ```
 
 Prüfen ob es erkannt wird:
@@ -390,10 +388,10 @@ meson setup build --wipe --prefix=/mingw64 && ninja -C build && ninja -C build i
 
 # libomemo-c (Schritt 6)
 cd /tmp && git clone --depth 1 https://github.com/rallep71/libomemo-c.git
-cd libomemo-c && mkdir build && cd build
-cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/mingw64 -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
-ninja && ninja install
+cd libomemo-c
+cmake -G Ninja -S . -B build -DCMAKE_INSTALL_PREFIX=/mingw64 -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+ninja -C build && ninja -C build install
 
 # DinoX klonen und bauen (Schritte 7-11)
 cd ~ && git clone https://github.com/rallep71/dinox.git && cd dinox

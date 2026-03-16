@@ -87,30 +87,50 @@ void main(string[] args) {
             Path.build_filename(exe_dir, "lib", "gstreamer-1.0"), true);
 
         // Force GnuTLS to find the CA bundle.
-        // Strategy: (1) bundled ca-bundle.crt, (2) export Windows cert store
+        // Strategy: merge Windows system cert store + bundled MSYS2 ca-bundle.crt
+        // so that CAs trusted by *either* source are accepted.  This avoids the
+        // common problem where the MSYS2 bundle is outdated (e.g. missing ISRG
+        // Root X1) even though Windows itself trusts Let's Encrypt.
         string? trusted_certs = Environment.get_variable("GTLS_SYSTEM_CA_FILE");
         if (trusted_certs == null) {
             string? ca_path = null;
 
-            // Try bundled CA bundle first
+            // Locate bundled CA bundle from MSYS2
             string local_cert = Path.build_filename(exe_dir, "ssl", "certs", "ca-bundle.crt");
             string local_cert_flat = Path.build_filename(exe_dir, "ca-bundle.crt");
+            string? bundled_path = null;
             if (FileUtils.test(local_cert, FileTest.EXISTS)) {
-                ca_path = local_cert;
+                bundled_path = local_cert;
             } else if (FileUtils.test(local_cert_flat, FileTest.EXISTS)) {
-                ca_path = local_cert_flat;
+                bundled_path = local_cert_flat;
             }
 
-            // Fallback: export Windows system certificate store to a cached PEM file
-            if (ca_path == null) {
-                string cache_dir = Path.build_filename(Environment.get_user_data_dir(), "dinox");
-                string cached_pem = Path.build_filename(cache_dir, "windows-ca-bundle.pem");
-                if (CertstoreWin32.export_pem(cached_pem)) {
-                    ca_path = cached_pem;
-                    message("Exported Windows root certificates to %s", cached_pem);
-                } else {
-                    warning("No CA certificates available — TLS connections will fail");
+            // Export Windows system ROOT certificates and merge with bundled bundle
+            string cache_dir = Path.build_filename(Environment.get_user_data_dir(), "dinox");
+            string cached_pem = Path.build_filename(cache_dir, "merged-ca-bundle.pem");
+            bool have_windows = CertstoreWin32.export_pem(cached_pem);
+
+            if (have_windows && bundled_path != null) {
+                // Append bundled Mozilla roots for maximum coverage
+                try {
+                    uint8[] bundled_data;
+                    FileUtils.get_data(bundled_path, out bundled_data);
+                    var file = File.new_for_path(cached_pem);
+                    var os = file.append_to(FileCreateFlags.NONE);
+                    os.write(bundled_data);
+                    os.close();
+                } catch (Error e) {
+                    warning("Failed to append bundled CA certs: %s", e.message);
                 }
+                ca_path = cached_pem;
+                message("Merged Windows root certs + %s → %s", bundled_path, cached_pem);
+            } else if (have_windows) {
+                ca_path = cached_pem;
+                message("Using Windows root certificates: %s", cached_pem);
+            } else if (bundled_path != null) {
+                ca_path = bundled_path;
+            } else {
+                warning("No CA certificates available — TLS connections will fail");
             }
 
             if (ca_path != null) {
@@ -141,7 +161,9 @@ void main(string[] args) {
         Environment.set_variable("DBUS_SESSION_BUS_ADDRESS", "", true);
 #endif
 
+        message("Initializing GStreamer…");
         Gst.init(ref args);
+        message("GStreamer initialized");
 
         // Suppress "Locale not supported by C library" by falling back gracefully.
         // This happens when the system locale (e.g. a custom locale on openSUSE)
@@ -175,7 +197,9 @@ void main(string[] args) {
             Environment.unset_variable("GTK_IM_MODULE");
         }
 
+        message("Initializing GTK…");
         Gtk.init();
+        message("GTK initialized");
         
         // Ensure custom widget types are registered before loading templates that use them
         typeof(Dino.Ui.SizeRequestBox).ensure();

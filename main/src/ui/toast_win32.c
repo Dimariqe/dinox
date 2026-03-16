@@ -549,8 +549,18 @@ gboolean toast_win32_init(const gchar *app_name, const gchar *aumid,
     typedef HRESULT (STDMETHODCALLTYPE *pfn_CreateNotifierWithId)(void*, HSTRING, void**);
     hr = ((pfn_CreateNotifierWithId)VT(g_toast_mgr, 8))(g_toast_mgr, g_aumid_hs, &g_toast_notifier);
     if (FAILED(hr) || !g_toast_notifier) {
-        g_warning("toast_win32: CreateToastNotifierWithId failed: 0x%08lx", (unsigned long)hr);
-        return FALSE;
+        /* First launch: Windows hasn't indexed the Start Menu shortcut yet,
+         * so the AUMID lookup fails with E_INVALIDARG (0x80070057).
+         * Fall back to CreateToastNotifier() which uses the process AUMID
+         * set via SetCurrentProcessExplicitAppUserModelID in Step 4. */
+        g_info("toast_win32: CreateToastNotifierWithId failed (0x%08lx), trying CreateToastNotifier",
+               (unsigned long)hr);
+        typedef HRESULT (STDMETHODCALLTYPE *pfn_CreateNotifier)(void*, void**);
+        hr = ((pfn_CreateNotifier)VT(g_toast_mgr, 7))(g_toast_mgr, &g_toast_notifier);
+        if (FAILED(hr) || !g_toast_notifier) {
+            g_warning("toast_win32: CreateToastNotifier also failed: 0x%08lx", (unsigned long)hr);
+            return FALSE;
+        }
     }
 
     /* Step 9: Get ToastNotification factory */
