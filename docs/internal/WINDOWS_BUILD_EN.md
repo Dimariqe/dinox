@@ -245,7 +245,7 @@ Meson will list all found dependencies at the end. Check that no important ones 
 ninja -C build
 ```
 
-The build takes a few minutes. When done, `dinox.exe` will be at `build/main/`.
+The build takes a few minutes. Then proceed with step 11 — **do not** run directly from `build/main/`, always use `dist/`.
 
 ---
 
