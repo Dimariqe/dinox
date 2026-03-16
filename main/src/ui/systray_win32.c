@@ -262,7 +262,7 @@ wnd_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             /* Right-click: show context menu at cursor position. */
             if (popup_menu == NULL) break;
 
-            POINT pt;
+            POINT pt = {0, 0};
             GetCursorPos (&pt);
 
             /* Required so TrackPopupMenu works properly when DinoX

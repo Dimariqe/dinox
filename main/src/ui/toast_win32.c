@@ -353,6 +353,7 @@ static gboolean create_start_menu_shortcut(const WCHAR *aumid_wide, const WCHAR 
 
     /* Get our exe path */
     GetModuleFileNameW(NULL, exe_path, MAX_PATH);
+    exe_path[MAX_PATH - 1] = L'\0';  /* ensure null-termination */
 
     /* Build shortcut path: %CSIDL_PROGRAMS%\DinoX.lnk */
     hr = SHGetFolderPathW(NULL, CSIDL_PROGRAMS, NULL, 0, shortcut_path);
@@ -430,6 +431,7 @@ static void register_com_server(void) {
     /* Register LocalServer32 so Windows can find our COM activator */
     WCHAR exe_path[MAX_PATH];
     GetModuleFileNameW(NULL, exe_path, MAX_PATH);
+    exe_path[MAX_PATH - 1] = L'\0';  /* ensure null-termination */
 
     /* Build: HKCU\Software\Classes\CLSID\{GUID}\LocalServer32 */
     WCHAR clsid_str[64];
@@ -438,12 +440,14 @@ static void register_com_server(void) {
     WCHAR key_path[256];
     _snwprintf(key_path, 256,
         L"Software\\Classes\\CLSID\\%ls\\LocalServer32", clsid_str);
+    key_path[255] = L'\0';  /* _snwprintf may not null-terminate */
 
     HKEY hKey;
     if (RegCreateKeyExW(HKEY_CURRENT_USER, key_path, 0, NULL,
                         0, KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
         WCHAR quoted[MAX_PATH + 4];
         _snwprintf(quoted, MAX_PATH + 4, L"\"%ls\"", exe_path);
+        quoted[MAX_PATH + 3] = L'\0';  /* _snwprintf may not null-terminate */
         RegSetValueExW(hKey, NULL, 0, REG_SZ,
                        (BYTE*)quoted, (DWORD)((wcslen(quoted) + 1) * sizeof(WCHAR)));
         RegCloseKey(hKey);
