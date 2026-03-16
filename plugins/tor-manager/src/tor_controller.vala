@@ -380,6 +380,17 @@ namespace Dino.Plugins.TorManager {
 #if WINDOWS
                 // Windows has no POSIX signals; terminate the process directly.
                 tor_process.force_exit();
+
+                // Also kill lyrebird.exe (pluggable transport child process).
+                // TerminateProcess only kills the target process, not its children.
+                try {
+                    var kill_pt = new Subprocess.newv(
+                        {"taskkill", "/F", "/IM", "lyrebird.exe"},
+                        SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+                    kill_pt.wait();
+                } catch (Error e) {
+                    // Ignored: lyrebird might not be running
+                }
 #else
                 // Send SIGTERM first to let Tor clean up its state files gracefully.
                 // force_exit() sends SIGKILL which doesn't allow cleanup and can

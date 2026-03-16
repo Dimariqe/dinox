@@ -22,6 +22,7 @@ namespace Dino.Ui {
         public bool is_hidden = false;
         private bool disposed = false;
         private bool holding = false;
+        private bool tray_available = false;
 
         /* Menu layout:  Online(0) Away(1) Busy(2) N/A(3) sep(4) Quit(5) */
         private const int MENU_QUIT_ID = 5;
@@ -37,6 +38,7 @@ namespace Dino.Ui {
                 return;
             }
 
+            tray_available = true;
             rebuild_menu();
             debug("Systray: Win32 tray icon created");
         }
@@ -45,8 +47,12 @@ namespace Dino.Ui {
             this.window = window;
 
             window.close_request.connect(() => {
-                if (Dino.Application.get_default().settings.keep_background) {
+                if (Dino.Application.get_default().settings.keep_background && tray_available) {
                     hide_window();
+                    SystrayWin32.show_balloon(
+                        "DinoX",
+                        _("DinoX is still running in the background.\nClick the tray icon to restore the window."),
+                        1, null, null);
                     return true;
                 } else {
                     quit_application();

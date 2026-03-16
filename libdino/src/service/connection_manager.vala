@@ -249,6 +249,9 @@ public class ConnectionManager : Object {
 
             change_connection_state(account, ConnectionState.CONNECTING);
             
+            // Save reference to detect if connection was replaced while we yield
+            var my_conn = connections[account];
+
             // Pass custom host/port if configured
             uint16 custom_port = (account.custom_port > 0 && account.custom_port <= 65535) ? (uint16) account.custom_port : 0;
             uint16 proxy_port = (account.proxy_port > 0 && account.proxy_port <= 65535) ? (uint16) account.proxy_port : 0;
@@ -258,8 +261,9 @@ public class ConnectionManager : Object {
                     account.proxy_type, account.proxy_host, proxy_port
             );
 
-            if (!connections.has_key(account) || connections[account] == null) {
-                debug("[%s] Connection object gone while connecting, discarding stream", account.bare_jid.to_string());
+            // Check if our connection was replaced (e.g. Tor disabled → reconnect)
+            if (!connections.has_key(account) || connections[account] != my_conn) {
+                debug("[%s] Connection was replaced while connecting, discarding stale stream", account.bare_jid.to_string());
                 if (stream_result.stream != null) stream_result.stream.disconnect.begin();
                 connection_ongoing[account] = false;
                 return;
