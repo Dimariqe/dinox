@@ -139,6 +139,20 @@ void main(string[] args) {
                 string ca_dir = Path.get_dirname(ca_path);
                 Environment.set_variable("SSL_CERT_DIR", ca_dir, true);
                 message("Set GTLS_SYSTEM_CA_FILE to %s", ca_path);
+
+                // Explicitly set the default TLS trust database from our merged
+                // CA bundle.  Env vars alone are unreliable: glib-networking on
+                // MSYS2/MinGW may use a backend (OpenSSL/SChannel) that ignores
+                // GTLS_SYSTEM_CA_FILE.  This forces ALL TlsConnections to verify
+                // against our merged Windows + Mozilla root certificates.
+                try {
+                    var tls_db = TlsFileDatabase.@new(ca_path);
+                    var tls_backend = TlsBackend.get_default();
+                    tls_backend.set_default_database(tls_db);
+                    message("TLS trust database loaded: %s", ca_path);
+                } catch (Error e) {
+                    warning("Failed to load TLS database from %s: %s", ca_path, e.message);
+                }
             }
         }
 
