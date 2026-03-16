@@ -146,9 +146,8 @@ void main(string[] args) {
                 // GTLS_SYSTEM_CA_FILE.  This forces ALL TlsConnections to verify
                 // against our merged Windows + Mozilla root certificates.
                 try {
-                    var tls_db = TlsFileDatabase.@new(ca_path);
-                    var tls_backend = TlsBackend.get_default();
-                    tls_backend.set_default_database(tls_db);
+                    TlsDatabase tls_db = TlsFileDatabase.@new(ca_path);
+                    TlsBackend.get_default().set_default_database(tls_db);
                     message("TLS trust database loaded: %s", ca_path);
                 } catch (Error e) {
                     warning("Failed to load TLS database from %s: %s", ca_path, e.message);
