@@ -18,6 +18,7 @@
 #ifdef _WIN32
 
 #include <windows.h>
+#include <stdio.h>
 #include <objbase.h>
 #include <shlobj.h>
 #include <propsys.h>
