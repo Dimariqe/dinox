@@ -54,6 +54,76 @@ void main(string[] args) {
         Intl.textdomain(GETTEXT_PACKAGE);
         internationalize(GETTEXT_PACKAGE, search_path_generator.get_locale_path(GETTEXT_PACKAGE, LOCALE_INSTALL_DIR));
 
+#if WINDOWS
+        // Windows environment setup — MUST happen BEFORE Gst.init() and Gtk.init()
+        // so that GTK4 can find schemas, pixbuf loaders, and GStreamer its plugins.
+        string? exe_path = args.length > 0 ? args[0] : null;
+        if (exe_path != null) {
+             if (!exe_path.contains("\\") && !exe_path.contains("/")) {
+                  exe_path = Environment.find_program_in_path(exe_path);
+             }
+             if (exe_path != null && !Path.is_absolute(exe_path)) {
+                  exe_path = Path.build_filename(Environment.get_current_dir(), exe_path);
+             }
+        }
+        string exe_dir = (exe_path != null) ? Path.get_dirname(exe_path) : Environment.get_current_dir();
+
+        // GTK/GLib resource paths
+        Environment.set_variable("XDG_DATA_DIRS",
+            Path.build_filename(exe_dir, "share"), true);
+        Environment.set_variable("GSETTINGS_SCHEMA_DIR",
+            Path.build_filename(exe_dir, "share", "glib-2.0", "schemas"), true);
+        Environment.set_variable("GDK_PIXBUF_MODULE_FILE",
+            Path.build_filename(exe_dir, "lib", "gdk-pixbuf-2.0", "2.10.0", "loaders.cache"), true);
+        Environment.set_variable("GDK_PIXBUF_MODULEDIR",
+            Path.build_filename(exe_dir, "lib", "gdk-pixbuf-2.0", "2.10.0", "loaders"), true);
+        Environment.set_variable("GTK_PATH", exe_dir, true);
+
+        // GStreamer plugin path
+        Environment.set_variable("GST_PLUGIN_PATH",
+            Path.build_filename(exe_dir, "lib", "gstreamer-1.0"), true);
+
+        // Force GnuTLS to find the CA bundle.
+        string? trusted_certs = Environment.get_variable("GTLS_SYSTEM_CA_FILE");
+        if (trusted_certs == null) {
+            string local_cert = Path.build_filename(exe_dir, "ssl", "certs", "ca-bundle.crt");
+            if (FileUtils.test(local_cert, FileTest.EXISTS)) {
+                Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert, true);
+                Environment.set_variable("SSL_CERT_FILE", local_cert, true);
+                Environment.set_variable("SSL_CERT_DIR",
+                    Path.build_filename(exe_dir, "ssl", "certs"), true);
+                message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert);
+            } else {
+                 string local_cert_flat = Path.build_filename(exe_dir, "ca-bundle.crt");
+                 if (FileUtils.test(local_cert_flat, FileTest.EXISTS)) {
+                    Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert_flat, true);
+                    Environment.set_variable("SSL_CERT_FILE", local_cert_flat, true);
+                    message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert_flat);
+                 } else {
+                    warning("No bundled CA certificate found next to executable");
+                 }
+            }
+        }
+
+        // Add exe directory AND bin/ folder to PATH so DLLs and tools are found
+        string bin_path = Path.build_filename(exe_dir, "bin");
+        {
+            string? old_path = Environment.get_variable("PATH");
+            string new_path = exe_dir;
+            if (FileUtils.test(bin_path, FileTest.IS_DIR)) {
+                new_path = exe_dir + ";" + bin_path;
+            }
+            if (old_path != null) {
+                new_path = new_path + ";" + old_path;
+            }
+            Environment.set_variable("PATH", new_path, true);
+            message("PATH prepended: %s", exe_dir);
+        }
+
+        // Suppress "win32 session dbus binary not found" warning
+        Environment.set_variable("DBUS_SESSION_BUS_ADDRESS", "", true);
+#endif
+
         Gst.init(ref args);
 
         // Suppress "Locale not supported by C library" by falling back gracefully.
@@ -98,46 +168,15 @@ void main(string[] args) {
         Dino.Ui.Application app = new Dino.Ui.Application() { search_path_generator=search_path_generator };
 
 #if WINDOWS
-        string? exe_path = args.length > 0 ? args[0] : null;
-        if (exe_path != null) {
-             if (!exe_path.contains("\\") && !exe_path.contains("/")) {
-                  exe_path = Environment.find_program_in_path(exe_path);
-             }
-             if (exe_path != null && !Path.is_absolute(exe_path)) {
-                  exe_path = Path.build_filename(Environment.get_current_dir(), exe_path);
-             }
-        }
-        string exe_dir = (exe_path != null) ? Path.get_dirname(exe_path) : Environment.get_current_dir();
-
-        // Set ALL environment variables that the batch file used to set.
-        // This makes dinox.exe fully self-contained — no .bat needed!
-
-        // GTK/GLib resource paths
-        Environment.set_variable("XDG_DATA_DIRS",
-            Path.build_filename(exe_dir, "share"), true);
-        Environment.set_variable("GSETTINGS_SCHEMA_DIR",
-            Path.build_filename(exe_dir, "share", "glib-2.0", "schemas"), true);
-        Environment.set_variable("GDK_PIXBUF_MODULE_FILE",
-            Path.build_filename(exe_dir, "lib", "gdk-pixbuf-2.0", "2.10.0", "loaders.cache"), true);
-        Environment.set_variable("GDK_PIXBUF_MODULEDIR",
-            Path.build_filename(exe_dir, "lib", "gdk-pixbuf-2.0", "2.10.0", "loaders"), true);
-        Environment.set_variable("GTK_PATH", exe_dir, true);
-
-        // GStreamer plugin path
-        Environment.set_variable("GST_PLUGIN_PATH",
-            Path.build_filename(exe_dir, "lib", "gstreamer-1.0"), true);
-
-        // Configure Icon Theme for portable Windows build
+        // Configure Icon Theme for portable Windows build (needs Gdk.Display → after Gtk.init)
         var display = Gdk.Display.get_default();
         if (display != null) {
             var icon_theme = Gtk.IconTheme.get_for_display(display);
-            // Assuming structure: dinox.exe -> share/icons (in dist folder)
             string icon_path = Path.build_filename(exe_dir, "share", "icons");
             if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
                  icon_theme.add_search_path(icon_path);
                  message("Added icon path: %s", icon_path);
             } else {
-                 // Try bin/../share/icons structure (standard installation)
                  icon_path = Path.build_filename(exe_dir, "..", "share", "icons");
                  if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
                       icon_theme.add_search_path(icon_path);
@@ -145,60 +184,6 @@ void main(string[] args) {
                  }
             }
         }
-
-        // Force GnuTLS to find the CA bundle.
-        // Portable mode: look next to the executable.
-        // AppImage/system: probe well-known distro paths so that GnuTLS
-        // works on openSUSE, Fedora, Arch, etc. — not just Debian/Ubuntu.
-        string? trusted_certs = Environment.get_variable("GTLS_SYSTEM_CA_FILE");
-        if (trusted_certs == null) {
-            // Try standard relative paths for portable install
-            string local_cert = Path.build_filename(exe_dir, "ssl", "certs", "ca-bundle.crt");
-            if (FileUtils.test(local_cert, FileTest.EXISTS)) {
-                Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert, true);
-                Environment.set_variable("SSL_CERT_FILE", local_cert, true);
-                Environment.set_variable("SSL_CERT_DIR",
-                    Path.build_filename(exe_dir, "ssl", "certs"), true);
-                message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert);
-            } else {
-                 string local_cert_flat = Path.build_filename(exe_dir, "ca-bundle.crt");
-                 if (FileUtils.test(local_cert_flat, FileTest.EXISTS)) {
-                    Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert_flat, true);
-                    Environment.set_variable("SSL_CERT_FILE", local_cert_flat, true);
-                    message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert_flat);
-                 } else {
-                    // Not portable mode on Windows — no bundled CA cert found.
-                    // Windows GnuTLS typically uses the Schannel backend or
-                    // a bundled ca-bundle.crt, so this is a warning case.
-                    warning("No bundled CA certificate found next to executable");
-                 }
-            }
-        }
-        
-        // Add exe directory AND bin/ folder to PATH.
-        // The exe directory MUST be in PATH so that plugins loaded from
-        // plugins/ can resolve their dependencies on our core DLLs
-        // (libdino-0.dll, libxmpp-vala-0.dll, etc.) which live next to
-        // dinox.exe.  Windows LoadLibrary does NOT search the parent
-        // directory of a DLL being loaded.
-        string bin_path = Path.build_filename(exe_dir, "bin");
-        {
-            string? old_path = Environment.get_variable("PATH");
-            string new_path = exe_dir;
-            if (FileUtils.test(bin_path, FileTest.IS_DIR)) {
-                new_path = exe_dir + ";" + bin_path;
-            }
-            if (old_path != null) {
-                new_path = new_path + ";" + old_path;
-            }
-            Environment.set_variable("PATH", new_path, true);
-            message("PATH prepended: %s", exe_dir);
-        }
-
-        // Suppress "win32 session dbus binary not found" warning from GLib-GIO.
-        // GApplication internally tries to connect to the session bus even with NON_UNIQUE,
-        // but there is no DBus session bus daemon on Windows.
-        Environment.set_variable("DBUS_SESSION_BUS_ADDRESS", "", true);
 #endif
 
         // Probe system CA certificate locations on ALL platforms.
