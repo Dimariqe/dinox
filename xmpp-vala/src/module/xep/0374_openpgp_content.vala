@@ -19,30 +19,15 @@ namespace Xmpp.Xep.OpenPgpContent {
      */
     internal static string generate_random_padding() {
         // Use CSPRNG for random padding (prevents traffic analysis)
-        uint8[] bytes;
-        try {
-            var urandom = File.new_for_path("/dev/urandom");
-            var stream = urandom.read();
-            // Rejection sampling: discard values ≥ 245 (= 49*5) to get
-            // a uniform distribution in [0, 48]. This avoids modulo bias
-            // where values 0–10 would be ~20% more likely than 11–48.
-            int length = 0;
-            uint8[] len_buf = new uint8[1];
-            do {
-                stream.read(len_buf);
-            } while (len_buf[0] >= 245);  // 49 * 5 = 245
-            length = 16 + (int)(len_buf[0] % 49);  // uniform [16, 64]
-            bytes = new uint8[length];
-            stream.read(bytes);
-            stream.close();
-        } catch (Error e) {
-            // Fallback for platforms without /dev/urandom
-            int length = Random.int_range(16, 65);
-            bytes = new uint8[length];
-            for (int i = 0; i < length; i++) {
-                bytes[i] = (uint8) Random.int_range(0, 256);
-            }
-        }
+        // Rejection sampling: discard values ≥ 245 (= 49*5) to get
+        // a uniform distribution in [0, 48]. This avoids modulo bias.
+        uint8[] len_buf = new uint8[1];
+        do {
+            GCrypt.Random.randomize(len_buf, GCrypt.Random.Level.VERY_STRONG);
+        } while (len_buf[0] >= 245);  // 49 * 5 = 245
+        int length = 16 + (int)(len_buf[0] % 49);  // uniform [16, 64]
+        uint8[] bytes = new uint8[length];
+        GCrypt.Random.randomize(bytes, GCrypt.Random.Level.VERY_STRONG);
         return Base64.encode(bytes);
     }
     

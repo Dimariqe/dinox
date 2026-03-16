@@ -810,7 +810,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         
         // Create a batch file that will delete after we exit
         // This is more reliable than inline cmd commands
-        string batch_path = Path.build_filename(Environment.get_tmp_dir(), "dinox_wipe.bat").replace("/", "\\");
+        string batch_path = Path.build_filename(get_native_tmp_dir(), "dinox_wipe.bat").replace("/", "\\");
         string batch_content = "@echo off\r\n";
         batch_content += "ping 127.0.0.1 -n 2 > nul\r\n";  // Wait ~1 second
         batch_content += "rd /s /q \"" + data_dir_win + "\" 2>nul\r\n";
@@ -1905,7 +1905,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             // On Windows, open files can't be deleted. Use a batch file that
             // runs after this process exits (same approach as panic wipe).
             string data_dir_win = data_dir.replace("/", "\\");
-            string batch_path = Path.build_filename(Environment.get_tmp_dir(), "dinox_reset.bat").replace("/", "\\");
+            string batch_path = Path.build_filename(get_native_tmp_dir(), "dinox_reset.bat").replace("/", "\\");
             string batch_content = "@echo off\r\n";
             batch_content += "ping 127.0.0.1 -n 2 > nul\r\n";
             string[] db_files = { "dino.db", "dino.db-shm", "dino.db-wal",

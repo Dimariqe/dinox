@@ -195,21 +195,7 @@ namespace Xmpp.Sasl {
 
         private static string generate_csprng_nonce() {
             uint8[] nonce_bytes = new uint8[24];
-            try {
-                var urandom = File.new_for_path("/dev/urandom");
-                var input_stream = urandom.read();
-                size_t bytes_read;
-                input_stream.read_all(nonce_bytes, out bytes_read);
-                input_stream.close();
-                if (bytes_read < 24) {
-                    throw new IOError.FAILED("Short read from /dev/urandom");
-                }
-            } catch (Error e) {
-                // Fallback for systems without /dev/urandom (Windows)
-                for (int i = 0; i < nonce_bytes.length; i++) {
-                    nonce_bytes[i] = (uint8) Random.int_range(0, 256);
-                }
-            }
+            GCrypt.Random.randomize(nonce_bytes, GCrypt.Random.Level.VERY_STRONG);
             return Base64.encode(nonce_bytes);
         }
 

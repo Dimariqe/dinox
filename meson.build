@@ -80,6 +80,7 @@ else
     dep_libcanberra = dependency('libcanberra', disabler: true, required: get_option('plugin-notification-sound'))
 endif
 dep_libgcrypt = dependency('libgcrypt', disabler: true, required: plugin_crypto)
+dep_libgcrypt_core = dependency('libgcrypt')  # Non-disabling: CSPRNG is always required
 dep_libqrencode = dependency('libqrencode', disabler: true, required: get_option('plugin-omemo'))
 dep_libsrtp2 = dependency('libsrtp2', disabler: true, required: plugin_crypto)
 dep_libomemo_c = dependency('libomemo-c', disabler: true, required: get_option('plugin-omemo'))

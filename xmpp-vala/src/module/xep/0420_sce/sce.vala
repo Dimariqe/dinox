@@ -135,17 +135,7 @@ namespace Xmpp.Xep.Sce {
          */
         private static string generate_rpad() {
             uint8[] rand_bytes = new uint8[201];
-            try {
-                var urandom = File.new_for_path("/dev/urandom");
-                var stream = urandom.read();
-                stream.read(rand_bytes);
-                stream.close();
-            } catch (Error e) {
-                /* Fallback: GLib.Random if /dev/urandom unavailable */
-                for (int i = 0; i < rand_bytes.length; i++) {
-                    rand_bytes[i] = (uint8)(GLib.Random.next_int() & 0xFF);
-                }
-            }
+            GCrypt.Random.randomize(rand_bytes, GCrypt.Random.Level.VERY_STRONG);
             int len = 1 + (int)(rand_bytes[0] % 200);
             var sb = new GLib.StringBuilder.sized(len);
             for (int i = 0; i < len; i++) {
