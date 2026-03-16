@@ -96,6 +96,7 @@ gst-inspect-1.0 srtpenc  >/dev/null
 sudo apt update
 sudo apt install \
     build-essential \
+    cmake \
     git \
     meson \
     ninja-build \
@@ -105,6 +106,7 @@ sudo apt install \
     libglib2.0-dev \
     libgee-0.8-dev \
     libsqlcipher-dev \
+    libssl-dev \
     libsecret-1-dev \
     libicu-dev \
     libdbusmenu-glib-dev \
@@ -113,6 +115,7 @@ sudo apt install \
     libjson-glib-dev \
     libqrencode-dev \
     libsoup-3.0-dev \
+    libcanberra-dev \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
     libgstreamer-plugins-bad1.0-dev \
@@ -136,6 +139,7 @@ sudo apt install \
 ```bash
 sudo dnf install \
     gcc \
+    cmake \
     git \
     meson \
     ninja-build \
@@ -145,6 +149,7 @@ sudo dnf install \
     glib2-devel \
     libgee-devel \
     sqlcipher-devel \
+    openssl-devel \
     libsecret-devel \
     libicu-devel \
     libdbusmenu-glib-devel \
@@ -153,6 +158,7 @@ sudo dnf install \
     json-glib-devel \
     qrencode-devel \
     libsoup3-devel \
+    libcanberra-devel \
     gstreamer1-devel \
     gstreamer1-plugins-base-devel \
     gstreamer1-plugins-bad-free-devel \
@@ -173,6 +179,7 @@ sudo dnf install \
 ```bash
 sudo zypper install \
     gcc gcc-c++ \
+    cmake \
     git \
     meson \
     ninja \
@@ -182,6 +189,7 @@ sudo zypper install \
     glib2-devel \
     libgee-devel \
     sqlcipher-devel \
+    libopenssl-devel \
     libsecret-devel \
     libicu-devel \
     libdbusmenu-glib-devel \
@@ -231,6 +239,7 @@ sudo zypper install \
 ```bash
 sudo pacman -S \
     base-devel \
+    cmake \
     meson \
     ninja \
     vala \
@@ -239,6 +248,7 @@ sudo pacman -S \
     glib2 \
     libgee \
     sqlcipher \
+    openssl \
     libsecret \
     icu \
     libdbusmenu-glib \
@@ -247,6 +257,7 @@ sudo pacman -S \
     json-glib \
     qrencode \
     libsoup3 \
+    libcanberra \
     gstreamer \
     gst-plugins-base \
     gst-plugins-good \

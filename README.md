@@ -127,14 +127,13 @@ ninja -C build
 
 **Dependencies (Debian/Ubuntu):**
 ```bash
-sudo apt install build-essential meson ninja-build valac \
+sudo apt install build-essential cmake wget meson ninja-build valac golang-go \
   libgtk-4-dev libadwaita-1-dev libglib2.0-dev libgee-0.8-dev \
-  libsqlcipher-dev libsecret-1-dev libicu-dev libdbusmenu-glib-dev libgcrypt20-dev \
-  libgpgme-dev libjson-glib-dev libqrencode-dev libsoup-3.0-dev libgstreamer1.0-dev \
-  libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev \
+  libsqlcipher-dev libssl-dev libsecret-1-dev libicu-dev libdbusmenu-glib-dev libgcrypt20-dev \
+  libgpgme-dev libjson-glib-dev libqrencode-dev libsoup-3.0-dev libcanberra-dev \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev \
   libnice-dev libgnutls28-dev libsrtp2-dev libcjson-dev \
-  libgeoclue-2-dev \
-  gstreamer1.0-plugins-good gstreamer1.0-pipewire cmake wget
+  libgeoclue-2-dev gstreamer1.0-plugins-good gstreamer1.0-pipewire
 ```
 
 **Required custom dependencies** (not available in distro packages or too old):

@@ -285,6 +285,33 @@ The file `dinox-debug.log` will contain all diagnostic information.
 
 ---
 
+## Checking resource usage (CPU / RAM)
+
+To see how much memory and CPU DinoX is using:
+
+**In the MINGW64 terminal:**
+
+```bash
+# RAM usage of dinox.exe
+tasklist /fi "imagename eq dinox.exe" /fo list
+```
+
+**In PowerShell** (Start Menu → PowerShell):
+
+```powershell
+# DinoX RAM in MB
+Get-Process dinox | Select-Object Name, @{N='RAM_MB';E={[math]::Round($_.WorkingSet64/1MB,1)}}, CPU
+
+# Live monitoring (updates every 2 seconds, stop with Ctrl+C)
+while ($true) { Get-Process dinox -ErrorAction SilentlyContinue |
+    Format-Table Name, CPU, @{N='RAM_MB';E={[math]::Round($_.WorkingSet64/1MB)}} -AutoSize
+    Start-Sleep 2; Clear-Host }
+```
+
+**Or:** Open Task Manager with `Ctrl+Shift+Esc`, go to the "Details" tab, and look for `dinox.exe`.
+
+---
+
 ## Rebuilding after code changes
 
 For code-only changes (no new dependencies):
