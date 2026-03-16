@@ -16,6 +16,7 @@
 #include <wincrypt.h>
 #include <stdio.h>
 #include <glib.h>
+#include <glib/gstdio.h>
 #include "certstore_win32.h"
 
 gboolean
