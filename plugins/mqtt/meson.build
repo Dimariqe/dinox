@@ -83,7 +83,7 @@ if dep_mosquitto_check.found() and plugin_mqtt_opt.allowed()
         include_directories: include_directories('.'),
     )
 
-    summary('MQTT IoT/Event Plugin (mqtt)', true, section: 'Plugins')
+    summary('MQTT IoT/Event Plugin (mqtt)', true, bool_yn: true, section: 'Plugins')
 
     # Unit tests for MQTT plugin (standalone — no broker, no DB, no UI)
     # Only includes source files with minimal dependencies.
@@ -107,5 +107,5 @@ else
         error('MQTT plugin was explicitly enabled but libmosquitto was not found.\n' + \
               'Install: apt install libmosquitto-dev (Linux) or pacman -S mingw-w64-x86_64-mosquitto (MSYS2)')
     endif
-    summary('MQTT IoT/Event Plugin (mqtt)', false, section: 'Plugins')
+    summary('MQTT IoT/Event Plugin (mqtt)', false, bool_yn: true, section: 'Plugins')
 endif
