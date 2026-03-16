@@ -37,6 +37,7 @@
 
 #define WM_TRAYICON  (WM_APP + 1)
 #define MAX_MENU_ITEMS 32
+#define SYSTRAY_BUILD_ID "2026-03-16-v2"
 
 /* ---- state ---- */
 static HWND            msg_hwnd   = NULL;
@@ -68,12 +69,20 @@ tray_log (const char *fmt, ...)
     va_start (ap, fmt);
 
     if (tray_log_file == NULL) {
-        const char *tmp = g_get_tmp_dir ();
+        /* Prefer %TEMP% (native Windows path) over g_get_tmp_dir()
+         * which returns MSYS2-style /tmp on MinGW builds. */
+        const char *tmp = g_getenv ("TEMP");
+        if (tmp == NULL || tmp[0] == '\0')
+            tmp = g_getenv ("TMP");
+        if (tmp == NULL || tmp[0] == '\0')
+            tmp = g_get_tmp_dir ();
         char *path = g_build_filename (tmp, "dinox_systray.log", NULL);
         tray_log_file = fopen (path, "w");
         g_free (path);
-        if (tray_log_file)
-            fprintf (tray_log_file, "=== DinoX Systray Debug Log ===\n\n");
+        if (tray_log_file) {
+            fprintf (tray_log_file, "=== DinoX Systray Debug Log ===\n");
+            fprintf (tray_log_file, "Build: %s\n\n", SYSTRAY_BUILD_ID);
+        }
     }
     if (tray_log_file) {
         va_list copy;
@@ -222,8 +231,14 @@ systray_win32_init (const gchar          *tooltip_utf8,
     }
 
     initialised = TRUE;
-    tray_log ("Tray icon created (hwnd=%p, version=%s)",
-              (void *) msg_hwnd, using_version_4 ? "4" : "3");
+    tray_log ("=== Tray icon created ===");
+    tray_log ("  hwnd       = %p", (void *) msg_hwnd);
+    tray_log ("  version    = %s", using_version_4 ? "V4" : "V3");
+    tray_log ("  build      = %s", SYSTRAY_BUILD_ID);
+    tray_log ("  WM_CLOSE   = protected (return 0)");
+    tray_log ("  RBUTTONUP  = handled in ALL modes");
+    tray_log ("  mutex      = %p", (void *) single_instance_mutex);
+    tray_log ("========================");
 
     /* Create an empty popup menu (will be filled by set_menu). */
     popup_menu = CreatePopupMenu ();
