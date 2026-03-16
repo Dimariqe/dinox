@@ -312,21 +312,37 @@ while ($true) { Get-Process dinox -ErrorAction SilentlyContinue |
 
 ## Rebuilding after code changes
 
-For code-only changes (no new dependencies):
+> **⚠️ IMPORTANT: After `git pull` you MUST delete the `build` directory!**
+>
+> Ninja on MSYS2 often does NOT detect changes pulled via git.
+> If you only run `ninja -C build`, you may get the OLD code!
+> Always do a clean rebuild after `git pull`.
+
+### Standard update (after `git pull`)
 
 ```bash
 cd ~/dinox
+git pull
+rm -rf build
+meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
 ninja -C build
 bash scripts/update_dist.sh
 ```
 
-If `meson.build` or `meson_options.txt` changed:
+### One-liner (copy & paste)
 
 ```bash
-meson setup build --wipe
-ninja -C build
-bash scripts/update_dist.sh
+cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled && ninja -C build && bash scripts/update_dist.sh
 ```
+
+### Verify the new build
+
+After starting `./dist/dinox.exe`, check:
+```
+%TEMP%\dinox_systray.log
+```
+The first line should contain `Build: 2026-03-16-v2` (or newer).
+If you see an older build ID → the old code is still running. Kill all `dinox.exe` in Task Manager and rebuild.
 
 ---
 
@@ -397,17 +413,8 @@ meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=e
 ninja -C build
 bash scripts/update_dist.sh
 
-# Rebuild (if repo already exists)
-cd ~/dinox && git pull
-# Code-only changes:
-ninja -C build && bash scripts/update_dist.sh
-# If meson.build changed (--wipe reconfigures completely):
-meson setup build --wipe -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
-ninja -C build && bash scripts/update_dist.sh
-# If --wipe fails (corrupt build directory):
-rm -rf build
-meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
-ninja -C build && bash scripts/update_dist.sh
+# Rebuild (if repo already exists) — ALWAYS delete build directory!
+cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled && ninja -C build && bash scripts/update_dist.sh
 
 # Run
 ./dist/dinox.exe
@@ -426,3 +433,6 @@ ninja -C build && bash scripts/update_dist.sh
 | `ninja: error: loading 'build.ninja'` | Run `meson setup build` first |
 | Missing DLLs on startup | Run `bash scripts/update_dist.sh` again |
 | `couldn't load font "Adwaita Mono"` | Install `pacman -S mingw-w64-x86_64-cantarell-fonts` and re-run `update_dist.sh` |
+| Nothing changed after `git pull` + `ninja` | **`rm -rf build`** and do a full clean rebuild (see section above). Ninja often doesn't detect git-pulled changes! |
+| Systray / right-click menu not working | Check `%TEMP%\dinox_systray.log` — does it show `Build: 2026-03-16-v2`? If not: `rm -rf build` and rebuild |
+| DinoX starts but runs old version | Old `dinox.exe` still in Task Manager? Kill it, then run `bash scripts/update_dist.sh` and restart |

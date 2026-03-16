@@ -310,23 +310,60 @@ while ($true) { Get-Process dinox -ErrorAction SilentlyContinue |
 
 ---
 
-## Neubauen nach Code-Änderungen
+## Neubauen nach Code-Änderungen (git pull)
 
-Bei reinen Code-Änderungen (ohne neue Abhängigkeiten) reicht:
+> **WICHTIG:** Nach einem `git pull` muss der Build-Ordner **komplett gelöscht** werden!
+> Ninja erkennt per `git pull` geänderte Dateien oft NICHT, weil die Zeitstempel
+> der heruntergeladenen Dateien älter sein können als die kompilierten Object-Files
+> im `build/`-Ordner. Das bedeutet: Ninja überspringt die Dateien und dein Build
+> enthält weiterhin den **alten Code**, obwohl der Quellcode sich geändert hat.
+
+### Standard-Update (nach jedem `git pull`):
 
 ```bash
 cd ~/dinox
+
+# 1. Neueste Änderungen holen
+git pull
+
+# 2. Build-Verzeichnis KOMPLETT löschen (PFLICHT!)
+rm -rf build
+
+# 3. Meson komplett NEU einrichten
+meson setup build \
+    -Dplugin-omemo=enabled \
+    -Dplugin-rtp=enabled \
+    -Dplugin-openpgp=enabled \
+    -Dplugin-ice=enabled \
+    -Dplugin-http-files=enabled
+
+# 4. Neu kompilieren
 ninja -C build
+
+# 5. Distribution aktualisieren (DLLs, Icons, Plugins etc.)
 bash scripts/update_dist.sh
+
+# 6. Starten
+./dist/dinox.exe
 ```
 
-Bei Änderungen an `meson.build` oder `meson_options.txt`:
+### Alles als Einzeiler (Copy-Paste):
 
 ```bash
-meson setup build --wipe
-ninja -C build
-bash scripts/update_dist.sh
+cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled && ninja -C build && bash scripts/update_dist.sh
 ```
+
+### Prüfen ob der neue Code wirklich läuft:
+
+Nach dem Start von DinoX die Datei `%TEMP%\dinox_systray.log` öffnen (z.B. im Explorer `%TEMP%` in die Adressleiste eingeben, dann `dinox_systray.log` suchen). Ganz oben steht:
+
+```
+=== DinoX Systray Debug Log ===
+Build: 2026-03-16-v2
+```
+
+Wenn dort das aktuelle Datum und die aktuelle Version steht → der neue Code läuft.
+Wenn die Datei fehlt oder kein `Build:` drin steht → der alte Code läuft noch. In dem Fall: `rm -rf build` und nochmal ab Schritt 3.
 
 ---
 
@@ -399,17 +436,8 @@ meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=e
 ninja -C build
 bash scripts/update_dist.sh
 
-# Neubauen (wenn Repo schon vorhanden)
-cd ~/dinox && git pull
-# Nur Code-Änderungen:
-ninja -C build && bash scripts/update_dist.sh
-# Bei meson.build-Änderungen (--wipe rekonfiguriert komplett):
-meson setup build --wipe -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
-ninja -C build && bash scripts/update_dist.sh
-# Falls --wipe fehlschlägt (korrupter Build-Ordner):
-rm -rf build
-meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
-ninja -C build && bash scripts/update_dist.sh
+# Neubauen nach git pull (IMMER so machen!):
+cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled && ninja -C build && bash scripts/update_dist.sh
 
 # Starten
 ./dist/dinox.exe
@@ -428,3 +456,6 @@ ninja -C build && bash scripts/update_dist.sh
 | `ninja: error: loading 'build.ninja'` | Erst `meson setup build` ausführen |
 | DLLs fehlen beim Start | `bash scripts/update_dist.sh` nochmal ausführen |
 | `couldn't load font "Adwaita Mono"` | `pacman -S mingw-w64-x86_64-cantarell-fonts` installieren und `update_dist.sh` erneut starten |
+| Nach `git pull` + `ninja` hat sich nichts geändert | **`rm -rf build`** und komplett neu bauen (siehe Abschnitt oben). Ninja erkennt per git geänderte Dateien oft nicht! |
+| Systray / Rechtsklick-Menü funktioniert nicht | Prüfe `%TEMP%\dinox_systray.log` — steht dort `Build: 2026-03-16-v2`? Wenn nicht: `rm -rf build` und neu bauen |
+| DinoX startet, aber alte Version läuft | Altes `dinox.exe` noch im Taskmanager? Beenden, dann `bash scripts/update_dist.sh` und neu starten |
