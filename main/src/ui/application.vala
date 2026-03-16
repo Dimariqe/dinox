@@ -78,19 +78,22 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 #if WINDOWS
     // Get the directory where dinox.exe is located
     private static string get_executable_dir() {
-        // Method 1: Check if we're in the dist folder structure
-        // Look for openssl.exe in bin/ relative to current working dir
+        // Use DINOX_EXE_DIR set by main.vala (reliable, based on args[0])
+        string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+        if (exe_dir != null) {
+            return exe_dir;
+        }
+        
+        // Fallback: probe common locations
         string cwd = Environment.get_current_dir();
         if (FileUtils.test(Path.build_filename(cwd, "bin", "openssl.exe"), FileTest.EXISTS)) {
             return cwd;
         }
         
-        // Method 2: Try common install locations
         string[] possible_dirs = {
             "C:\\Program Files\\DinoX",
             "C:\\Program Files (x86)\\DinoX",
             Path.build_filename(Environment.get_home_dir(), "dino-win", "dist"),
-            "."
         };
         
         foreach (string dir in possible_dirs) {
@@ -99,7 +102,6 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         }
         
-        // Fallback to current dir
         return cwd;
     }
 #endif
@@ -1691,7 +1693,11 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         // The backup contains old session data that doesn't match the current
         // server state. We need to clear all sessions to force re-negotiation.
 
-        // Try both possible locations for omemo.db
+#if WINDOWS
+        // On Windows, sqlite3 CLI is not bundled. OMEMO will automatically
+        // re-negotiate stale sessions on next message exchange.
+        debug("Skipping OMEMO session cleanup on Windows (auto-renegotiation)");
+#else
         string[] possible_paths = {
             Path.build_filename (Environment.get_user_data_dir (), "dinox", "omemo.db"),
             Path.build_filename (Environment.get_user_config_dir (), "dinox", "omemo.db")
@@ -1700,30 +1706,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         foreach (string omemo_db_path in possible_paths) {
             if (FileUtils.test (omemo_db_path, FileTest.EXISTS)) {
                 try {
-                    // Use sqlite3 command to clear sessions table
                     string[] argv = {
                         "sqlite3",
                         omemo_db_path,
                         "DELETE FROM session;"
                     };
-
-                    Process.spawn_sync (
-                        null,
-                        argv,
-                        null,
-                        SpawnFlags.SEARCH_PATH,
-                        null,
-                        null,
-                        null,
-                        null
-);
-
+                    Process.spawn_sync (null, argv, null, SpawnFlags.SEARCH_PATH, null, null, null, null);
                     debug ("Cleared OMEMO sessions from %s after backup restore", omemo_db_path);
                 } catch (Error err) {
                     warning ("Failed to clear OMEMO sessions: %s", err.message);
                 }
             }
         }
+#endif
     }
 
     private void show_data_location_dialog () {
@@ -1906,6 +1901,32 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         // Delay the actual reset to let the toast show
         Timeout.add( 2000, () => {
+#if WINDOWS
+            // On Windows, open files can't be deleted. Use a batch file that
+            // runs after this process exits (same approach as panic wipe).
+            string data_dir_win = data_dir.replace("/", "\\");
+            string batch_path = Path.build_filename(Environment.get_tmp_dir(), "dinox_reset.bat").replace("/", "\\");
+            string batch_content = "@echo off\r\n";
+            batch_content += "ping 127.0.0.1 -n 2 > nul\r\n";
+            string[] db_files = { "dino.db", "dino.db-shm", "dino.db-wal",
+                                   "pgp.db", "pgp.db-shm", "pgp.db-wal",
+                                   "bot_registry.db", "bot_registry.db-shm", "bot_registry.db-wal",
+                                   "omemo.db", "omemo.db-shm", "omemo.db-wal",
+                                   "mqtt.db", "mqtt.db-shm", "mqtt.db-wal",
+                                   "omemo.key" };
+            foreach (string f in db_files) {
+                batch_content += "del /f /q \"%s\\%s\" 2>nul\r\n".printf(data_dir_win, f);
+            }
+            batch_content += "rd /s /q \"%s\\omemo\" 2>nul\r\n".printf(data_dir_win);
+            batch_content += "(goto) 2>nul & del \"%~f0\"\r\n";
+            try {
+                FileUtils.set_contents(batch_path, batch_content);
+                string reset_cmd = "cmd.exe /c start /b \"\" \"" + batch_path + "\"";
+                Process.spawn_command_line_async(reset_cmd);
+            } catch (Error e) {
+                warning("Database reset batch failed: %s", e.message);
+            }
+#else
             // Delete the main database file
             FileUtils.unlink( db_path);
             FileUtils.unlink (db_path + "-shm");
@@ -1931,6 +1952,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             } catch (Error err) {
                 // Ignore if doesn't exist
             }
+#endif
 
             // Restart the application
             restart_application( );
@@ -2047,18 +2069,35 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     private void restart_application () {
         // Get the executable path
         string? exe_path = null;
+#if WINDOWS
+        // On Windows, use DINOX_EXE_DIR (set by main.vala) to find dinox.exe
+        string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+        if (exe_dir != null) {
+            exe_path = Path.build_filename(exe_dir, "dinox.exe");
+        }
+        if (exe_path == null || !FileUtils.test(exe_path, FileTest.EXISTS)) {
+            exe_path = Environment.find_program_in_path("dinox.exe");
+        }
+
+        if (exe_path != null) {
+            try {
+                // Use cmd.exe /c start to launch new instance after a short delay
+                string exe_win = exe_path.replace("/", "\\");
+                string restart_cmd = "cmd.exe /c ping 127.0.0.1 -n 2 >nul & start \"\" \"%s\"".printf(exe_win);
+                Process.spawn_command_line_async(restart_cmd);
+            } catch (Error err) {
+                warning("Failed to restart: %s", err.message);
+            }
+        }
+#else
         try {
             exe_path = FileUtils.read_link ("/proc/self/exe");
         } catch (Error err) {
-            // Fallback to argv[0]
             warning( "Could not read /proc/self/exe: %s", err.message);
         }
 
-        // First quit the current instance completely, then spawn new one
-        // We use a small delay script to ensure the old process is gone
         if (exe_path != null) {
             try {
-                // Use bash to delay the restart slightly to ensure clean shutdown
                 string restart_cmd = "sleep 0.5 && %s &".printf( Shell.quote( exe_path));
                 string[] spawn_args = { "bash", "-c", restart_cmd };
                 Process.spawn_async (null, spawn_args, null, SpawnFlags.SEARCH_PATH, null, null);
@@ -2066,6 +2105,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 warning ("Failed to restart: %s", err.message);
             }
         }
+#endif
 
         // Hard exit to prevent any cleanup that might overwrite restored data
         // This is intentional after backup restore to preserve the restored database

@@ -68,6 +68,9 @@ void main(string[] args) {
         }
         string exe_dir = (exe_path != null) ? Path.get_dirname(exe_path) : Environment.get_current_dir();
 
+        // Publish exe_dir so plugins can find bundled files without relying on cwd
+        Environment.set_variable("DINOX_EXE_DIR", exe_dir, true);
+
         // GTK/GLib resource paths
         Environment.set_variable("XDG_DATA_DIRS",
             Path.build_filename(exe_dir, "share"), true);

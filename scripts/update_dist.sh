@@ -488,11 +488,24 @@ fi
 echo "[6/8] Copying resources..."
 
 # CA Certificates (needed for TLS)
-if [ -f "/mingw64/ssl/certs/ca-bundle.crt" ]; then
-    cp /mingw64/ssl/certs/ca-bundle.crt dist/ssl/certs/
-    # Also copy to dist/ root for backwards compatibility
-    cp /mingw64/ssl/certs/ca-bundle.crt dist/
-    echo "  [OK] CA certificates"
+CA_BUNDLE=""
+for ca_path in /mingw64/ssl/certs/ca-bundle.crt \
+               /mingw64/etc/ssl/certs/ca-bundle.crt \
+               /etc/ssl/certs/ca-bundle.crt \
+               /usr/ssl/certs/ca-bundle.crt \
+               /mingw64/ssl/cert.pem; do
+    if [ -f "$ca_path" ]; then
+        CA_BUNDLE="$ca_path"
+        break
+    fi
+done
+if [ -n "$CA_BUNDLE" ]; then
+    cp "$CA_BUNDLE" dist/ssl/certs/ca-bundle.crt
+    cp "$CA_BUNDLE" dist/ca-bundle.crt
+    echo "  [OK] CA certificates (from $CA_BUNDLE)"
+else
+    echo "  [WARN] No CA certificate bundle found! TLS connections may fail."
+    echo "         Install: pacman -S ca-certificates"
 fi
 
 # GTK4 schemas (needed for settings)

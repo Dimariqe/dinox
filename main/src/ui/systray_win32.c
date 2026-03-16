@@ -116,8 +116,8 @@ systray_win32_set_menu (const gchar **labels, guint32 checked_mask)
 
     if (labels == NULL) return;
 
-    for (int i = 0; labels[i] != (const gchar *) -1 && i < MAX_MENU_ITEMS; i++) {
-        if (labels[i] == NULL) {
+    for (int i = 0; labels[i] != NULL && i < MAX_MENU_ITEMS; i++) {
+        if (labels[i][0] == '\0') {
             AppendMenuW (popup_menu, MF_SEPARATOR, 0, NULL);
         } else {
             wchar_t *w = utf8_to_wchar (labels[i]);

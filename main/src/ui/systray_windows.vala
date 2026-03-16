@@ -71,7 +71,7 @@ namespace Dino.Ui {
             string[] active_emojis = {"\xf0\x9f\x9f\xa2", "\xf0\x9f\x9f\xa0", "\xf0\x9f\x94\xb4", "\xe2\xad\x95"};
             string inactive = "\xe2\x9a\xaa";
 
-            /* Build NULL-terminated label array with a NULL separator. */
+            /* Build NULL-terminated label array.  Empty string = separator. */
             string?[] labels = new string?[7];
             uint32 checked = 0;
             for (int i = 0; i < 4; i++) {
@@ -80,9 +80,9 @@ namespace Dino.Ui {
                 if (status_keys[i] == current_status)
                     checked |= (1u << i);
             }
-            labels[4] = null;   /* separator */
+            labels[4] = "";     /* separator (empty string) */
             labels[5] = _("Quit");
-            labels[6] = (string?) ((void*) (-1));  /* sentinel */
+            /* labels[6] stays null → array terminator */
 
             SystrayWin32.set_menu(labels, checked);
         }

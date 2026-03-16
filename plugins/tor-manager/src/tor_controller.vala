@@ -32,20 +32,13 @@ namespace Dino.Plugins.TorManager {
 #if WINDOWS
         // Get the directory where the executable is located
         private string? get_executable_dir() {
-            // On Windows, use Win32 API via GLib
-            string? exe_path = null;
-            // GLib provides this via get_current_dir, but we need the exe location
-            // Use environment or fallback
-            string? path = Environment.get_variable("_");  // The full path to the running exe
-            if (path != null && path.has_suffix(".exe")) {
-                exe_path = Path.get_dirname(path);
+            // Use DINOX_EXE_DIR set by main.vala (reliable, based on args[0])
+            string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+            if (exe_dir != null) {
+                return exe_dir;
             }
-            
-            if (exe_path == null) {
-                // Fallback: Check current working directory
-                exe_path = Environment.get_current_dir();
-            }
-            return exe_path;
+            // Fallback: current working directory
+            return Environment.get_current_dir();
         }
 #endif
 
@@ -174,14 +167,33 @@ namespace Dino.Plugins.TorManager {
             torrc.append_printf("SocksPort %d\n", socks_port);
             
             // Try to find GeoIP files
+#if WINDOWS
+            string? edir = get_executable_dir();
+            string[] geoip_opts = {};
+            if (edir != null) {
+                geoip_opts += Path.build_filename(edir, "share", "tor", "geoip");
+            }
+            geoip_opts += "C:\\msys64\\mingw64\\share\\tor\\geoip";
+            geoip_opts += "C:\\msys64\\share\\tor\\geoip";
+#else
             string[] geoip_opts = {"/app/share/tor/geoip", "/usr/share/tor/geoip", "/usr/local/share/tor/geoip"};
+#endif
             foreach (string p in geoip_opts) {
                 if (FileUtils.test(p, FileTest.EXISTS)) {
                     torrc.append_printf("GeoIPFile %s\n", p);
                     break;
                 }
             }
+#if WINDOWS
+            string[] geoip6_opts = {};
+            if (edir != null) {
+                geoip6_opts += Path.build_filename(edir, "share", "tor", "geoip6");
+            }
+            geoip6_opts += "C:\\msys64\\mingw64\\share\\tor\\geoip6";
+            geoip6_opts += "C:\\msys64\\share\\tor\\geoip6";
+#else
             string[] geoip6_opts = {"/app/share/tor/geoip6", "/usr/share/tor/geoip6", "/usr/local/share/tor/geoip6"};
+#endif
             foreach (string p in geoip6_opts) {
                  if (FileUtils.test(p, FileTest.EXISTS)) {
                     torrc.append_printf("GeoIPv6File %s\n", p);

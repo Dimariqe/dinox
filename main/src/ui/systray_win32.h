@@ -20,7 +20,7 @@ gboolean systray_win32_init   (const gchar          *tooltip_utf8,
                                 gpointer              user_data);
 
 /* Replace the entire popup menu.  labels is a NULL-terminated array of
- * UTF-8 strings.  A NULL entry inserts a separator.
+ * UTF-8 strings.  An empty string ("") inserts a separator.
  * checked_mask: bitmask of items that should show a checkmark (bullet). */
 void     systray_win32_set_menu (const gchar **labels, guint32 checked_mask);
 

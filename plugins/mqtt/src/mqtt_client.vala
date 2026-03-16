@@ -163,24 +163,29 @@ public class MqttClient : Object {
             string? capath = null;
 
 #if WINDOWS
-            /* Windows: check bundled ca-bundle.crt next to dinox.exe,
-             * then MSYS2 development locations */
-            string cwd = Environment.get_current_dir();
-            string[] win_ca_paths = {
-                Path.build_filename(cwd, "ssl", "certs", "ca-bundle.crt"),
-                Path.build_filename(cwd, "ca-bundle.crt"),
-                "C:\\msys64\\mingw64\\ssl\\certs\\ca-bundle.crt",
-                "/mingw64/ssl/certs/ca-bundle.crt",
-            };
-            foreach (string p in win_ca_paths) {
-                if (FileUtils.test(p, FileTest.EXISTS)) {
-                    cafile = p;
-                    break;
+            /* Windows: prefer SSL_CERT_FILE env var (set by main.vala from exe_dir),
+             * then probe common locations as fallback */
+            string? env_cert = Environment.get_variable("SSL_CERT_FILE");
+            if (env_cert != null && FileUtils.test(env_cert, FileTest.EXISTS)) {
+                cafile = env_cert;
+            } else {
+                string cwd = Environment.get_current_dir();
+                string[] win_ca_paths = {
+                    Path.build_filename(cwd, "ssl", "certs", "ca-bundle.crt"),
+                    Path.build_filename(cwd, "ca-bundle.crt"),
+                    "C:\\msys64\\mingw64\\ssl\\certs\\ca-bundle.crt",
+                    "/mingw64/ssl/certs/ca-bundle.crt",
+                };
+                foreach (string p in win_ca_paths) {
+                    if (FileUtils.test(p, FileTest.EXISTS)) {
+                        cafile = p;
+                        break;
+                    }
                 }
-            }
-            if (cafile == null) {
-                warning("MQTT: No CA certificate bundle found — TLS may fail. " +
-                        "Tried: %s", string.joinv(", ", win_ca_paths));
+                if (cafile == null) {
+                    warning("MQTT: No CA certificate bundle found — TLS may fail. " +
+                            "Tried: SSL_CERT_FILE env, %s", string.joinv(", ", win_ca_paths));
+                }
             }
 #else
             /* Linux / macOS: standard CA certificate locations */

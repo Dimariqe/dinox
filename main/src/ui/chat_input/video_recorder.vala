@@ -118,7 +118,7 @@ public class VideoRecorder : GLib.Object {
             video_source = ElementFactory.make("pipewiresrc", "video-source");
             // PipeWire auto-detects camera via downstream video caps negotiation
         } else {
-            video_source = ElementFactory.make("v4l2src", "video-source");
+            video_source = ElementFactory.make("autovideosrc", "video-source");
         }
         video_convert = ElementFactory.make("videoconvert", "video-convert");
         video_scale = ElementFactory.make("videoscale", "video-scale");
