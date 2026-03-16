@@ -9,6 +9,12 @@
  * Windows Systray — Shell_NotifyIcon via systray_win32.c helper.
  * Provides tray icon with left-click toggle and right-click context menu
  * (status selection + Quit).
+ *
+ * Mirrors the Linux SystrayManager (systray.vala) behaviour:
+ *   - Left-click → toggle window show/hide
+ *   - Right-click → context menu: Online / Away / Busy / Not Available / ─ / Quit
+ *   - Window X → hide to tray (no balloon), app stays alive
+ *   - "Quit" menu item → graceful disconnect + exit
  */
 using Gtk;
 using GLib;
@@ -39,6 +45,11 @@ namespace Dino.Ui {
             }
 
             tray_available = true;
+            // On Windows there is no D-Bus session to keep the main loop alive.
+            // hold() once so GApplication doesn't quit when the window is hidden.
+            // (Matches the Linux hold_app() fallback for missing SNI watcher.)
+            application.hold();
+            holding = true;
             rebuild_menu();
             debug("Systray: Win32 tray icon created");
         }
@@ -48,11 +59,8 @@ namespace Dino.Ui {
 
             window.close_request.connect(() => {
                 if (Dino.Application.get_default().settings.keep_background && tray_available) {
+                    // Just hide — matches Linux behaviour (no balloon, no hold)
                     hide_window();
-                    SystrayWin32.show_balloon(
-                        "DinoX",
-                        _("DinoX is still running in the background.\nClick the tray icon to restore the window."),
-                        1, null, null);
                     return true;
                 } else {
                     quit_application();
@@ -137,10 +145,8 @@ namespace Dino.Ui {
             if (window == null) return;
             window.set_visible(false);
             is_hidden = true;
-            if (!holding) {
-                application.hold();
-                holding = true;
-            }
+            // No application.hold() needed — hide_on_close=true in application.vala
+            // keeps the window object alive (matching Linux behaviour).
         }
 
         /* ---- quit ---- */
