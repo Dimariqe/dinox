@@ -235,6 +235,12 @@ SYSTEM_DLLS=(
     "libsqlcipher-0.dll"
 )
 
+# DLLs that are optional (statically linked or only present with certain packages)
+OPTIONAL_DLLS=(
+    "libomemo-c-0.dll"    # statically linked — only exists if built with BUILD_SHARED_LIBS
+    "libyaml-0-2.dll"     # only present if mingw-w64-x86_64-libyaml is installed (AppStream dep)
+)
+
 DLL_COUNT=0
 for dll in "${SYSTEM_DLLS[@]}"; do
     if [ -f "$MINGW_BIN/$dll" ]; then
@@ -252,7 +258,19 @@ for dll in "${SYSTEM_DLLS[@]}"; do
             fi
         done
         if [ "$FOUND" = false ]; then
-            echo "  [WARN] Not found: $dll"
+            # Check if this DLL is in the optional list
+            IS_OPTIONAL=false
+            for opt in "${OPTIONAL_DLLS[@]}"; do
+                if [ "$dll" = "$opt" ]; then
+                    IS_OPTIONAL=true
+                    break
+                fi
+            done
+            if [ "$IS_OPTIONAL" = true ]; then
+                echo "  [INFO] Optional, not found: $dll"
+            else
+                echo "  [WARN] Not found: $dll"
+            fi
         fi
     fi
 done
