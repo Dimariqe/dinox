@@ -243,5 +243,6 @@ namespace Mosquitto {
 
     [CCode (cname = "mosquitto_on_message_v5_cb", has_target = false)]
     public delegate void MessageV5Callback(Client mosq, void* userdata,
-                                            Message* msg, Property? props);
+                                            [CCode (type = "const struct mosquitto_message *")] Message* msg,
+                                            [CCode (type = "const mosquitto_property *")] Property? props);
 }
