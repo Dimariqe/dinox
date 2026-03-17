@@ -37,7 +37,7 @@ public class UpsertBuilder : StatementBuilder {
     }
 
     internal override Statement prepare() {
-        error("prepare() not available for upsert.");
+        return prepare_upsert();
     }
 
     internal Statement prepare_upsert() {

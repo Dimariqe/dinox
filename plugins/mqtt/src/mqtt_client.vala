@@ -145,7 +145,7 @@ public class MqttClient : Object {
         string client_id = "dinox-%u-%lld".printf(_instance_id,
                                                    GLib.get_real_time() / 1000);
         mosq = new Mosquitto.Client(client_id, true,
-                                     (void*)(ulong)_instance_id);
+                                     (void*)(int64)_instance_id);
 
         if (mosq == null) {
             warning("MQTT: mosquitto_new() failed");
@@ -417,7 +417,7 @@ public class MqttClient : Object {
     /* ── Mosquitto C callbacks (static → dispatch via instance registry) ── */
 
     private static unowned MqttClient? lookup(void* userdata) {
-        uint id = (uint)(ulong)userdata;
+        uint id = (uint)(int64)userdata;
         if (_instances != null && _instances.has_key(id)) {
             return _instances[id];
         }

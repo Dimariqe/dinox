@@ -208,7 +208,7 @@ public class HttpFileSender : FileSender, Object {
                         
                         var fm = file_transfer.file_metadata;
                         debug("http-files: SFS metadata for ESFS: name=%s size=%lld mime=%s hashes=%d width=%d height=%d",
-                              fm.name ?? "(null)", (long) fm.size, fm.mime_type ?? "(null)",
+                              fm.name ?? "(null)", (int64) fm.size, fm.mime_type ?? "(null)",
                               fm.hashes.size, fm.width, fm.height);
                         foreach (var h in fm.hashes) {
                             debug("http-files: SFS hash algo=%s val=%s", h.algo, h.val);
@@ -342,7 +342,7 @@ public class HttpFileSender : FileSender, Object {
             put_message.request_headers.append(entry.key, entry.value);
         }
         try {
-            debug("http-files: uploading via PUT %s (%lld bytes)", sanitize_url_for_log(file_send_data.url_up), (long) upload_size);
+            debug("http-files: uploading via PUT %s (%lld bytes)", sanitize_url_for_log(file_send_data.url_up), (int64) upload_size);
 #if SOUP_3_0
             yield session.send_async(put_message, GLib.Priority.LOW, file_transfer.cancellable);
 #else

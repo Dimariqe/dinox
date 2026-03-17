@@ -47,6 +47,7 @@ docs/internal/MUJI_GROUP_CALLS_PLAN.md
 docs/internal/MQTT_UI_PLAN.md
 docs/internal/DOMAIN_MIGRATION.md
 docs/internal/VIDEO_PLAYER_IMPLEMENTATION.md
+docs/internal/VIDEO_STOP_BUTTON_BUG.md
 docs/accessibility-pruefprotokoll.md
 
 # Text/log files (except build-system configs)

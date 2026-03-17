@@ -135,7 +135,7 @@ public class FileManager : StreamInteractionModule, Object {
 
             debug("send_file: preparing '%s' size=%lld mime=%s conv_encryption=%d conv_type=%d",
                   file_transfer.file_name,
-                  (long) file_transfer.size,
+                  (int64) file_transfer.size,
               file_transfer.mime_type ?? "(null)",
               (int) conversation.encryption,
               (int) conversation.type_);
@@ -211,7 +211,7 @@ public class FileManager : StreamInteractionModule, Object {
             } else {
                 warning("send_file: no sender/encryptor available (encryption=%d size=%lld)",
                         (int) file_transfer.encryption,
-                        (long) file_transfer.size);
+                        (int64) file_transfer.size);
             }
 
             if (file_sender == null) {
