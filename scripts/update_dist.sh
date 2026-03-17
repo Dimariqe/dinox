@@ -287,9 +287,11 @@ done
 echo "  [OK] $DLL_COUNT system DLLs copied"
 
 # Copy GDK-Pixbuf loaders (for image format support)
+# MUST copy into dist/lib/gdk-pixbuf-2.0/ (not dist/lib/) so the directory
+# structure matches what GDK_PIXBUF_MODULEDIR points to.
 if [ -d "/mingw64/lib/gdk-pixbuf-2.0" ]; then
     mkdir -p dist/lib/gdk-pixbuf-2.0
-    cp -r /mingw64/lib/gdk-pixbuf-2.0/* dist/lib/
+    cp -r /mingw64/lib/gdk-pixbuf-2.0/* dist/lib/gdk-pixbuf-2.0/
     echo "  [OK] GDK-Pixbuf loaders"
 fi
 
@@ -625,11 +627,19 @@ gtk-xft-rgba=rgb
 GTKEOF
 echo "  [OK] GTK settings (font hinting + decoration layout)"
 
-# Pixbuf loaders cache
-if [ -f "/mingw64/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" ]; then
-    mkdir -p dist/lib/gdk-pixbuf-2.0/2.10.0
-    cp /mingw64/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache dist/lib/gdk-pixbuf-2.0/2.10.0/
-    echo "  [OK] Pixbuf loaders cache"
+# Pixbuf loaders cache — regenerate for portable paths.
+# The MSYS2 cache file has absolute paths like /mingw64/lib/... which
+# won't exist on the user's machine.  gdk-pixbuf-query-loaders produces
+# a cache with paths relative to the current directory.
+if [ -d "dist/lib/gdk-pixbuf-2.0/2.10.0/loaders" ]; then
+    if command -v gdk-pixbuf-query-loaders >/dev/null 2>&1; then
+        GDK_PIXBUF_MODULEDIR="$(cd dist/lib/gdk-pixbuf-2.0/2.10.0/loaders && pwd -W 2>/dev/null || pwd)" \
+            gdk-pixbuf-query-loaders > dist/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+        echo "  [OK] Pixbuf loaders cache (regenerated for portable paths)"
+    elif [ -f "/mingw64/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" ]; then
+        cp /mingw64/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache dist/lib/gdk-pixbuf-2.0/2.10.0/
+        echo "  [OK] Pixbuf loaders cache (copied from MSYS2, paths may need relocation)"
+    fi
 fi
 
 # Application icons — copy image files, NOT index.theme!

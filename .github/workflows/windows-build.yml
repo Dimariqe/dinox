@@ -78,6 +78,9 @@ jobs:
             mingw-w64-x86_64-mosquitto
             mingw-w64-x86_64-tor
             mingw-w64-x86_64-go
+            mingw-w64-x86_64-glib-networking
+            mingw-w64-x86_64-hicolor-icon-theme
+            mingw-w64-x86_64-adwaita-icon-theme
 
       # lyrebird (Tor pluggable transport: obfs4 + WebTunnel) — not in MSYS2
       - name: Build lyrebird
@@ -205,7 +208,8 @@ jobs:
             -Dplugin-rtp=enabled \
             -Dplugin-openpgp=enabled \
             -Dplugin-ice=enabled \
-            -Dplugin-http-files=enabled
+            -Dplugin-http-files=enabled \
+            -Dplugin-mqtt=enabled
           echo ""
           echo "=== Configuration Summary ==="
           grep -A 20 "Dino 0" build/meson-logs/meson-log.txt | head -25 || true

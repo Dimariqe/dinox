@@ -232,7 +232,8 @@ meson setup build \
     -Dplugin-rtp=enabled \
     -Dplugin-openpgp=enabled \
     -Dplugin-ice=enabled \
-    -Dplugin-http-files=enabled
+    -Dplugin-http-files=enabled \
+    -Dplugin-mqtt=enabled
 ```
 
 Meson zeigt am Ende alle gefundenen Abhängigkeiten an. Prüfe, dass keine wichtigen mit `NO` markiert sind.
@@ -335,7 +336,8 @@ meson setup build \
     -Dplugin-rtp=enabled \
     -Dplugin-openpgp=enabled \
     -Dplugin-ice=enabled \
-    -Dplugin-http-files=enabled
+    -Dplugin-http-files=enabled \
+    -Dplugin-mqtt=enabled
 
 # 4. Neu kompilieren
 ninja -C build
@@ -350,7 +352,7 @@ bash scripts/update_dist.sh
 ### Alles als Einzeiler (Copy-Paste):
 
 ```bash
-cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled && ninja -C build && bash scripts/update_dist.sh
+cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled -Dplugin-mqtt=enabled && ninja -C build && bash scripts/update_dist.sh
 ```
 
 ### Prüfen ob der neue Code wirklich läuft:
@@ -432,12 +434,12 @@ ninja -C build && ninja -C build install
 
 # DinoX klonen und bauen (Schritte 7-11)
 cd ~ && git clone https://github.com/rallep71/dinox.git && cd dinox
-meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled
+meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled -Dplugin-mqtt=enabled
 ninja -C build
 bash scripts/update_dist.sh
 
 # Neubauen nach git pull (IMMER so machen!):
-cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled && ninja -C build && bash scripts/update_dist.sh
+cd ~/dinox && git pull && rm -rf build && meson setup build -Dplugin-omemo=enabled -Dplugin-rtp=enabled -Dplugin-openpgp=enabled -Dplugin-ice=enabled -Dplugin-http-files=enabled -Dplugin-mqtt=enabled && ninja -C build && bash scripts/update_dist.sh
 
 # Starten
 ./dist/dinox.exe
