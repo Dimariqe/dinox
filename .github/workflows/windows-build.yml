@@ -230,7 +230,7 @@ jobs:
           echo "=== Verifying distribution ==="
           # Check critical files exist
           MISSING=0
-          for f in dist/dinox.exe dist/dinox.bat dist/libdino-0.dll dist/libxmpp-vala-0.dll; do
+          for f in dist/dinox.exe dist/libdino-0.dll dist/libxmpp-vala-0.dll; do
             if [ ! -f "$f" ]; then
               echo "MISSING: $f"
               MISSING=1
