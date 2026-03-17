@@ -595,14 +595,91 @@ if [ -d "/mingw64/etc/fonts" ]; then
     cp -r /mingw64/etc/fonts/* dist/etc/fonts/
     echo "  [OK] Fontconfig config copied from MSYS2"
 fi
-# Ensure bundled fonts dir is in the config — add a local snippet.
+# Generate a proper fonts.conf that maps generic families to Windows fonts.
+# Without this, fontconfig's "Sans" resolves to a random font (often
+# "Microsoft Sans Serif" which looks terrible with freetype).
+# This also ensures our bundled fonts dir and Windows system fonts are scanned.
 mkdir -p dist/etc/fonts/conf.d
+cat > dist/etc/fonts/fonts.conf <<'FCEOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+
+  <!-- Font directories -->
+  <dir>WINDOWSFONTDIR</dir>
+  <dir prefix="relative">../share/fonts</dir>
+
+  <!-- Cache directory -->
+  <cachedir>LOCAL_APPDATA_FONTCONFIG_CACHE</cachedir>
+  <cachedir prefix="xdg">fontconfig</cachedir>
+
+  <!-- Map generic families to Windows system fonts -->
+  <alias>
+    <family>sans-serif</family>
+    <prefer>
+      <family>Segoe UI</family>
+      <family>Arial</family>
+      <family>Noto Sans</family>
+    </prefer>
+  </alias>
+
+  <alias>
+    <family>Sans</family>
+    <prefer>
+      <family>Segoe UI</family>
+      <family>Arial</family>
+    </prefer>
+  </alias>
+
+  <alias>
+    <family>serif</family>
+    <prefer>
+      <family>Times New Roman</family>
+      <family>Georgia</family>
+      <family>Noto Serif</family>
+    </prefer>
+  </alias>
+
+  <alias>
+    <family>monospace</family>
+    <prefer>
+      <family>Consolas</family>
+      <family>Cascadia Mono</family>
+      <family>Courier New</family>
+    </prefer>
+  </alias>
+
+  <alias>
+    <family>system-ui</family>
+    <prefer>
+      <family>Segoe UI</family>
+    </prefer>
+  </alias>
+
+  <!-- Default rendering: slight hinting + subpixel antialiasing -->
+  <match target="font">
+    <edit name="antialias" mode="assign"><bool>true</bool></edit>
+    <edit name="hinting" mode="assign"><bool>true</bool></edit>
+    <edit name="hintstyle" mode="assign"><const>hintslight</const></edit>
+    <edit name="rgba" mode="assign"><const>rgb</const></edit>
+    <edit name="lcdfilter" mode="assign"><const>lcddefault</const></edit>
+  </match>
+
+  <!-- Include additional conf files -->
+  <include ignore_missing="yes" prefix="relative">conf.d</include>
+  <include ignore_missing="yes" prefix="relative">local.conf</include>
+
+</fontconfig>
+FCEOF
+echo "  [OK] Fontconfig fonts.conf created (Windows font aliases)"
+
+# Keep local.conf as an override for bundled font paths
 cat > dist/etc/fonts/local.conf <<'FCEOF'
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
 <fontconfig>
   <!-- Bundled DinoX fonts -->
-  <dir>../share/fonts</dir>
+  <dir prefix="relative">../share/fonts</dir>
   <dir>WINDOWSFONTDIR</dir>
 </fontconfig>
 FCEOF
@@ -619,13 +696,15 @@ fi
 mkdir -p dist/share/gtk-4.0
 cat > dist/share/gtk-4.0/settings.ini <<'GTKEOF'
 [Settings]
+gtk-font-name=Segoe UI 10
+gtk-hint-font-metrics=1
 gtk-decoration-layout=close,minimize,maximize:
 gtk-xft-antialias=1
 gtk-xft-hinting=1
 gtk-xft-hintstyle=hintslight
 gtk-xft-rgba=rgb
 GTKEOF
-echo "  [OK] GTK settings (font hinting + decoration layout)"
+echo "  [OK] GTK settings (font, hinting, decoration layout)"
 
 # Pixbuf loaders cache — regenerate for portable paths.
 # The MSYS2 cache file has absolute paths like /mingw64/lib/... which

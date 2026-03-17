@@ -323,6 +323,8 @@ void main(string[] args) {
             // is missing or GTK loaded defaults before reading it.
             var gtk_settings = Gtk.Settings.get_for_display(display);
             if (gtk_settings != null) {
+                gtk_settings.gtk_font_name = "Segoe UI 10";
+                gtk_settings.gtk_hint_font_metrics = true;
                 gtk_settings.gtk_decoration_layout = "close,minimize,maximize:";
                 gtk_settings.gtk_xft_antialias = 1;
                 gtk_settings.gtk_xft_hinting = 1;

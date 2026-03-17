@@ -215,6 +215,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     private void on_leave_notify_event() {
+        if (!this.get_realized()) return;
         if (is_highlight_fixed()) return;
 
         if (currently_highlighted != null) {
@@ -225,6 +226,7 @@ public class ConversationView : Widget, Plugins.ConversationItemCollection, Plug
     }
 
     private void update_highlight(double x, double y) {
+        if (!main.get_realized()) return;
         if (is_highlight_fixed()) return;
 
         if (currently_highlighted != null && (last_y - y).abs() <= 2) {

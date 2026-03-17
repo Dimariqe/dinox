@@ -277,6 +277,7 @@ public class FileImageWidget : Widget {
 
     private static void attach_on_motion_event_leave(EventControllerMotion this_motion_events, MenuButton button) {
         this_motion_events.leave.connect((controller) => {
+            if (!controller.widget.get_realized()) return;
             if (button.popover != null && button.popover.visible) return;
 
             var widget = controller.widget as FileImageWidget;

@@ -132,6 +132,10 @@ public class ChatTextView : Box {
     }
 
     private bool queue_resize_if_needed() {
+        if (!this.get_realized()) {
+            wait_queue_resize = 0;
+            return false;
+        }
         if (scrolled_window.get_height() == scrolled_window.height_request) {
             wait_queue_resize = 0;
             return false;
