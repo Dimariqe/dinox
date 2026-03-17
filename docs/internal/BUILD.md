@@ -128,6 +128,11 @@ sudo apt install \
     gstreamer1.0-plugins-good \
     golang-go
 
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+sudo apt install gstreamer1.0-plugins-ugly gstreamer1.0-libav
+# Optional: hardware-accelerated encoding on Intel/AMD:
+sudo apt install gstreamer1.0-vaapi
+
 # Then build custom dependencies from source (protobuf-c, mosquitto, libomemo-c, lyrebird, etc.)
 ./scripts/ci-build-deps.sh
 ```
@@ -170,6 +175,10 @@ sudo dnf install \
     gstreamer1-plugins-good \
     golang
 
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+# Requires RPM Fusion repo: https://rpmfusion.org/
+sudo dnf install gstreamer1-plugins-ugly gstreamer1-libav
+
 # Then build custom dependencies from source
 ./scripts/ci-build-deps.sh
 ```
@@ -209,6 +218,14 @@ sudo zypper install \
     geoclue2-devel \
     libomemo-c-devel \
     go
+
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+# Requires Packman repo — add it first:
+# Tumbleweed:
+sudo zypper ar -cfp 90 'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Tumbleweed/' packman
+# Leap (adjust version):
+# sudo zypper ar -cfp 90 'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.6/' packman
+sudo zypper install --from packman gstreamer-plugins-ugly gstreamer-plugins-libav
 
 # Then build custom dependencies from source (REQUIRED — libomemo-c, protobuf-c,
 # mosquitto, lyrebird etc. are not available as openSUSE packages)
@@ -268,6 +285,9 @@ sudo pacman -S \
     libsrtp \
     geoclue \
     go
+
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+sudo pacman -S gst-plugins-ugly gst-libav
 
 # Then build custom dependencies from source
 ./scripts/ci-build-deps.sh
