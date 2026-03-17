@@ -606,7 +606,22 @@ fi
 # Application icons
 if [ -d "main/data/icons/hicolor" ]; then
     cp -r main/data/icons/hicolor dist/share/icons/
-    echo "  [OK] DinoX icons"
+    echo "  [OK] DinoX app icons"
+fi
+
+# Custom symbolic icons (dino-*, small-x-*, check-plain-*)
+# These are also embedded in the GResource, but installing them to the hicolor
+# theme on the filesystem ensures they are found even if GTK4's automatic
+# resource_base_path icon discovery fails (common on Windows).
+if [ -d "main/data/icons/scalable" ]; then
+    for subdir in actions devices mimetypes status; do
+        src="main/data/icons/scalable/$subdir"
+        if [ -d "$src" ]; then
+            mkdir -p "dist/share/icons/hicolor/scalable/$subdir"
+            cp "$src"/*.svg "dist/share/icons/hicolor/scalable/$subdir/"
+        fi
+    done
+    echo "  [OK] DinoX custom symbolic icons (hicolor fallback)"
 fi
 
 # ============================================

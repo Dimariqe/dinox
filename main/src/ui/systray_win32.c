@@ -38,7 +38,7 @@
 
 #define WM_TRAYICON  (WM_APP + 1)
 #define MAX_MENU_ITEMS 32
-#define SYSTRAY_BUILD_ID "2026-03-17-v5"
+#define SYSTRAY_BUILD_ID "2026-03-17-v6"
 
 /* ---- owner-drawn menu item colors ---- */
 /* Stored per menu item: color + label for drawing */

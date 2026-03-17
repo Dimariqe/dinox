@@ -539,8 +539,13 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 string icon_path = Path.build_filename(exe_dir, "share", "icons");
                 if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
                     icon_theme.add_search_path(icon_path);
-                    debug("startup: Added icon path: %s", icon_path);
+                    debug("startup: Added icon search path: %s", icon_path);
                 }
+                // Explicitly register GResource icon path for custom dino-* icons.
+                // GTK4 should do this automatically via resource_base_path, but on
+                // Windows the auto-discovery can fail (display timing, theme issues).
+                icon_theme.add_resource_path("/im/github/rallep71/DinoX/icons");
+                debug("startup: Added icon resource path: /im/github/rallep71/DinoX/icons");
             }
 #endif
 
