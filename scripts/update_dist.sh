@@ -626,10 +626,23 @@ if [ -f "/mingw64/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" ]; then
     echo "  [OK] Pixbuf loaders cache"
 fi
 
-# Application icons
+# Application icons — copy image files, NOT index.theme!
+# CRITICAL: The system hicolor index.theme (copied above) lists ALL standard
+# directories (scalable/actions, scalable/status, scalable/devices, etc.).
+# The project's index.theme only lists */apps and would BREAK icon discovery
+# for all custom dino-* and system icons in other categories.
 if [ -d "main/data/icons/hicolor" ]; then
-    cp -r main/data/icons/hicolor dist/share/icons/
-    echo "  [OK] DinoX app icons"
+    for size_dir in main/data/icons/hicolor/*/; do
+        [ -d "$size_dir" ] || continue
+        size=$(basename "$size_dir")
+        for cat_dir in "$size_dir"*/; do
+            [ -d "$cat_dir" ] || continue
+            cat=$(basename "$cat_dir")
+            mkdir -p "dist/share/icons/hicolor/$size/$cat"
+            cp "$cat_dir"* "dist/share/icons/hicolor/$size/$cat/" 2>/dev/null || true
+        done
+    done
+    echo "  [OK] DinoX app icons (system index.theme preserved)"
 fi
 
 # Custom symbolic icons (dino-*, small-x-*, check-plain-*)
