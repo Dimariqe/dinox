@@ -166,10 +166,10 @@ void main(string[] args) {
                     warning("Failed to append bundled CA certs: %s", e.message);
                 }
                 ca_path = cached_pem;
-                message("Merged Windows root certs + %s → %s", bundled_path, cached_pem);
+                debug("Merged Windows root certs + %s → %s", bundled_path, cached_pem);
             } else if (have_windows) {
                 ca_path = cached_pem;
-                message("Using Windows root certificates: %s", cached_pem);
+                debug("Using Windows root certificates: %s", cached_pem);
             } else if (bundled_path != null) {
                 ca_path = bundled_path;
             } else {
@@ -181,7 +181,7 @@ void main(string[] args) {
                 Environment.set_variable("SSL_CERT_FILE", ca_path, true);
                 string ca_dir = Path.get_dirname(ca_path);
                 Environment.set_variable("SSL_CERT_DIR", ca_dir, true);
-                message("Set GTLS_SYSTEM_CA_FILE to %s", ca_path);
+                debug("Set GTLS_SYSTEM_CA_FILE to %s", ca_path);
 
                 // Explicitly set the default TLS trust database from our merged
                 // CA bundle.  Env vars alone are unreliable: glib-networking on
@@ -191,7 +191,7 @@ void main(string[] args) {
                 try {
                     TlsDatabase tls_db = TlsFileDatabase.@new(ca_path);
                     TlsBackend.get_default().set_default_database(tls_db);
-                    message("TLS trust database loaded: %s", ca_path);
+                    debug("TLS trust database loaded: %s", ca_path);
                 } catch (Error e) {
                     warning("Failed to load TLS database from %s: %s", ca_path, e.message);
                 }
@@ -210,7 +210,7 @@ void main(string[] args) {
                 new_path = new_path + ";" + old_path;
             }
             Environment.set_variable("PATH", new_path, true);
-            message("PATH prepended: %s", exe_dir);
+            debug("PATH prepended: %s", exe_dir);
         }
 
         // Suppress "win32 session dbus binary not found" warning
@@ -221,15 +221,15 @@ void main(string[] args) {
         Environment.set_variable("GST_REGISTRY_FORK", "no", true);
 #endif
 
-        message("Initializing GStreamer…");
+        debug("Initializing GStreamer…");
         Gst.init(ref args);
-        message("GStreamer initialized");
+        debug("GStreamer initialized");
 
 #if _WIN32
         // Log GStreamer plugin summary for debugging
         var registry = Gst.Registry.@get();
         var plugins = registry.get_plugin_list();
-        message("GStreamer: %u plugins loaded from %s",
+        debug("GStreamer: %u plugins loaded from %s",
                 plugins.length(),
                 Environment.get_variable("GST_PLUGIN_PATH") ?? "(default)");
         // Check critical elements for video playback
@@ -276,9 +276,9 @@ void main(string[] args) {
             Environment.unset_variable("GTK_IM_MODULE");
         }
 
-        message("Initializing GTK…");
+        debug("Initializing GTK…");
         Gtk.init();
-        message("GTK initialized");
+        debug("GTK initialized");
         
         // Ensure custom widget types are registered before loading templates that use them
         typeof(Dino.Ui.SizeRequestBox).ensure();
@@ -295,24 +295,24 @@ void main(string[] args) {
             string icon_path = Path.build_filename(exe_dir, "share", "icons");
             if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
                  icon_theme.add_search_path(icon_path);
-                 message("Added icon search path: %s", icon_path);
+                 debug("Added icon search path: %s", icon_path);
             } else {
                  icon_path = Path.build_filename(exe_dir, "..", "share", "icons");
                  if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
                       icon_theme.add_search_path(icon_path);
-                      message("Added icon search path: %s", icon_path);
+                      debug("Added icon search path: %s", icon_path);
                  }
             }
 
             // Register GResource icon path for bundled dino-* and custom icons.
             // Must be set EARLY — before any UI template is loaded.
             icon_theme.add_resource_path("/im/github/rallep71/DinoX/icons");
-            message("Added icon resource path: /im/github/rallep71/DinoX/icons");
+            debug("Added icon resource path: /im/github/rallep71/DinoX/icons");
 
             // Ensure icon theme name is "Adwaita" — on Windows, GTK4 might
             // default to a different theme if no desktop environment is detected.
             if (icon_theme.theme_name != "Adwaita") {
-                message("Icon theme was '%s', forcing 'Adwaita'", icon_theme.theme_name);
+                debug("Icon theme was '%s', forcing 'Adwaita'", icon_theme.theme_name);
                 icon_theme.theme_name = "Adwaita";
             }
 
@@ -350,7 +350,7 @@ void main(string[] args) {
             foreach (string path in system_ca_paths) {
                 if (FileUtils.test(path, FileTest.EXISTS)) {
                     Environment.set_variable("GTLS_SYSTEM_CA_FILE", path, true);
-                    message("Set GTLS_SYSTEM_CA_FILE to %s (system CA)", path);
+                    debug("Set GTLS_SYSTEM_CA_FILE to %s (system CA)", path);
                     break;
                 }
             }

@@ -128,7 +128,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     // Shared post-unlock / post-set-password initialization.
     // Extracted to eliminate duplication between prompt_unlock() and prompt_set_password().
     private void finish_post_unlock () {
-        message ("finish_post_unlock: starting");
+        debug ("finish_post_unlock: starting");
 
         // Prevent GApplication from quitting during the entire unlock→main
         // transition.  On GDK-Win32, window destruction can synchronously
@@ -139,7 +139,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         create_ui_actions ();
         core_ready = true;
-        message ("finish_post_unlock: core_ready=true");
+        debug ("finish_post_unlock: core_ready=true");
 
         apply_color_scheme (settings.color_scheme);
         settings.notify["color-scheme"].connect (() => {
@@ -171,9 +171,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
         stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
 
-        message ("finish_post_unlock: creating SystrayManager");
+        debug ("finish_post_unlock: creating SystrayManager");
         systray_manager = new SystrayManager (this);
-        message ("finish_post_unlock: SystrayManager created");
+        debug ("finish_post_unlock: SystrayManager created");
 
         // Auto-show certificate warning dialog when TLS cert validation fails
         stream_interactor.connection_manager.certificate_validation_required.connect ((account, peer_cert, errors) => {
@@ -192,17 +192,17 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
 
         // Create the MainWindow while unlock_parent is still alive.
-        message ("finish_post_unlock: pending_activate=%s", pending_activate.to_string ());
+        debug ("finish_post_unlock: pending_activate=%s", pending_activate.to_string ());
         if (pending_activate) {
             pending_activate = false;
-            message ("finish_post_unlock: calling activate()");
+            debug ("finish_post_unlock: calling activate()");
             activate ();
-            message ("finish_post_unlock: activate() returned, window=%s",
+            debug ("finish_post_unlock: activate() returned, window=%s",
                      (window != null).to_string ());
         }
 
         if (unlock_parent != null) {
-            message ("finish_post_unlock: closing unlock_parent");
+            debug ("finish_post_unlock: closing unlock_parent");
             unlock_parent.close ();
             unlock_parent = null;
         }
@@ -224,7 +224,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             });
         }
 
-        message ("finish_post_unlock: done — releasing hold");
+        debug ("finish_post_unlock: done — releasing hold");
         this.release ();
     }
 
@@ -537,7 +537,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 // 1) Add the top-level icons dir (contains hicolor/ and Adwaita/)
                 if (FileUtils.test(icon_base, FileTest.IS_DIR)) {
                     icon_theme.add_search_path(icon_base);
-                    message("startup: Added icon search path: %s", icon_base);
+                    debug("startup: Added icon search path: %s", icon_base);
                 } else {
                     warning("startup: Icon directory NOT FOUND: %s", icon_base);
                 }
@@ -546,12 +546,12 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 // GTK4 should do this automatically via resource_base_path, but on
                 // Windows the auto-discovery can fail (display timing, theme issues).
                 icon_theme.add_resource_path("/im/github/rallep71/DinoX/icons");
-                message("startup: Added icon resource path: /im/github/rallep71/DinoX/icons");
+                debug("startup: Added icon resource path: /im/github/rallep71/DinoX/icons");
 
                 // 3) Ensure icon theme is Adwaita — GTK4 on Windows might
                 //    default to a different theme without a desktop environment.
                 if (icon_theme.theme_name != "Adwaita") {
-                    message("startup: Icon theme was '%s', forcing 'Adwaita'", icon_theme.theme_name);
+                    debug("startup: Icon theme was '%s', forcing 'Adwaita'", icon_theme.theme_name);
                     icon_theme.theme_name = "Adwaita";
                 }
 
@@ -575,18 +575,18 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                         warning("startup: Icon '%s' — NOT FOUND (will be invisible in UI!)", icon_name);
                     }
                 }
-                message("startup: Icon verification: %d/%d icons found", found_count, test_icons.length);
+                debug("startup: Icon verification: %d/%d icons found", found_count, test_icons.length);
 
                 // Log icon theme state for debugging
-                message("startup: Icon theme name: %s", icon_theme.theme_name);
+                debug("startup: Icon theme name: %s", icon_theme.theme_name);
                 string[] search_paths = icon_theme.get_search_path();
                 foreach (string sp in search_paths) {
-                    message("startup: Icon search path: %s", sp);
+                    debug("startup: Icon search path: %s", sp);
                 }
                 string[] resource_paths = icon_theme.get_resource_path();
                 if (resource_paths != null) {
                     foreach (string rp in resource_paths) {
-                        message("startup: Icon resource path: %s", rp);
+                        debug("startup: Icon resource path: %s", rp);
                     }
                 }
 
@@ -594,7 +594,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 foreach (string sp in search_paths) {
                     string adwaita_index = Path.build_filename(sp, "Adwaita", "index.theme");
                     if (FileUtils.test(adwaita_index, FileTest.EXISTS)) {
-                        message("startup: Found Adwaita index.theme: %s", adwaita_index);
+                        debug("startup: Found Adwaita index.theme: %s", adwaita_index);
                     }
                 }
             }
@@ -613,19 +613,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
 
         activate.connect (() => {
-            message ("activate handler: core_ready=%s, window=%s",
+            debug ("activate handler: core_ready=%s, window=%s",
                      core_ready.to_string (), (window != null).to_string ());
             if (!core_ready) {
                 pending_activate = true;
-                message ("activate handler: deferred (pending_activate=true)");
+                debug ("activate handler: deferred (pending_activate=true)");
                 return;
             }
             if (window == null) {
-                message ("activate handler: creating MainWindow");
+                debug ("activate handler: creating MainWindow");
                 controller = new MainWindowController (this, stream_interactor, db);
                 config = new Config (db);
                 window = new MainWindow (this, stream_interactor, db, config);
-                message ("activate handler: MainWindow created");
+                debug ("activate handler: MainWindow created");
                 controller.set_window (window);
                 // Always enable hide_on_close - we'll control quit behavior in close_request handler
                 window.hide_on_close = true;

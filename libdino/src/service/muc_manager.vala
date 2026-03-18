@@ -97,7 +97,7 @@ public class MucManager : StreamInteractionModule, Object {
         EntityInfo entity_info = stream_interactor.get_module<EntityInfo>(EntityInfo.IDENTITY);
         int64 t_mam_start = GLib.get_monotonic_time();
         bool can_do_mam = yield entity_info.has_feature(account, jid, Xmpp.MessageArchiveManagement.NS_URI);
-        message("MUC join [%s]: MAM check took %" + int64.FORMAT + " ms (result=%s)",
+        debug("MUC join [%s]: MAM check took %" + int64.FORMAT + " ms (result=%s)",
                 jid.to_string(), (GLib.get_monotonic_time() - t_mam_start) / 1000, can_do_mam.to_string());
         if (can_do_mam) {
             receive_history = false;
@@ -111,7 +111,7 @@ public class MucManager : StreamInteractionModule, Object {
 
         int64 t_enter_start = GLib.get_monotonic_time();
         Muc.JoinResult? res = yield stream.get_module<Xep.Muc.Module>(Xep.Muc.Module.IDENTITY).enter(stream, jid.bare_jid, nick_, password, history_since, receive_history, null);
-        message("MUC join [%s]: enter() took %" + int64.FORMAT + " ms",
+        debug("MUC join [%s]: enter() took %" + int64.FORMAT + " ms",
                 jid.to_string(), (GLib.get_monotonic_time() - t_enter_start) / 1000);
 
         mucs_joining[account].remove(jid);
@@ -166,7 +166,7 @@ public class MucManager : StreamInteractionModule, Object {
             warning("Failed to add MUC JID to joined list: %s", e.message);
         }
 
-        message("MUC join [%s]: total %" + int64.FORMAT + " ms (nick=%s)",
+        debug("MUC join [%s]: total %" + int64.FORMAT + " ms (nick=%s)",
                 jid.to_string(), (GLib.get_monotonic_time() - t_start) / 1000, res.nick ?? "FAILED");
         return res;
     }
