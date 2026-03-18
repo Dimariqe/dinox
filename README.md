@@ -69,6 +69,10 @@ Download the latest Windows build from [GitHub Releases](https://github.com/rall
 
 To build DinoX from source on Windows, see the build instructions: [Deutsch](docs/internal/WINDOWS_BUILD.md) | [English](docs/internal/WINDOWS_BUILD_EN.md)
 
+The first time you start it up after unpacking may take a little while; just skip the Windows warning.
+GStreamer and the necessary databases are being set up in the background; on the second start, Windows Defender will run a scan again, which also causes a slight delay, but after that Dinox will start up normally.
+The same applies if you build it yourself from the package repositories.
+
 ### Flatpak
 
 Download from [GitHub Releases](https://github.com/rallep71/dinox/releases/latest)
