@@ -8,8 +8,10 @@ public class Xmpp.StartTlsXmppStream : TlsXmppStream {
     string proxy_type;
     string? proxy_host;
     uint16 proxy_port;
+    string? proxy_user;
+    string? proxy_pass;
 
-    public StartTlsXmppStream(Jid remote, string host, uint16 port, TlsXmppStream.OnInvalidCertWrapper on_invalid_cert, string proxy_type = "none", string? proxy_host = null, uint16 proxy_port = 0) {
+    public StartTlsXmppStream(Jid remote, string host, uint16 port, TlsXmppStream.OnInvalidCertWrapper on_invalid_cert, string proxy_type = "none", string? proxy_host = null, uint16 proxy_port = 0, string? proxy_user = null, string? proxy_pass = null) {
         base(remote);
         this.host = host;
         this.port = port;
@@ -17,6 +19,8 @@ public class Xmpp.StartTlsXmppStream : TlsXmppStream {
         this.proxy_type = proxy_type;
         this.proxy_host = proxy_host;
         this.proxy_port = proxy_port;
+        this.proxy_user = proxy_user;
+        this.proxy_pass = proxy_pass;
     }
 
     public override async void connect() throws IOError {
@@ -26,23 +30,31 @@ public class Xmpp.StartTlsXmppStream : TlsXmppStream {
                 string uri = "";
                 if (proxy_type == "tor") {
                     string h = (proxy_host != null && proxy_host != "") ? proxy_host : "127.0.0.1";
+                    if (":" in h) h = "[" + h + "]";
                     uint16 p = (proxy_port > 0) ? proxy_port : 9050;
-                    // Use socks5:// - GLib Networking should handle remote DNS with SOCKS5
                     uri = "socks5://%s:%u".printf(h, p);
                 } else if (proxy_type == "socks5") {
-                    if (proxy_host != null && proxy_host != "") {
-                        uri = "socks5://%s:%u".printf(proxy_host, proxy_port);
+                    if (proxy_host != null && proxy_host != "" && proxy_port > 0) {
+                        string h = proxy_host;
+                        if (":" in h) h = "[" + h + "]";
+                        if (proxy_user != null && proxy_user != "") {
+                            string encoded_user = Uri.escape_string(proxy_user, null, false);
+                            string encoded_pass = (proxy_pass != null && proxy_pass != "") ? Uri.escape_string(proxy_pass, null, false) : "";
+                            uri = "socks5://%s:%s@%s:%u".printf(encoded_user, encoded_pass, h, proxy_port);
+                        } else {
+                            uri = "socks5://%s:%u".printf(h, proxy_port);
+                        }
                     }
                 }
                 
                 if (uri != "") {
-                    debug("Setting Proxy Resolver to %s", uri);
+                    GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "STARTTLS: proxy socks5://%s:%u (auth=%s)", proxy_host ?? "?", proxy_port, (proxy_user != null && proxy_user != "") ? "yes" : "no");
                     client.set_proxy_resolver(new SimpleProxyResolver(uri, null));
                 } else {
-                    debug("Proxy URI was empty despite proxy_type being set!");
+                    throw new IOError.INVALID_ARGUMENT("SOCKS5 proxy is enabled but proxy host is not configured — refusing to connect without proxy");
                 }
             } else {
-                debug("No proxy configured (proxy_type=none)");
+                GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "STARTTLS: no proxy configured");
             }
 
             debug("Connecting to %s:%i (starttls)", host, port);

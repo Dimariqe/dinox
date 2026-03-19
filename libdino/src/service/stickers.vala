@@ -65,15 +65,30 @@ public class Stickers : StreamInteractionModule, Object {
         http.abort();
     }
 
+    private void apply_account_proxy(Account account) {
+        string? uri = Dino.build_socks5_proxy_uri(account);
+        if (uri != null) {
+            http.proxy_resolver = new SimpleProxyResolver(uri, null);
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "stickers: proxy set to %s for account %s", uri, account.bare_jid.to_string());
+        } else {
+            http.proxy_resolver = ProxyResolver.get_default();
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "stickers: direct connection for account %s", account.bare_jid.to_string());
+        }
+    }
+
     private async void ensure_http_context() {
         // `get_thread_default()` may be null even while running on the default main
-        // context. `invoke()` executes callbacks immediately if the context is already
-        // owned by the current thread; using `is_owner()` avoids re-entrant recursion.
+        // context. `MainContext.invoke()` may execute callbacks immediately in some
+        // situations; if that happens before we reach `yield`, it can cause re-entrant
+        // recursion in Vala async state machines. Use an explicit Source attached to
+        // the desired context to guarantee asynchronous resumption.
         if (http_context.is_owner()) return;
-        http_context.invoke(() => {
+        var idle = new GLib.IdleSource();
+        idle.set_callback(() => {
             ensure_http_context.callback();
-            return false;
+            return GLib.Source.REMOVE;
         });
+        idle.attach(http_context);
         yield;
     }
 
@@ -331,7 +346,7 @@ public class Stickers : StreamInteractionModule, Object {
                 string local_path = Path.build_filename(pack_dir, file_name);
 
                 try {
-                    yield download_to_file(item.source_url, local_path);
+                    yield download_to_file(item.source_url, local_path, account);
                     item.local_path = local_path;
                     maybe_generate_thumbnail(pack_id, item);
                 } catch (Error e) {
@@ -433,8 +448,9 @@ public class Stickers : StreamInteractionModule, Object {
         }
     }
 
-    private async void download_to_file(string url, string dest_path) throws Error {
+    private async void download_to_file(string url, string dest_path, Account? account = null) throws Error {
         yield ensure_http_context();
+        if (account != null) apply_account_proxy(account);
         /* Validate URL before passing to libsoup — Soup.Message()
          * returns null for unparseable URIs, causing a crash. */
         try {
@@ -620,7 +636,7 @@ public class Stickers : StreamInteractionModule, Object {
             string? ct = (it.media_type != null && it.media_type != "") ? it.media_type : "application/octet-stream";
             var slot = yield upload.request_slot(stream, filename, size, ct);
 
-            yield upload_file_to_slot(slot.url_put, slot.headers, temp_file, ct, size, account.domainpart);
+            yield upload_file_to_slot(slot.url_put, slot.headers, temp_file, ct, size, account.domainpart, account);
 
             try { temp_file.delete(null); } catch (Error e) { }
 
@@ -671,8 +687,9 @@ public class Stickers : StreamInteractionModule, Object {
         return @"xmpp:$(my_jid.to_string())?pubsub;action=retrieve;node=$(node_enc);item=$(item_enc)";
     }
 
-    private async void upload_file_to_slot(string url_put, Gee.Map<string, string>? headers, File file, string? content_type, int64 size, string cert_domain) throws Error {
+    private async void upload_file_to_slot(string url_put, Gee.Map<string, string>? headers, File file, string? content_type, int64 size, string cert_domain, Account? account = null) throws Error {
         yield ensure_http_context();
+        if (account != null) apply_account_proxy(account);
         /* Validate URL before passing to libsoup */
         try {
             Uri.parse(url_put, UriFlags.NONE);

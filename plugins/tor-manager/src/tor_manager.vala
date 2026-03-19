@@ -52,23 +52,38 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
             restore_state();
         }
 
+        private bool is_standalone_socks5(Account account) {
+            // A standalone SOCKS5 proxy points to a real external server,
+            // not Tor's own address (127.0.0.1 on a Tor port).
+            if (account.proxy_type != "socks5") return false;
+            string h = account.proxy_host ?? "";
+            int p = account.proxy_port;
+            bool is_localhost = (h == "127.0.0.1" || h == "localhost" || h == "::1");
+            bool is_tor_port = (p == 9050 || p == 9150 || (p >= 9100 && p <= 9200));
+            if (is_localhost && is_tor_port) {
+                // Points to Tor's own proxy — leftover from old code, not standalone
+                return false;
+            }
+            return true;
+        }
+
         private void on_account_added(Account account) {
             if (is_enabled) {
+                // Skip accounts with a real standalone SOCKS5 proxy
+                if (is_standalone_socks5(account)) {
+                    debug("TorManager: New account %s has standalone SOCKS5 proxy, not overriding with Tor",
+                           account.bare_jid.to_string());
+                    return;
+                }
+
                 // Always set proxy settings so the first connection attempt goes through Tor.
                 // If Tor isn't ready yet, the connection will fail and retry.
                 int port = controller.socks_port;
                 debug("TorManager: New account added (%s). Setting proxy to 127.0.0.1:%d (Tor running: %s)",
                        account.bare_jid.to_string(), port, controller.is_running.to_string());
-                account.proxy_type = "socks5";
+                account.proxy_type = "tor";
                 account.proxy_host = "127.0.0.1";
                 account.proxy_port = port;
-                
-                db.account.update()
-                        .set(db.account.proxy_type, "socks5")
-                        .set(db.account.proxy_host, "127.0.0.1")
-                        .set(db.account.proxy_port, port)
-                        .with(db.account.id, "=", account.id)
-                        .perform();
             }
         }
 
@@ -115,6 +130,33 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
                         .perform();
             }
 
+            // One-time migration: old code used proxy_type="socks5" + localhost for Tor.
+            // New code uses proxy_type="tor". Migrate old entries so cleanup works correctly.
+            bool migration_done = db.settings.select().with(db.settings.key, "=", "tor_socks5_migration_done").count() > 0;
+            if (!migration_done) {
+                foreach (var mig_row in db.account.select()) {
+                    string mig_type = mig_row[db.account.proxy_type];
+                    if (mig_type == "socks5") {
+                        string mig_host = mig_row[db.account.proxy_host] ?? "";
+                        int mig_port = mig_row[db.account.proxy_port];
+                        bool is_localhost = (mig_host == "127.0.0.1" || mig_host == "localhost" || mig_host == "::1");
+                        bool is_tor_port = (mig_port == 9050 || mig_port == 9150 || (mig_port >= 9100 && mig_port <= 9200));
+                        if (is_localhost && is_tor_port) {
+                            debug("TorManager: Migrating old socks5+localhost to 'tor' for account ID %d", mig_row[db.account.id]);
+                            db.account.update()
+                                .set(db.account.proxy_type, "tor")
+                                .with(db.account.id, "=", mig_row[db.account.id])
+                                .perform();
+                        }
+                    }
+                }
+                db.settings.upsert()
+                    .value(db.settings.key, "tor_socks5_migration_done", true)
+                    .value(db.settings.value, "true")
+                    .perform();
+                debug("TorManager: socks5→tor migration completed and flagged.");
+            }
+
             if (is_enabled) {
                 debug("TorManager: state is ENABLED. Starting Tor...");
                 is_starting_up = true;
@@ -131,34 +173,23 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
 
 
         private async void cleanup_lingering_proxies() {
-            // 1. Collect targets first to avoid DB locking/iterator invalidation during updates
-            //    Only clear SOCKS5 proxies that point to localhost (Tor-managed).
-            //    Manual SOCKS5 proxies (external hosts) must be preserved.
+            // 1. Collect targets: only clear proxy_type="tor" (set by TorManager).
+            //    User-configured "socks5" proxies (including those on localhost) are NEVER touched.
             var targets = new Gee.ArrayList<int>();
             
             foreach (var row in db.account.select()) {
                 string ptype = row[db.account.proxy_type];
-                if (ptype == "socks5") {
-                    string phost = row[db.account.proxy_host] ?? "";
-                    if (phost == "127.0.0.1" || phost == "localhost" || phost == "::1" || phost == "") {
-                        targets.add(row[db.account.id]);
-                    }
+                if (ptype == "tor") {
+                    targets.add(row[db.account.id]);
                 }
             }
 
             // 2. Remediate targets
             foreach (int id_val in targets) {
-                    debug("TorManager: cleanup_lingering_proxies - Found lingering SOCKS5 on account ID %d. Remediating...", id_val);
-                    
-                // Fix DB
-                db.account.update()
-                    .set(db.account.proxy_type, "none")
-                    .set(db.account.proxy_host, "")
-                    .set(db.account.proxy_port, 0)
-                    .with(db.account.id, "=", id_val)
-                    .perform();
+                    debug("TorManager: cleanup_lingering_proxies - Found lingering Tor proxy on account ID %d. Remediating...", id_val);
 
-                // Fix RAM / Active Connections
+                // Fix RAM / Active Connections (property setters persist to DB via on_update)
+                bool found_in_ram = false;
                 if (stream_interactor != null) {
                     var accounts = stream_interactor.get_accounts();
                     foreach (var account in accounts) {
@@ -167,9 +198,19 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
                             account.proxy_type = "none";
                             account.proxy_host = "";
                             account.proxy_port = 0;
+                            found_in_ram = true;
                             yield reconnect_account(account);
                         }
                     }
+                }
+                // Account not loaded in RAM (e.g. disabled) — update DB directly
+                if (!found_in_ram) {
+                    db.account.update()
+                        .set(db.account.proxy_type, "none")
+                        .set(db.account.proxy_host, "")
+                        .set(db.account.proxy_port, 0)
+                        .with(db.account.id, "=", id_val)
+                        .perform();
                 }
             }
         }
@@ -314,6 +355,13 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
                 return;
             }
 
+            // Persist SOCKS port so UI and other components can read it
+            db.settings.upsert()
+                .value(db.settings.key, "tor_socks_port", true)
+                .value(db.settings.value, controller.socks_port.to_string())
+                .perform();
+            debug("TorManager: Stored tor_socks_port=%d in DB", controller.socks_port);
+
             if (apply_proxy) {
                 // Wait for Tor to fully bootstrap before applying proxy settings.
                 // Otherwise, XMPP connections attempt to use the SOCKS5 proxy before
@@ -374,16 +422,18 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
         }
 
         public async void stop_tor(bool remove_proxy = false) {
-            controller.stop();
             retry_count = 0;  // Reset for next enable cycle
 
-            // ALWAYS try to remove proxy if requested, even if we think it's stopped
             if (remove_proxy) {
-                // Ensure the database and RAM are consistent with "Tor OFF"
-                // This prevents "Zombie connection" where proxy is ON but Tor is dead
-                debug("TorManager: stop_tor calling cleanup_lingering_proxies() to fix RAM/DB mismatch.");
+                // Disconnect streams FIRST while Tor tunnel is still alive,
+                // so </stream:stream> can be sent through the SOCKS5 proxy.
+                // Then clear DB/RAM proxy settings and reconnect without proxy.
+                debug("TorManager: stop_tor — disconnecting streams before killing Tor.");
                 yield cleanup_lingering_proxies();
             }
+
+            // Kill Tor AFTER streams are cleanly disconnected
+            controller.stop();
         }
 
         public void apply_proxy_to_accounts(bool enable_tor) {
@@ -392,18 +442,16 @@ webtunnel 192.95.36.142:443 CDF2E852BF539B82BC10E27E9115A342BCFE8D62 url=https:/
                 var accounts = stream_interactor.get_accounts();
                 debug("TorManager: ENABLE sequence - Found %d managed accounts. Applying Port: %d", accounts.size, controller.socks_port);
                 foreach (var account in accounts) {
+                    // Skip accounts with a real standalone SOCKS5 proxy
+                    if (is_standalone_socks5(account)) {
+                        debug("TorManager: Skipping %s — has standalone SOCKS5 proxy", account.bare_jid.to_string());
+                        continue;
+                    }
+
                     bool port_changed = (account.proxy_port != controller.socks_port);
                     
-                    // 1. Update DB to persist settings
-                    db.account.update()
-                        .set(db.account.proxy_type, "socks5")
-                        .set(db.account.proxy_host, "127.0.0.1")
-                        .set(db.account.proxy_port, controller.socks_port)
-                        .with(db.account.id, "=", account.id)
-                        .perform();
-
-                    // 2. Update RAM object
-                    account.proxy_type = "socks5";
+                    // Update RAM object (property setters persist to DB via on_update)
+                    account.proxy_type = "tor";
                     account.proxy_host = "127.0.0.1";
                     account.proxy_port = controller.socks_port;
                     

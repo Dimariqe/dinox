@@ -107,6 +107,9 @@ namespace Mosquitto {
 
         [CCode (cname = "mosquitto_int_option")]
         public int int_option(Option option, int value);
+
+        [CCode (cname = "mosquitto_socks5_set")]
+        public int socks5_set(string? host, int port = 1080, string? username = null, string? password = null);
     }
 
     /* ── Callback delegates ────────────────────────────────────── */

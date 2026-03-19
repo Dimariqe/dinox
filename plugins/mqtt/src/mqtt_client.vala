@@ -63,6 +63,13 @@ public class MqttClient : Object {
     private string? broker_password = null;
     private bool initial_connect_done = false;
 
+    /* Proxy settings for SOCKS5/Tor */
+    private string? broker_proxy_type = null;
+    private string? broker_proxy_host = null;
+    private int broker_proxy_port = 0;
+    private string? broker_proxy_user = null;
+    private string? broker_proxy_pass = null;
+
     /* Topics to re-subscribe after reconnect */
     private Gee.HashMap<string, int> subscribed_topics =
         new Gee.HashMap<string, int>();
@@ -127,7 +134,12 @@ public class MqttClient : Object {
     public async bool connect_async(string host, int port = 1883,
                                     bool use_tls = false,
                                     string? username = null,
-                                    string? password = null) {
+                                    string? password = null,
+                                    string? proxy_type = null,
+                                    string? proxy_host = null,
+                                    int proxy_port = 0,
+                                    string? proxy_user = null,
+                                    string? proxy_pass = null) {
         if (is_connected) {
             debug("MQTT: Already connected to %s:%d", broker_host, broker_port);
             return true;
@@ -139,6 +151,11 @@ public class MqttClient : Object {
         broker_use_tls = use_tls;
         broker_username = username;
         broker_password = password;
+        broker_proxy_type = proxy_type;
+        broker_proxy_host = proxy_host;
+        broker_proxy_port = proxy_port;
+        broker_proxy_user = proxy_user;
+        broker_proxy_pass = proxy_pass;
 
         /* Create mosquitto client — pass instance_id as userdata for
          * C callback dispatch (supports multiple MqttClient instances) */
@@ -235,6 +252,22 @@ public class MqttClient : Object {
         mosq.int_option(Mosquitto.Option.PROTOCOL_VERSION,
                          Mosquitto.PROTOCOL_V5);
         mosq.message_v5_callback_set(on_message_v5_cb);
+
+        /* SOCKS5 proxy — must be set before connect */
+        if (proxy_type == "socks5" || proxy_type == "tor") {
+            string ph = (proxy_host != null && proxy_host != "") ? proxy_host : "127.0.0.1";
+            int pp = (proxy_port > 0) ? proxy_port : (proxy_type == "tor" ? 9050 : 1080);
+            int socks_rc = mosq.socks5_set(ph, pp,
+                                            (proxy_user != null && proxy_user != "") ? proxy_user : null,
+                                            (proxy_pass != null && proxy_pass != "") ? proxy_pass : null);
+            if (socks_rc != Mosquitto.Error.SUCCESS) {
+                warning("MQTT: socks5_set(%s:%d) failed rc=%d", ph, pp, socks_rc);
+            } else {
+                GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG,
+                         "MQTT: proxy socks5://%s:%d (auth=%s)", ph, pp,
+                         (proxy_user != null && proxy_user != "") ? "yes" : "no");
+            }
+        }
 
         /* ---------- TCP connect in background thread ---------- */
         int tcp_rc = Mosquitto.Error.UNKNOWN;

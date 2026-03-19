@@ -1296,7 +1296,10 @@ public class Plugin : RootInterface, Object {
          * for the dialog status display to work. */
         account_clients[jid] = client;
 
-        bool ok = yield client.connect_async(host, port, tls, user, pass);
+        bool ok = yield client.connect_async(host, port, tls, user, pass,
+                                              account.proxy_type, account.proxy_host,
+                                              account.proxy_port, account.proxy_user,
+                                              account.proxy_pass);
 
         if (!ok) {
             warning("MQTT: Per-account connect failed for %s (host=%s port=%d)",

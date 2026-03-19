@@ -209,8 +209,10 @@ public class ConnectionManager : Object {
     public async void disconnect_account(Account account) {
         if (connections.has_key(account)) {
             make_offline(account);
-            connections[account].disconnect_account.begin();
+            yield connections[account].disconnect_account();
             connections.unset(account);
+            connection_ongoing.unset(account);
+            connection_directly_retry.unset(account);
         }
     }
 
@@ -218,12 +220,45 @@ public class ConnectionManager : Object {
      * Close all XMPP connections without removing account state.
      * Used during application shutdown to cleanly close sockets without
      * triggering account_removed (which would wipe OMEMO identity data).
+     * Waits synchronously (up to 3 s) for all streams to send
+     * </stream:stream> and close their sockets.
      */
     public void disconnect_all() {
-        foreach (Account account in connections.keys) {
+        var accounts_list = new ArrayList<Account>();
+        accounts_list.add_all(connections.keys);
+
+        foreach (Account account in accounts_list) {
             make_offline(account);
-            connections[account].disconnect_account.begin();
         }
+
+        if (accounts_list.size == 0) {
+            connections.clear();
+            return;
+        }
+
+        int pending = accounts_list.size;
+        var loop = new MainLoop(MainContext.@default(), false);
+
+        foreach (Account account in accounts_list) {
+            if (!connections.has_key(account)) {
+                pending--;
+                continue;
+            }
+            connections[account].disconnect_account.begin((obj, res) => {
+                pending--;
+                if (pending <= 0 && loop.is_running()) loop.quit();
+            });
+        }
+
+        if (pending > 0) {
+            Timeout.add(3000, () => {
+                debug("disconnect_all: timeout reached, proceeding with shutdown");
+                if (loop.is_running()) loop.quit();
+                return Source.REMOVE;
+            });
+            loop.run();
+        }
+
         connections.clear();
     }
 
@@ -258,7 +293,8 @@ public class ConnectionManager : Object {
             stream_result = yield Xmpp.establish_stream(account.bare_jid, module_manager.get_modules(account), log_options,
                     (peer_cert, errors) => { return on_invalid_certificate_for_account(account, peer_cert, errors); },
                     account.custom_host, custom_port,
-                    account.proxy_type, account.proxy_host, proxy_port
+                    account.proxy_type, account.proxy_host, proxy_port,
+                    account.proxy_user, account.proxy_pass
             );
 
             // Check if our connection was replaced (e.g. Tor disabled → reconnect)

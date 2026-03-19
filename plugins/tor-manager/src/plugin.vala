@@ -22,7 +22,19 @@ namespace Dino.Plugins.TorManager {
             if (tor_manager != null) {
                 // IMPORTANT: Tell TorManager we are shutting down so it doesn't trigger "process exited" signals that disable the setting
                 tor_manager.prepare_shutdown();
-                tor_manager.stop_tor.begin();
+
+                var loop = new MainLoop(MainContext.@default(), false);
+                tor_manager.stop_tor.begin(false, (obj, res) => {
+                    tor_manager.stop_tor.end(res);
+                    if (loop.is_running()) loop.quit();
+                });
+                Timeout.add(3000, () => {
+                    debug("TorManager plugin shutdown: timeout reached");
+                    if (loop.is_running()) loop.quit();
+                    return Source.REMOVE;
+                });
+                loop.run();
+
                 tor_manager = null;
             }
             indicator = null;

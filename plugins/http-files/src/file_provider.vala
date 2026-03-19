@@ -45,6 +45,17 @@ public class FileProvider : Dino.FileProvider, Object {
         session.abort();
     }
 
+    private void apply_account_proxy(Account account) {
+        string? uri = Dino.build_socks5_proxy_uri(account);
+        if (uri != null) {
+            session.proxy_resolver = new SimpleProxyResolver(uri, null);
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "http-download: proxy set to %s for account %s", uri, account.bare_jid.to_string());
+        } else {
+            session.proxy_resolver = ProxyResolver.get_default();
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "http-download: direct connection for account %s", account.bare_jid.to_string());
+        }
+    }
+
     private async void ensure_soup_context() {
         // `get_thread_default()` may be null even while running on the default main
         // context. `MainContext.invoke()` may execute callbacks immediately in some
@@ -105,7 +116,7 @@ public class FileProvider : Dino.FileProvider, Object {
                 // sent by other clients (Gajim, Monal, Conversations, etc.) rather
                 // than file transfers.  Do a HEAD request to check Content-Type.
                 if (from_body_only && normal_file) {
-                    bool is_webpage = yield outer.check_is_webpage(url_candidate);
+                    bool is_webpage = yield outer.check_is_webpage(url_candidate, conversation.account);
                     if (is_webpage) {
                         debug("http-files: body-only URL is a webpage, treating as text message: %s",
                               FileProvider.sanitize_for_log(url_candidate));
@@ -157,7 +168,7 @@ public class FileProvider : Dino.FileProvider, Object {
      * Returns true if Content-Type is text/html or application/xhtml+xml.
      * Returns false on error or any other Content-Type (assume downloadable file).
      */
-    public async bool check_is_webpage(string url) {
+    public async bool check_is_webpage(string url, Account? account = null) {
         try {
             Uri.parse(url, UriFlags.NONE);
         } catch (Error e) {
@@ -165,6 +176,7 @@ public class FileProvider : Dino.FileProvider, Object {
         }
 
         yield ensure_soup_context();
+        if (account != null) apply_account_proxy(account);
 
         var head_message = new Soup.Message("HEAD", url);
         head_message.request_headers.append("Accept-Encoding", "identity");
@@ -222,6 +234,7 @@ public class FileProvider : Dino.FileProvider, Object {
         }
 
         yield ensure_soup_context();
+        apply_account_proxy(file_transfer.account);
 
         var head_message = new Soup.Message("HEAD", http_receive_data.url);
         head_message.request_headers.append("Accept-Encoding", "identity");
@@ -244,7 +257,7 @@ public class FileProvider : Dino.FileProvider, Object {
             yield session.send_async(head_message, null);
 #endif
         } catch (Error e) {
-            throw new FileReceiveError.GET_METADATA_FAILED("HEAD request failed");
+            throw new FileReceiveError.GET_METADATA_FAILED("HEAD request failed: %s".printf(e.message));
         }
 
         uint head_status = head_message.status_code;
@@ -294,6 +307,7 @@ public class FileProvider : Dino.FileProvider, Object {
         }
 
         yield ensure_soup_context();
+        apply_account_proxy(file_transfer.account);
 
         var get_message = new Soup.Message("GET", http_receive_data.url);
 

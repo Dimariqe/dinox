@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-14 19:29+0100\n"
+"POT-Creation-Date: 2026-03-19 03:29+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,22 +42,22 @@ msgstr ""
 msgid "Delete Group"
 msgstr ""
 
-#: main/data/call_widget.ui:73 main/src/ui/notifier_freedesktop.vala:125
-#: main/src/ui/notifier_freedesktop.vala:232
+#: main/data/call_widget.ui:73 main/src/ui/notifier_freedesktop.vala:132
+#: main/src/ui/notifier_freedesktop.vala:243
 #: main/src/ui/notifier_gnotifications.vala:82
 msgid "Reject"
 msgstr ""
 
 #: main/data/call_widget.ui:81
 #: main/src/ui/conversation_content_view/subscription_notification.vala:80
-#: main/src/ui/notifier_freedesktop.vala:125
-#: main/src/ui/notifier_freedesktop.vala:166
-#: main/src/ui/notifier_freedesktop.vala:232
-#: main/src/ui/notifier_freedesktop.vala:266
+#: main/src/ui/notifier_freedesktop.vala:132
+#: main/src/ui/notifier_freedesktop.vala:173
+#: main/src/ui/notifier_freedesktop.vala:243
+#: main/src/ui/notifier_freedesktop.vala:277
 #: main/src/ui/notifier_gnotifications.vala:83
 #: main/src/ui/notifier_gnotifications.vala:101
-#: main/src/ui/notifier_gnotifications.vala:141
-#: main/src/ui/notifier_gnotifications.vala:159
+#: main/src/ui/notifier_gnotifications.vala:145
+#: main/src/ui/notifier_gnotifications.vala:163
 msgid "Accept"
 msgstr ""
 
@@ -125,7 +125,7 @@ msgstr ""
 #: main/data/gtk/help-overlay.ui:20 main/data/main_window.ui:52
 #: main/data/menu_add.ui:11
 #: main/src/ui/add_conversation/add_conference_dialog.vala:25
-#: main/src/ui/application.vala:2416 main/src/ui/main_window.vala:175
+#: main/src/ui/application.vala:2552 main/src/ui/main_window.vala:175
 msgid "Join Group"
 msgstr ""
 
@@ -186,7 +186,7 @@ msgstr ""
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: main/data/menu_app.ui:15 main/src/ui/application.vala:1267
+#: main/data/menu_app.ui:15 main/src/ui/application.vala:1387
 msgid "About DinoX"
 msgstr ""
 
@@ -205,11 +205,11 @@ msgstr ""
 #: main/data/preferences_window/change_password_dialog.ui:18
 #: main/src/ui/add_conversation/add_conference_dialog.vala:44
 #: main/src/ui/add_conversation/select_contact_dialog.vala:43
-#: main/src/ui/application.vala:1114 main/src/ui/application.vala:1197
-#: main/src/ui/application.vala:1368 main/src/ui/application.vala:1396
-#: main/src/ui/application.vala:1747 main/src/ui/application.vala:1849
-#: main/src/ui/application.vala:1922 main/src/ui/application.vala:1954
-#: main/src/ui/application.vala:2096 main/src/ui/application.vala:2427
+#: main/src/ui/application.vala:1234 main/src/ui/application.vala:1317
+#: main/src/ui/application.vala:1488 main/src/ui/application.vala:1516
+#: main/src/ui/application.vala:1845 main/src/ui/application.vala:1947
+#: main/src/ui/application.vala:2047 main/src/ui/application.vala:2079
+#: main/src/ui/application.vala:2239 main/src/ui/application.vala:2563
 #: main/src/ui/conversation_content_view/file_default_widget.vala:94
 #: main/src/ui/conversation_content_view/item_actions.vala:148
 #: main/src/ui/conversation_content_view/item_actions.vala:151
@@ -226,9 +226,9 @@ msgstr ""
 #: main/src/ui/conversation_view_controller.vala:473
 #: main/src/ui/util/helper.vala:534
 #: main/src/windows/conversation_details.vala:62
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:120
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:135
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:484
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:126
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:141
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:569
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:212
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:232
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:256
@@ -253,8 +253,8 @@ msgid "Local alias"
 msgstr ""
 
 #: main/data/preferences_window/account_preferences_subpage.ui:82
-#: main/src/ui/application.vala:558 main/src/ui/application.vala:640
-#: main/src/ui/application.vala:1362 main/src/ui/application.vala:2071
+#: main/src/ui/application.vala:678 main/src/ui/application.vala:760
+#: main/src/ui/application.vala:1482 main/src/ui/application.vala:2214
 #: main/src/ui/util/data_forms.vala:63 plugins/mqtt/src/settings_page.vala:206
 msgid "Password"
 msgstr ""
@@ -359,7 +359,6 @@ msgid "Other"
 msgstr ""
 
 #: main/data/preferences_window/account_preferences_subpage.ui:215
-#: main/data/preferences_window/account_preferences_subpage.ui:327
 #: main/src/ui/chat_input/sticker_chooser.vala:401
 #: main/src/ui/chat_input/sticker_chooser.vala:461
 #: main/src/ui/chat_input/sticker_chooser.vala:466
@@ -459,59 +458,76 @@ msgid "Server Hostname"
 msgstr ""
 
 #: main/data/preferences_window/account_preferences_subpage.ui:323
-msgid "Proxy Type"
-msgstr ""
-
-#: main/data/preferences_window/account_preferences_subpage.ui:328
-msgid "SOCKS5"
-msgstr ""
-
-#: main/data/preferences_window/account_preferences_subpage.ui:336
-msgid "Proxy Hostname"
-msgstr ""
-
-#: main/data/preferences_window/account_preferences_subpage.ui:342
-msgid "Proxy Port"
-msgstr ""
-
-#: main/data/preferences_window/account_preferences_subpage.ui:347
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:333
 #: plugins/mqtt/src/settings_page.vala:159
 msgid "Port"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:352
+#: main/data/preferences_window/account_preferences_subpage.ui:328
 msgid "MITM Protection"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:353
+#: main/data/preferences_window/account_preferences_subpage.ui:329
 msgid ""
 "Require channel binding (SCRAM-*-PLUS). Rejects login if server does not "
 "support it."
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:360
+#: main/data/preferences_window/account_preferences_subpage.ui:336
+msgid "SOCKS5 Proxy"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:339
+msgid "Enable SOCKS5 Proxy"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:344
+msgid "Proxy Hostname"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:349
+msgid "Proxy Port"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:354
+msgid "Proxy Username (optional)"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:359
+msgid "Proxy Password (optional)"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:364
+msgid "Proxy Status"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:365
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:347
+msgid "Not configured"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:372
 #: main/data/preferences_window/general_preferences_page.ui:93
 msgid "Botmother"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:363
+#: main/data/preferences_window/account_preferences_subpage.ui:375
 msgid "Manage Botmothers"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:364
+#: main/data/preferences_window/account_preferences_subpage.ui:376
 msgid "Create, configure and delete Botmothers for this account"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:377
+#: main/data/preferences_window/account_preferences_subpage.ui:389
 msgid "MQTT Bot (Account)"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:380
+#: main/data/preferences_window/account_preferences_subpage.ui:392
 msgid "Manage Account MQTT Bot"
 msgstr ""
 
-#: main/data/preferences_window/account_preferences_subpage.ui:381
+#: main/data/preferences_window/account_preferences_subpage.ui:393
 msgid ""
 "Topics, Publish Presets, Alerts and Bridges for this account's MQTT "
 "connection (separate from Standalone MQTT)"
@@ -579,7 +595,7 @@ msgid "_Language"
 msgstr ""
 
 #: main/data/preferences_window/general_preferences_page.ui:59
-#: main/src/windows/preferences_window/general_preferences_page.vala:291
+#: main/src/windows/preferences_window/general_preferences_page.vala:296
 msgid "Override the system language for the DinoX interface"
 msgstr ""
 
@@ -665,7 +681,7 @@ msgid "Create a backup of your accounts, messages and settings"
 msgstr ""
 
 #: main/data/preferences_window/general_preferences_page.ui:178
-#: main/src/ui/application.vala:1391 main/src/ui/main_window.vala:253
+#: main/src/ui/application.vala:1511 main/src/ui/main_window.vala:253
 msgid "Restore from Backup"
 msgstr ""
 
@@ -686,7 +702,7 @@ msgid "Database Maintenance"
 msgstr ""
 
 #: main/data/preferences_window/general_preferences_page.ui:207
-#: main/src/ui/application.vala:1193
+#: main/src/ui/application.vala:1313
 msgid "Change Database Password"
 msgstr ""
 
@@ -695,7 +711,7 @@ msgid "Change the password used to encrypt your local data"
 msgstr ""
 
 #: main/data/preferences_window/general_preferences_page.ui:219
-#: main/src/ui/application.vala:1743 main/src/ui/application.vala:1748
+#: main/src/ui/application.vala:1841 main/src/ui/application.vala:1846
 msgid "Clear Cache"
 msgstr ""
 
@@ -704,7 +720,7 @@ msgid "Clear cached files, avatars and previews"
 msgstr ""
 
 #: main/data/preferences_window/general_preferences_page.ui:231
-#: main/src/ui/application.vala:1844 main/src/ui/application.vala:1850
+#: main/src/ui/application.vala:1942 main/src/ui/application.vala:1948
 msgid "Reset Database"
 msgstr ""
 
@@ -713,7 +729,7 @@ msgid "Delete all messages, files and OMEMO keys. Your accounts will remain."
 msgstr ""
 
 #: main/data/preferences_window/general_preferences_page.ui:243
-#: main/src/ui/application.vala:1917
+#: main/src/ui/application.vala:2042
 msgid "Factory Reset"
 msgstr ""
 
@@ -748,7 +764,7 @@ msgstr ""
 #: main/src/ui/add_conversation/add_conference_dialog.vala:62
 #: main/src/ui/add_conversation/conference_details_fragment.vala:151
 #: main/src/ui/add_conversation/conference_details_fragment.vala:188
-#: main/src/ui/application.vala:2431
+#: main/src/ui/application.vala:2567
 msgid "Join"
 msgstr ""
 
@@ -767,7 +783,7 @@ msgstr ""
 
 #: main/src/ui/add_conversation/add_groupchat_dialog.vala:112
 #: main/src/ui/conversation_details.vala:662
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:451
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:536
 msgid "Images"
 msgstr ""
 
@@ -804,17 +820,17 @@ msgid "Too many occupants in room"
 msgstr ""
 
 #: main/src/ui/add_conversation/conference_details_fragment.vala:183
-#: main/src/ui/notifier_freedesktop.vala:190
-#: main/src/windows/preferences_window/add_account_dialog.vala:388
+#: main/src/ui/notifier_freedesktop.vala:197
+#: main/src/windows/preferences_window/add_account_dialog.vala:395
 #, c-format
 msgid "Could not connect to %s"
 msgstr ""
 
 #: main/src/ui/add_conversation/conference_details_fragment.vala:186
-#: main/src/windows/preferences_window/add_account_dialog.vala:404
-#: main/src/windows/preferences_window/add_account_dialog.vala:414
-#: main/src/windows/preferences_window/add_account_dialog.vala:424
-#: main/src/windows/preferences_window/add_account_dialog.vala:510
+#: main/src/windows/preferences_window/add_account_dialog.vala:411
+#: main/src/windows/preferences_window/add_account_dialog.vala:421
+#: main/src/windows/preferences_window/add_account_dialog.vala:431
+#: main/src/windows/preferences_window/add_account_dialog.vala:517
 msgid "Invalid address"
 msgstr ""
 
@@ -853,15 +869,15 @@ msgstr ""
 msgid "Search directory for '%s'"
 msgstr ""
 
-#: main/src/ui/application.vala:371 main/src/ui/systray.vala:288
+#: main/src/ui/application.vala:430 main/src/ui/systray.vala:299
 msgid "Quit"
 msgstr ""
 
-#: main/src/ui/application.vala:566
+#: main/src/ui/application.vala:686
 msgid "Backup Restored"
 msgstr ""
 
-#: main/src/ui/application.vala:568
+#: main/src/ui/application.vala:688
 msgid ""
 "Wrong password.\n"
 "\n"
@@ -869,7 +885,7 @@ msgid ""
 "was created."
 msgstr ""
 
-#: main/src/ui/application.vala:570
+#: main/src/ui/application.vala:690
 msgid ""
 "A backup has been restored.\n"
 "\n"
@@ -877,131 +893,131 @@ msgid ""
 "was created."
 msgstr ""
 
-#: main/src/ui/application.vala:573
+#: main/src/ui/application.vala:693
 msgid "Unlock DinoX"
 msgstr ""
 
-#: main/src/ui/application.vala:574
+#: main/src/ui/application.vala:694
 msgid "Please enter your password to open the encrypted database."
 msgstr ""
 
-#: main/src/ui/application.vala:576
+#: main/src/ui/application.vala:696
 #, c-format
 msgid "Wrong password. Attempt %d/%d"
 msgstr ""
 
-#: main/src/ui/application.vala:625
+#: main/src/ui/application.vala:745
 msgid "Unlock"
 msgstr ""
 
-#: main/src/ui/application.vala:642 main/src/ui/application.vala:2073
-#: main/src/ui/application.vala:2080
+#: main/src/ui/application.vala:762 main/src/ui/application.vala:2216
+#: main/src/ui/application.vala:2223
 msgid "Confirm Password"
 msgstr ""
 
-#: main/src/ui/application.vala:649 main/src/ui/application.vala:689
+#: main/src/ui/application.vala:769 main/src/ui/application.vala:809
 msgid "Set Password"
 msgstr ""
 
-#: main/src/ui/application.vala:650
+#: main/src/ui/application.vala:770
 msgid ""
 "On first use, you need to set a password. Without a password, DinoX cannot "
 "open the encrypted database."
 msgstr ""
 
-#: main/src/ui/application.vala:652
+#: main/src/ui/application.vala:772
 #, c-format
 msgid "Invalid password. Attempt %d/%d"
 msgstr ""
 
-#: main/src/ui/application.vala:1106
+#: main/src/ui/application.vala:1226
 msgid "Set Status Message"
 msgstr ""
 
-#: main/src/ui/application.vala:1115
+#: main/src/ui/application.vala:1235
 msgid "Set"
 msgstr ""
 
-#: main/src/ui/application.vala:1178
+#: main/src/ui/application.vala:1298
 msgid "Current Password"
 msgstr ""
 
-#: main/src/ui/application.vala:1180
+#: main/src/ui/application.vala:1300
 msgid "New Password"
 msgstr ""
 
-#: main/src/ui/application.vala:1182
+#: main/src/ui/application.vala:1302
 msgid "Confirm New Password"
 msgstr ""
 
-#: main/src/ui/application.vala:1194
+#: main/src/ui/application.vala:1314
 msgid "This password is used to encrypt your local DinoX data."
 msgstr ""
 
-#: main/src/ui/application.vala:1198
+#: main/src/ui/application.vala:1318
 msgid "Change"
 msgstr ""
 
-#: main/src/ui/application.vala:1272
+#: main/src/ui/application.vala:1392
 msgid "Modern XMPP client with extended features"
 msgstr ""
 
-#: main/src/ui/application.vala:1279 main/src/ui/application.vala:1709
+#: main/src/ui/application.vala:1399 main/src/ui/application.vala:1807
 msgid "User Data Locations"
 msgstr ""
 
-#: main/src/ui/application.vala:1282 main/src/ui/application.vala:1725
+#: main/src/ui/application.vala:1402 main/src/ui/application.vala:1823
 msgid "Data & Database:"
 msgstr ""
 
-#: main/src/ui/application.vala:1285 main/src/ui/application.vala:1723
+#: main/src/ui/application.vala:1405 main/src/ui/application.vala:1821
 #: plugins/bot-features/src/message_router.vala:1591
 msgid "Configuration:"
 msgstr ""
 
-#: main/src/ui/application.vala:1288 main/src/ui/application.vala:1727
+#: main/src/ui/application.vala:1408 main/src/ui/application.vala:1825
 msgid "Cache:"
 msgstr ""
 
-#: main/src/ui/application.vala:1291
+#: main/src/ui/application.vala:1411
 msgid "Info:"
 msgstr ""
 
-#: main/src/ui/application.vala:1292
+#: main/src/ui/application.vala:1412
 msgid ""
 "Your personal data (accounts, messages, files) is stored separately from the "
 "application."
 msgstr ""
 
-#: main/src/ui/application.vala:1294
+#: main/src/ui/application.vala:1414
 msgid "When you update DinoX, your data remains intact."
 msgstr ""
 
-#: main/src/ui/application.vala:1296
+#: main/src/ui/application.vala:1416
 msgid "Use Settings → General → Backup User Data to create a backup."
 msgstr ""
 
-#: main/src/ui/application.vala:1314
+#: main/src/ui/application.vala:1434
 msgid "Select Backup File"
 msgstr ""
 
-#: main/src/ui/application.vala:1322
+#: main/src/ui/application.vala:1442
 msgid "Backup Files (*.tar.gz, *.tar.gz.gpg)"
 msgstr ""
 
-#: main/src/ui/application.vala:1352
+#: main/src/ui/application.vala:1472
 msgid "Enter Backup Password"
 msgstr ""
 
-#: main/src/ui/application.vala:1353
+#: main/src/ui/application.vala:1473
 msgid "This backup is encrypted. Please enter the password to decrypt it."
 msgstr ""
 
-#: main/src/ui/application.vala:1369
+#: main/src/ui/application.vala:1489
 msgid "Decrypt & Restore"
 msgstr ""
 
-#: main/src/ui/application.vala:1392
+#: main/src/ui/application.vala:1512
 msgid ""
 "This will replace all current data with the backup.\n"
 "\n"
@@ -1010,63 +1026,63 @@ msgid ""
 "DinoX will restart after restoring."
 msgstr ""
 
-#: main/src/ui/application.vala:1397
+#: main/src/ui/application.vala:1517
 msgid "Restore Backup"
 msgstr ""
 
-#: main/src/ui/application.vala:1414 main/src/ui/application.vala:1447
+#: main/src/ui/application.vala:1534 main/src/ui/application.vala:1567
 msgid "Decrypting Backup…"
 msgstr ""
 
-#: main/src/ui/application.vala:1414 main/src/ui/application.vala:1513
+#: main/src/ui/application.vala:1534 main/src/ui/application.vala:1633
 msgid "Restoring Backup…"
 msgstr ""
 
-#: main/src/ui/application.vala:1415
+#: main/src/ui/application.vala:1535
 msgid "Please wait, this may take a moment…"
 msgstr ""
 
-#: main/src/ui/application.vala:1448
+#: main/src/ui/application.vala:1568
 msgid "Decrypting encrypted backup file…"
 msgstr ""
 
-#: main/src/ui/application.vala:1500
+#: main/src/ui/application.vala:1620
 msgid "Decryption Failed"
 msgstr ""
 
-#: main/src/ui/application.vala:1501
+#: main/src/ui/application.vala:1621
 msgid ""
 "Could not decrypt the backup file.\n"
 "\n"
 "Please check if the password is correct."
 msgstr ""
 
-#: main/src/ui/application.vala:1503 main/src/ui/application.vala:1653
+#: main/src/ui/application.vala:1623 main/src/ui/application.vala:1758
 #: main/src/ui/chat_input/chat_input_controller.vala:72
 #: main/src/ui/chat_input/chat_input_controller.vala:466
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:652
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:737
 #: plugins/tor-manager/src/settings_page.vala:235
 #: plugins/tor-manager/src/settings_page.vala:286
 msgid "OK"
 msgstr ""
 
-#: main/src/ui/application.vala:1514
+#: main/src/ui/application.vala:1634
 msgid "Extracting files from backup…"
 msgstr ""
 
-#: main/src/ui/application.vala:1635
+#: main/src/ui/application.vala:1740
 msgid "Restore Complete!"
 msgstr ""
 
-#: main/src/ui/application.vala:1636
+#: main/src/ui/application.vala:1741
 msgid "DinoX will now restart…"
 msgstr ""
 
-#: main/src/ui/application.vala:1650
+#: main/src/ui/application.vala:1755
 msgid "Restore Failed"
 msgstr ""
 
-#: main/src/ui/application.vala:1651
+#: main/src/ui/application.vala:1756
 #, c-format
 msgid ""
 "Could not restore the backup file.\n"
@@ -1074,18 +1090,18 @@ msgid ""
 "Error: %s"
 msgstr ""
 
-#: main/src/ui/application.vala:1651 main/src/ui/application.vala:2404
+#: main/src/ui/application.vala:1756 main/src/ui/application.vala:2540
 msgid "Unknown error"
 msgstr ""
 
-#: main/src/ui/application.vala:1729
+#: main/src/ui/application.vala:1827
 msgid ""
 "Your personal data (accounts, messages, files) is stored separately from the "
 "application. When you update DinoX, your data remains intact."
 msgstr ""
 
-#: main/src/ui/application.vala:1734 main/src/ui/application.vala:2239
-#: main/src/ui/application.vala:2383
+#: main/src/ui/application.vala:1832 main/src/ui/application.vala:2382
+#: main/src/ui/application.vala:2519
 #: main/src/ui/chat_input/sticker_chooser.vala:179
 #: main/src/ui/conversation_details.vala:362
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:678
@@ -1095,7 +1111,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: main/src/ui/application.vala:1744
+#: main/src/ui/application.vala:1842
 msgid ""
 "This will delete cached files, avatars, previews and database caches (entity "
 "discovery, roster, MAM sync state, stickers).\n"
@@ -1103,16 +1119,16 @@ msgid ""
 "All data will be re-fetched from the server when needed."
 msgstr ""
 
-#: main/src/ui/application.vala:1795
+#: main/src/ui/application.vala:1893
 #, c-format
 msgid "Cache cleared (%s freed, %d DB rows removed)"
 msgstr ""
 
-#: main/src/ui/application.vala:1798
+#: main/src/ui/application.vala:1896
 msgid "Failed to clear cache"
 msgstr ""
 
-#: main/src/ui/application.vala:1845
+#: main/src/ui/application.vala:1943
 msgid ""
 "This will delete all messages, files and OMEMO encryption keys.\n"
 "\n"
@@ -1122,11 +1138,11 @@ msgid ""
 "This action cannot be undone!"
 msgstr ""
 
-#: main/src/ui/application.vala:1876
+#: main/src/ui/application.vala:1973
 msgid "Resetting database… DinoX will restart."
 msgstr ""
 
-#: main/src/ui/application.vala:1918
+#: main/src/ui/application.vala:2043
 msgid ""
 "<b>⚠️ WARNING: This will delete ALL data!</b>\n"
 "\n"
@@ -1138,38 +1154,38 @@ msgid ""
 "This is irreversible. Make sure to create a backup first!"
 msgstr ""
 
-#: main/src/ui/application.vala:1923
+#: main/src/ui/application.vala:2048
 msgid "Create Backup First"
 msgstr ""
 
-#: main/src/ui/application.vala:1924
+#: main/src/ui/application.vala:2049
 msgid "Delete Everything"
 msgstr ""
 
-#: main/src/ui/application.vala:1944
+#: main/src/ui/application.vala:2069
 msgid "Are you absolutely sure?"
 msgstr ""
 
-#: main/src/ui/application.vala:1945
+#: main/src/ui/application.vala:2070
 msgid ""
 "Type 'DELETE' to confirm factory reset.\n"
 "\n"
 "This will permanently remove all your DinoX data."
 msgstr ""
 
-#: main/src/ui/application.vala:1955
+#: main/src/ui/application.vala:2080
 msgid "Confirm Delete"
 msgstr ""
 
-#: main/src/ui/application.vala:1982
+#: main/src/ui/application.vala:2107
 msgid "Factory reset in progress… DinoX will restart."
 msgstr ""
 
-#: main/src/ui/application.vala:2056
+#: main/src/ui/application.vala:2199
 msgid "Set Backup Password"
 msgstr ""
 
-#: main/src/ui/application.vala:2057
+#: main/src/ui/application.vala:2200
 msgid ""
 "Enter a password to encrypt the backup.\n"
 "\n"
@@ -1177,55 +1193,55 @@ msgid ""
 "restored."
 msgstr ""
 
-#: main/src/ui/application.vala:2065
+#: main/src/ui/application.vala:2208
 msgid "Password (minimum 4 characters)"
 msgstr ""
 
-#: main/src/ui/application.vala:2097
+#: main/src/ui/application.vala:2240
 msgid "Create Encrypted Backup"
 msgstr ""
 
-#: main/src/ui/application.vala:2109 main/src/ui/application.vala:2124
+#: main/src/ui/application.vala:2252 main/src/ui/application.vala:2267
 msgid "Password too short"
 msgstr ""
 
-#: main/src/ui/application.vala:2111 main/src/ui/application.vala:2126
+#: main/src/ui/application.vala:2254 main/src/ui/application.vala:2269
 msgid "Passwords do not match"
 msgstr ""
 
-#: main/src/ui/application.vala:2113 main/src/ui/application.vala:2128
+#: main/src/ui/application.vala:2256 main/src/ui/application.vala:2271
 msgid "✓ Passwords match"
 msgstr ""
 
-#: main/src/ui/application.vala:2146
+#: main/src/ui/application.vala:2289
 msgid "Select Backup Location"
 msgstr ""
 
-#: main/src/ui/application.vala:2188
+#: main/src/ui/application.vala:2331
 msgid "Creating Encrypted Backup…"
 msgstr ""
 
-#: main/src/ui/application.vala:2188
+#: main/src/ui/application.vala:2331
 msgid "Creating Backup…"
 msgstr ""
 
-#: main/src/ui/application.vala:2189
+#: main/src/ui/application.vala:2332
 msgid "Please wait while your data is being backed up."
 msgstr ""
 
-#: main/src/ui/application.vala:2233
+#: main/src/ui/application.vala:2376
 msgid "No data directory found to backup"
 msgstr ""
 
-#: main/src/ui/application.vala:2236 main/src/ui/application.vala:2402
+#: main/src/ui/application.vala:2379 main/src/ui/application.vala:2538
 msgid "Backup Failed"
 msgstr ""
 
-#: main/src/ui/application.vala:2390
+#: main/src/ui/application.vala:2526
 msgid "Encrypted Backup Created"
 msgstr ""
 
-#: main/src/ui/application.vala:2392
+#: main/src/ui/application.vala:2528
 #, c-format
 msgid ""
 "Your encrypted backup was created successfully.\n"
@@ -1233,15 +1249,15 @@ msgid ""
 "Size: %s"
 msgstr ""
 
-#: main/src/ui/application.vala:2393
+#: main/src/ui/application.vala:2529
 msgid "Your encrypted backup was created successfully."
 msgstr ""
 
-#: main/src/ui/application.vala:2395
+#: main/src/ui/application.vala:2531
 msgid "Backup Created"
 msgstr ""
 
-#: main/src/ui/application.vala:2397
+#: main/src/ui/application.vala:2533
 #, c-format
 msgid ""
 "Your backup was created successfully.\n"
@@ -1249,11 +1265,11 @@ msgid ""
 "Size: %s"
 msgstr ""
 
-#: main/src/ui/application.vala:2398
+#: main/src/ui/application.vala:2534
 msgid "Your backup was created successfully."
 msgstr ""
 
-#: main/src/ui/application.vala:2405
+#: main/src/ui/application.vala:2541
 #, c-format
 msgid "Backup failed: %s"
 msgstr ""
@@ -1290,7 +1306,7 @@ msgstr ""
 msgid "Invite"
 msgstr ""
 
-#: main/src/ui/call_window/call_window_controller.vala:689
+#: main/src/ui/call_window/call_window_controller.vala:700
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:328
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:359
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:374
@@ -1328,8 +1344,8 @@ msgid "Ringing…"
 msgstr ""
 
 #: main/src/ui/call_window/participant_widget.vala:153
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:429
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:748
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:505
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:833
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1778
 #: plugins/mqtt/src/settings_page.vala:491
 msgid "Connecting…"
@@ -1351,10 +1367,9 @@ msgstr ""
 #: main/src/ui/chat_input/chat_input_controller.vala:71
 #, c-format
 msgid ""
-"The video encoder could not be initialized: %s\n"
+"The video encoder could not be initialized:\n"
 "\n"
-"Please ensure GStreamer plugins are installed (gst-plugins-good, gst-plugins-"
-"ugly, gst-libav)."
+"%s"
 msgstr ""
 
 #: main/src/ui/chat_input/chat_input_controller.vala:309
@@ -1366,7 +1381,7 @@ msgid "Request permission"
 msgstr ""
 
 #: main/src/ui/chat_input/encryption_button.vala:35
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:251
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:262
 msgid "Unencrypted"
 msgstr ""
 
@@ -1430,7 +1445,7 @@ msgid "Send read receipts"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/call_widget.vala:148
-#: main/src/ui/notifier_freedesktop.vala:114
+#: main/src/ui/notifier_freedesktop.vala:121
 #: main/src/ui/notifier_gnotifications.vala:72
 msgid "Incoming video call"
 msgstr ""
@@ -1438,19 +1453,19 @@ msgstr ""
 #: main/src/ui/conversation_content_view/call_widget.vala:148
 #: main/src/ui/conversation_content_view/call_widget.vala:179
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:376
-#: main/src/ui/notifier_freedesktop.vala:114
+#: main/src/ui/notifier_freedesktop.vala:121
 #: main/src/ui/notifier_gnotifications.vala:72
 msgid "Incoming call"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/call_widget.vala:150
-#: main/src/ui/notifier_freedesktop.vala:116
+#: main/src/ui/notifier_freedesktop.vala:123
 #: main/src/ui/notifier_gnotifications.vala:74
 msgid "Incoming video group call"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/call_widget.vala:150
-#: main/src/ui/notifier_freedesktop.vala:116
+#: main/src/ui/notifier_freedesktop.vala:123
 #: main/src/ui/notifier_gnotifications.vala:74
 msgid "Incoming group call"
 msgstr ""
@@ -1490,14 +1505,14 @@ msgid "Call ended"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/call_widget.vala:186
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:342
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:353
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:580
 #, no-c-format
 msgid "%H∶%M"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/call_widget.vala:186
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:343
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:354
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:581
 #, no-c-format
 msgid "%l∶%M %p"
@@ -1571,49 +1586,49 @@ msgstr ""
 msgid "%s is typing…"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:283
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:294
 msgid "Delivered"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:287
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:298
 msgid "Read"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:293
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:304
 msgid "Unable to send message"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:330
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:341
 #, no-c-format
 msgid "%x, %H∶%M"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:331
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:342
 #, no-c-format
 msgid "%x, %l∶%M %p"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:334
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:345
 #, no-c-format
 msgid "%b %d, %H∶%M"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:335
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:346
 #, no-c-format
 msgid "%b %d, %l∶%M %p"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:338
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:349
 #, no-c-format
 msgid "%a, %H∶%M"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:339
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:350
 #, no-c-format
 msgid "%a, %l∶%M %p"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:349
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:360
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:586
 msgid "Just now"
 msgstr ""
@@ -1623,12 +1638,12 @@ msgid "More actions"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:67
-#: main/src/ui/conversation_content_view/file_image_widget.vala:224
+#: main/src/ui/conversation_content_view/file_image_widget.vala:227
 msgid "Open"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:68
-#: main/src/ui/conversation_content_view/file_image_widget.vala:225
+#: main/src/ui/conversation_content_view/file_image_widget.vala:228
 #: main/src/ui/conversation_content_view/file_widget.vala:224
 msgid "Save as…"
 msgstr ""
@@ -1654,20 +1669,29 @@ msgstr ""
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:101
 #, c-format
-msgid "%s offered: %s"
+msgid "%%s offered: %%s"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:103
 #, c-format
-msgid "File offered: %s"
+msgid "%%s offered"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:105
+#, c-format
+msgid "File offered: %s"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/file_default_widget.vala:107
 msgid "File offered"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/file_default_widget.vala:111
+#: main/src/ui/conversation_content_view/file_default_widget.vala:113
 msgid "File transfer failed"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/file_default_widget.vala:163
+msgid "—"
 msgstr ""
 
 #: main/src/ui/conversation_content_view/item_actions.vala:30
@@ -1723,8 +1747,8 @@ msgstr ""
 #: main/src/ui/conversation_content_view/item_actions.vala:148
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:882
 #: main/src/windows/conversation_details.vala:63
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:136
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:485
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:142
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:570
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:299
 msgid "Remove"
 msgstr ""
@@ -1758,11 +1782,11 @@ msgstr ""
 msgid "delivery failed"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/message_widget.vala:372
+#: main/src/ui/conversation_content_view/message_widget.vala:373
 msgid "Navigate to location"
 msgstr ""
 
-#: main/src/ui/conversation_content_view/message_widget.vala:449
+#: main/src/ui/conversation_content_view/message_widget.vala:450
 msgid "Edit message"
 msgstr ""
 
@@ -1796,11 +1820,11 @@ msgid "You do not receive status updates from this contact yet."
 msgstr ""
 
 #: main/src/ui/conversation_content_view/subscription_notification.vala:81
-#: main/src/ui/notifier_freedesktop.vala:166
-#: main/src/ui/notifier_freedesktop.vala:266
+#: main/src/ui/notifier_freedesktop.vala:173
+#: main/src/ui/notifier_freedesktop.vala:277
 #: main/src/ui/notifier_gnotifications.vala:102
-#: main/src/ui/notifier_gnotifications.vala:140
-#: main/src/ui/notifier_gnotifications.vala:158
+#: main/src/ui/notifier_gnotifications.vala:144
+#: main/src/ui/notifier_gnotifications.vala:162
 msgid "Deny"
 msgstr ""
 
@@ -1986,25 +2010,25 @@ msgid "Note"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:365
-#: main/src/ui/notifier_freedesktop.vala:71
+#: main/src/ui/notifier_freedesktop.vala:78
 #: main/src/ui/notifier_gnotifications.vala:36
 msgid "Image sent"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:365
-#: main/src/ui/notifier_freedesktop.vala:71
+#: main/src/ui/notifier_freedesktop.vala:78
 #: main/src/ui/notifier_gnotifications.vala:36
 msgid "File sent"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:367
-#: main/src/ui/notifier_freedesktop.vala:73
+#: main/src/ui/notifier_freedesktop.vala:80
 #: main/src/ui/notifier_gnotifications.vala:38
 msgid "Image received"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:367
-#: main/src/ui/notifier_freedesktop.vala:73
+#: main/src/ui/notifier_freedesktop.vala:80
 #: main/src/ui/notifier_gnotifications.vala:38
 msgid "File received"
 msgstr ""
@@ -2026,26 +2050,26 @@ msgid "Typ:"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:511
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Away"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:513
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Not Available"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:515
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Busy"
 msgstr ""
 
 #: main/src/ui/conversation_selector/conversation_selector_row.vala:517
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Online"
 msgstr ""
 
@@ -2231,7 +2255,7 @@ msgid "Select file"
 msgstr ""
 
 #: main/src/ui/conversation_view_controller.vala:303
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:441
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:526
 msgid "Select"
 msgstr ""
 
@@ -2311,12 +2335,12 @@ msgid "Sign in or create an account to get started."
 msgstr ""
 
 #: main/src/ui/main_window.vala:249
-#: main/src/windows/preferences_window/add_account_dialog.vala:145
+#: main/src/windows/preferences_window/add_account_dialog.vala:152
 msgid "Sign in"
 msgstr ""
 
 #: main/src/ui/main_window.vala:251
-#: main/src/windows/preferences_window/add_account_dialog.vala:288
+#: main/src/windows/preferences_window/add_account_dialog.vala:295
 msgid "Create account"
 msgstr ""
 
@@ -2330,40 +2354,47 @@ msgstr ""
 msgid "Manage accounts"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:159
+#: main/src/ui/notifier_freedesktop.vala:166
 #: main/src/ui/notifier_gnotifications.vala:93
 msgid "Subscription request"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:194
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:763
+#: main/src/ui/notifier_freedesktop.vala:202
+#: main/src/ui/notifier_gnotifications.vala:114
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:851
+#, c-format
+msgid "%s does not support SCRAM channel binding (MITM protection)"
+msgstr ""
+
+#: main/src/ui/notifier_freedesktop.vala:204
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:853
 msgid "Wrong password"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:197
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:765
+#: main/src/ui/notifier_freedesktop.vala:208
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:855
 msgid "Invalid TLS certificate"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:222
-#: main/src/ui/notifier_gnotifications.vala:128
+#: main/src/ui/notifier_freedesktop.vala:233
+#: main/src/ui/notifier_gnotifications.vala:132
 #, c-format
 msgid "Invitation to %s"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:223
-#: main/src/ui/notifier_gnotifications.vala:129
+#: main/src/ui/notifier_freedesktop.vala:234
+#: main/src/ui/notifier_gnotifications.vala:133
 #, c-format
 msgid "%s invited you to %s"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:256
-#: main/src/ui/notifier_gnotifications.vala:148
+#: main/src/ui/notifier_freedesktop.vala:267
+#: main/src/ui/notifier_gnotifications.vala:152
 msgid "Permission request"
 msgstr ""
 
-#: main/src/ui/notifier_freedesktop.vala:257
-#: main/src/ui/notifier_gnotifications.vala:149
+#: main/src/ui/notifier_freedesktop.vala:268
+#: main/src/ui/notifier_gnotifications.vala:153
 #, c-format
 msgid "%s requests the permission to write in %s"
 msgstr ""
@@ -2650,108 +2681,142 @@ msgstr ""
 msgid "Room Configuration"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:121
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:127
 msgid "Connect"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:132
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:138
 #, c-format
 msgid "Remove pinned certificate for %s?"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:133
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:139
 msgid ""
 "The server will need to present a valid CA-signed certificate, or you will "
 "be asked to trust it again."
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:239
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:216
+msgid "Managed by Tor Plugin — disable to use standalone SOCKS5"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:278
 msgid "Disable account"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:239
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:278
 msgid "Enable account"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:303
-#: plugins/tor-manager/src/ui_indicator.vala:124
-msgid "Checking status..."
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:336
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:968
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1782
+#: plugins/mqtt/src/settings_page.vala:495
+#: plugins/mqtt/src/topic_manager_dialog.vala:233
+#: plugins/mqtt/src/topic_manager_dialog.vala:265
+msgid "Disabled"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:310
-msgid "Service is running and reachable"
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:338
+msgid "Disabled (configured)"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:314
-msgid "Proxy unreachable"
-msgstr ""
-
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:370
-msgid "Pinned (self-signed / manually trusted)"
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:353
+msgid "Checking..."
 msgstr ""
 
 #: main/src/windows/preferences_window/account_preferences_subpage.vala:373
-msgid "Valid (CA-signed)"
+msgid "Connection failed"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:382
+#: plugins/mqtt/src/topic_manager_dialog.vala:233
+#: plugins/mqtt/src/topic_manager_dialog.vala:265
+#: plugins/mqtt/src/topic_manager_dialog.vala:363
+msgid "Active"
 msgstr ""
 
 #: main/src/windows/preferences_window/account_preferences_subpage.vala:386
-#: main/src/windows/preferences_window/add_account_dialog.vala:232
+msgid "Connecting..."
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:390
+msgid "Reachable (not connected)"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:446
+msgid "Pinned (self-signed / manually trusted)"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:449
+msgid "Valid (CA-signed)"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:462
+#: main/src/windows/preferences_window/add_account_dialog.vala:239
 msgid "From:"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:389
-#: main/src/windows/preferences_window/add_account_dialog.vala:235
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:465
+#: main/src/windows/preferences_window/add_account_dialog.vala:242
 msgid "Until:"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:391
-#: main/src/windows/preferences_window/add_account_dialog.vala:237
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:467
+#: main/src/windows/preferences_window/add_account_dialog.vala:244
 msgid "expired"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:407
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:483
 msgid "Pinned (not connected)"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:440
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:512
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:397
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:454
+#: plugins/mqtt/src/settings_page.vala:276
+msgid "Reconnecting…"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:525
 msgid "Select avatar"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:455
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:540
 msgid "All files"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:473
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:558
 #, c-format
 msgid "Remove account %s?"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:474
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:559
 msgid "You won't be able to access your conversation history anymore."
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:478
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:563
 msgid "Also delete account from server"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:750
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:835
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:960
 #: plugins/mqtt/src/settings_page.vala:487
 msgid "Connected"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:752
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:837
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:282
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:414
 msgid "Disconnected"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:754
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:839
 msgid "Unknown Status"
 msgstr ""
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:772
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:774
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:862
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:864
 msgid "Error"
 msgstr ""
 
@@ -2764,74 +2829,74 @@ msgstr ""
 msgid "Add Account"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:169
+#: main/src/windows/preferences_window/add_account_dialog.vala:176
 #, c-format
 msgid "The server could not prove that it is %s."
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:171
+#: main/src/windows/preferences_window/add_account_dialog.vala:178
 msgid "Its security certificate is not trusted by your operating system."
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:173
+#: main/src/windows/preferences_window/add_account_dialog.vala:180
 msgid "Its security certificate is issued to another domain."
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:175
+#: main/src/windows/preferences_window/add_account_dialog.vala:182
 msgid "Its security certificate will only become valid in the future."
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:177
+#: main/src/windows/preferences_window/add_account_dialog.vala:184
 msgid "Its security certificate is expired."
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:224
+#: main/src/windows/preferences_window/add_account_dialog.vala:231
 msgid "Issuer:"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:241
+#: main/src/windows/preferences_window/add_account_dialog.vala:248
 msgid "Valid:"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:248
+#: main/src/windows/preferences_window/add_account_dialog.vala:255
 msgid "SHA-256 Fingerprint:"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:307
+#: main/src/windows/preferences_window/add_account_dialog.vala:314
 #, c-format
 msgid "You can now use the account %s."
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:364
+#: main/src/windows/preferences_window/add_account_dialog.vala:371
 msgid "Wrong username or password"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:367
+#: main/src/windows/preferences_window/add_account_dialog.vala:374
 msgid "Something went wrong"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:442
+#: main/src/windows/preferences_window/add_account_dialog.vala:449
 msgid "No response from server"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:453
+#: main/src/windows/preferences_window/add_account_dialog.vala:460
 #, c-format
 msgid "Register on %s"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:456
+#: main/src/windows/preferences_window/add_account_dialog.vala:463
 msgid "The server requires to sign up through a website"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:458
+#: main/src/windows/preferences_window/add_account_dialog.vala:465
 msgid "Open website"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:470
+#: main/src/windows/preferences_window/add_account_dialog.vala:477
 msgid "Register"
 msgstr ""
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:472
+#: main/src/windows/preferences_window/add_account_dialog.vala:479
 #, c-format
 msgid "Check %s for information on how to sign up"
 msgstr ""
@@ -2874,10 +2939,6 @@ msgstr ""
 msgid "Alias (optional)"
 msgstr ""
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:91
-msgid "System (Auto)"
-msgstr ""
-
 #: main/src/windows/preferences_window/general_preferences_page.vala:143
 msgid "Local (localhost)"
 msgstr ""
@@ -2887,20 +2948,20 @@ msgstr ""
 msgid "Network (0.0.0.0 + TLS)"
 msgstr ""
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:289
+#: main/src/windows/preferences_window/general_preferences_page.vala:294
 msgid "Restart DinoX to apply the new language"
 msgstr ""
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:335
-#: main/src/windows/preferences_window/general_preferences_page.vala:337
+#: main/src/windows/preferences_window/general_preferences_page.vala:340
+#: main/src/windows/preferences_window/general_preferences_page.vala:342
 msgid "Empty = auto-generated self-signed"
 msgstr ""
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:358
+#: main/src/windows/preferences_window/general_preferences_page.vala:363
 msgid "Certificate deleted. Server will restart with new certificate."
 msgstr ""
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:378
+#: main/src/windows/preferences_window/general_preferences_page.vala:383
 msgid "Certificate and key deleted."
 msgstr ""
 
@@ -5913,12 +5974,6 @@ msgstr ""
 msgid "Disconnect and reconnect to the MQTT broker"
 msgstr ""
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:397
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:454
-#: plugins/mqtt/src/settings_page.vala:276
-msgid "Reconnecting…"
-msgstr ""
-
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:409
 msgid "Standalone MQTT"
 msgstr ""
@@ -6158,14 +6213,6 @@ msgstr ""
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:964
 msgid "Disconnected (retrying…)"
-msgstr ""
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:968
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1782
-#: plugins/mqtt/src/settings_page.vala:495
-#: plugins/mqtt/src/topic_manager_dialog.vala:233
-#: plugins/mqtt/src/topic_manager_dialog.vala:265
-msgid "Disabled"
 msgstr ""
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:993
@@ -6485,12 +6532,6 @@ msgstr ""
 msgid "QoS %d · %s"
 msgstr ""
 
-#: plugins/mqtt/src/topic_manager_dialog.vala:233
-#: plugins/mqtt/src/topic_manager_dialog.vala:265
-#: plugins/mqtt/src/topic_manager_dialog.vala:363
-msgid "Active"
-msgstr ""
-
 #: plugins/mqtt/src/topic_manager_dialog.vala:331
 #, c-format
 msgid "QoS %d · normal"
@@ -6599,6 +6640,10 @@ msgstr ""
 #: plugins/tor-manager/src/ui_indicator.vala:87
 #: plugins/tor-manager/src/ui_indicator.vala:118
 msgid "Tor Network"
+msgstr ""
+
+#: plugins/tor-manager/src/ui_indicator.vala:124
+msgid "Checking status..."
 msgstr ""
 
 #: plugins/tor-manager/src/ui_indicator.vala:135

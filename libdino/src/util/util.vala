@@ -167,4 +167,24 @@ public static async HashMap<ChecksumType, string> compute_file_hashes(File file,
     return ret;
 }
 
+public static string? build_socks5_proxy_uri(Dino.Entities.Account account) {
+    if (account.proxy_type != "socks5" && account.proxy_type != "tor") return null;
+
+    string h = account.proxy_host ?? "";
+    int p = account.proxy_port;
+    if (account.proxy_type == "tor") {
+        h = (h != "") ? h : "127.0.0.1";
+        p = (p > 0) ? p : 9050;
+    } else if (h == "" || p <= 0) {
+        return null;
+    }
+    if (":" in h) h = "[" + h + "]";
+    if (account.proxy_user != null && account.proxy_user != "") {
+        string eu = Uri.escape_string(account.proxy_user, null, false);
+        string ep = (account.proxy_pass != null && account.proxy_pass != "") ? Uri.escape_string(account.proxy_pass, null, false) : "";
+        return "socks5://%s:%s@%s:%d".printf(eu, ep, h, p);
+    }
+    return "socks5://%s:%d".printf(h, p);
+}
+
 }

@@ -35,6 +35,17 @@ public class HttpFileSender : FileSender, Object {
         session.abort();
     }
 
+    private void apply_account_proxy(Account account) {
+        string? uri = Dino.build_socks5_proxy_uri(account);
+        if (uri != null) {
+            session.proxy_resolver = new SimpleProxyResolver(uri, null);
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "http-upload: proxy set to %s for account %s", uri, account.bare_jid.to_string());
+        } else {
+            session.proxy_resolver = ProxyResolver.get_default();
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "http-upload: direct connection for account %s", account.bare_jid.to_string());
+        }
+    }
+
     private async void ensure_soup_context() {
         // `get_thread_default()` may be null even while running on the default main
         // context. `MainContext.invoke()` may execute callbacks immediately in some
@@ -286,6 +297,7 @@ public class HttpFileSender : FileSender, Object {
         if (stream == null) return;
 
         yield ensure_soup_context();
+        apply_account_proxy(file_transfer.account);
 
         /* Validate upload URL before passing to libsoup — Soup.Message()
          * returns null for unparseable URIs, causing a crash. */
