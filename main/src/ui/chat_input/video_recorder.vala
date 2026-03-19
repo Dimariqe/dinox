@@ -78,6 +78,12 @@ public class VideoRecorder : GLib.Object {
             // /etc/os-release not found — likely Windows or unusual system
         }
 
+#if WINDOWS
+        return "MSYS2/MINGW64: pacman -S mingw-w64-x86_64-gst-plugins-ugly "
+             + "mingw-w64-x86_64-gst-libav\n"
+             + "Then re-run: bash scripts/update_dist.sh";
+#endif
+
         if (os_id != null) {
             if (os_id.contains("opensuse") || os_id.contains("suse")) {
                 return "openSUSE: sudo zypper install gstreamer-plugins-ugly gstreamer-plugins-libav "
