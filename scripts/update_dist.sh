@@ -306,10 +306,10 @@ fi
 if [ -d "/mingw64/lib/gstreamer-1.0" ]; then
     mkdir -p dist/lib/gstreamer-1.0
     # Only copy essential plugins to keep size manageable
-    for plugin in coreelements audioconvert audioresample volume autodetect \
+    for plugin in coreelements audioconvert audioresample audiorate volume autodetect \
                   wasapi wasapi2 directsound rtp rtpmanager srtp dtls nice webrtc \
                   opus vpx openh264 x264 voaac app audioparsers \
-                  playback typefindfunctions videoconvert videoscale \
+                  playback typefindfunctions videoconvert videoscale videoflip \
                   videorate videoparsersbad d3d11 d3d12 mediafoundation \
                   isomp4 audiofx libav \
                   videotestsrc audiotestsrc audiomixer \
