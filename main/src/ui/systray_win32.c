@@ -667,9 +667,17 @@ wnd_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 void
 systray_win32_attach_parent_console (void)
 {
+    /* DINOX_LOG_FILE: if set, redirect stderr (GLib debug messages)
+     * to the specified file instead of CONOUT$/NUL.  Usage:
+     *   DINOX_LOG_FILE=dinox-debug.log ./dinox.exe            */
+    const char *log_file = g_getenv ("DINOX_LOG_FILE");
+
     if (AttachConsole (ATTACH_PARENT_PROCESS)) {
         freopen ("CONOUT$", "w", stdout);
-        freopen ("CONOUT$", "w", stderr);
+        if (log_file && *log_file)
+            freopen (log_file, "w", stderr);
+        else
+            freopen ("CONOUT$", "w", stderr);
         /* Also fix up stdin so interactive input works if needed. */
         freopen ("CONIN$",  "r", stdin);
         tray_log ("AttachConsole(PARENT) succeeded — attached to parent console");
@@ -685,7 +693,10 @@ systray_win32_attach_parent_console (void)
 
         /* Redirect C stdio to NUL — there is no terminal to write to. */
         freopen ("NUL", "w", stdout);
-        freopen ("NUL", "w", stderr);
+        if (log_file && *log_file)
+            freopen (log_file, "w", stderr);
+        else
+            freopen ("NUL", "w", stderr);
         freopen ("NUL", "r", stdin);
         tray_log ("Allocated hidden console for child-process inheritance");
     }
