@@ -72,6 +72,10 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
     private Gst.Element? echo_resample;
     private Gst.Element? echo_filter;
     private Gst.Element? recv_volume; // Volume element for receive ramp-up
+    private Gst.Element? src_convert;  // audioconvert before source capsfilter
+    private Gst.Element? src_resample; // audioresample before source capsfilter
+    private Gst.Element? sink_convert;  // audioconvert before sink element
+    private Gst.Element? sink_resample; // audioresample before sink element
     private bool recv_ramp_done = false; // true after initial 200ms ramp-up
     private int sink_peers = 0; // Number of peers connected to this sink (for gain scaling)
     private int links;
@@ -603,7 +607,22 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             filter.@set("caps", device_caps);
             pipe.add(filter);
             filter.sync_state_with_parent();
-            element.link(filter);
+            if (media == "audio") {
+                // WASAPI2 (Windows) devices often only provide stereo;
+                // audioconvert+audioresample bridge the gap to our mono/48kHz
+                // capsfilter.  On Linux these are pass-through (zero overhead).
+                src_convert = Gst.ElementFactory.make("audioconvert", @"src_convert_$id");
+                src_resample = Gst.ElementFactory.make("audioresample", @"src_resample_$id");
+                pipe.add(src_convert);
+                pipe.add(src_resample);
+                src_convert.sync_state_with_parent();
+                src_resample.sync_state_with_parent();
+                element.link(src_convert);
+                src_convert.link(src_resample);
+                src_resample.link(filter);
+            } else {
+                element.link(filter);
+            }
             element.sync_state_with_parent();
 #if WITH_VOICE_PROCESSOR
             if (media == "audio" && plugin.echoprobe != null) {
@@ -708,10 +727,29 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                         echo_convert.link(echo_resample);
                         echo_resample.link(echo_filter);
                         echo_filter.link(plugin.echoprobe);
-                        plugin.echoprobe.link(element);
+                        // audioconvert+audioresample between echoprobe and sink
+                        // element: echoprobe outputs mono/48kHz but WASAPI2
+                        // sinks may require stereo and/or a different rate.
+                        sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
+                        sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                        pipe.add(sink_convert);
+                        pipe.add(sink_resample);
+                        sink_convert.sync_state_with_parent();
+                        sink_resample.sync_state_with_parent();
+                        plugin.echoprobe.link(sink_convert);
+                        sink_convert.link(sink_resample);
+                        sink_resample.link(element);
                     } else {
                         recv_volume.link(plugin.echoprobe);
-                        plugin.echoprobe.link(element);
+                        sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
+                        sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                        pipe.add(sink_convert);
+                        pipe.add(sink_resample);
+                        sink_convert.sync_state_with_parent();
+                        sink_resample.sync_state_with_parent();
+                        plugin.echoprobe.link(sink_convert);
+                        sink_convert.link(sink_resample);
+                        sink_resample.link(element);
                     }
                 } else {
                     filter = Gst.ElementFactory.make("capsfilter", @"caps_filter_$id");
@@ -719,7 +757,18 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                     pipe.add(filter);
                     filter.sync_state_with_parent();
                     recv_volume.link(filter);
-                    filter.link(element);
+                    // audioconvert+audioresample between capsfilter and sink
+                    // element to handle format differences (e.g. mono→stereo,
+                    // 48kHz→44.1kHz on WASAPI2).
+                    sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
+                    sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                    pipe.add(sink_convert);
+                    pipe.add(sink_resample);
+                    sink_convert.sync_state_with_parent();
+                    sink_resample.sync_state_with_parent();
+                    filter.link(sink_convert);
+                    sink_convert.link(sink_resample);
+                    sink_resample.link(element);
                 }
             }
             element.sync_state_with_parent();
@@ -746,6 +795,10 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
         echo_convert = null;
         echo_resample = null;
         echo_filter = null;
+        src_convert = null;
+        src_resample = null;
+        sink_convert = null;
+        sink_resample = null;
         codecs.clear();
         codec_tees.clear();
         payloaders.clear();
