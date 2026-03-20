@@ -60,18 +60,8 @@ public class AudioRecorder : GLib.Object {
         current_output_path = output_path;
 
         pipeline = new Pipeline("audio-recorder");
-#if WINDOWS
-        // Windows: use wasapi2src directly — autoaudiosrc may fail to
-        // negotiate caps because the auto-detect wrapper doesn't always
-        // find wasapi2 when GST_PLUGIN_SYSTEM_PATH is empty.
-        source = ElementFactory.make("wasapi2src", "source");
-        if (source == null) {
-            source = ElementFactory.make("autoaudiosrc", "source");
-        }
-#else
-        // Linux: autoaudiosrc auto-detects PipeWire/PulseAudio/ALSA
-        source = ElementFactory.make("autoaudiosrc", "source");
-#endif
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        source = app.av_device_service.create_audio_source(app.settings.msg_audio_input_device);
         volume = ElementFactory.make("volume", "volume");
         level = ElementFactory.make("level", "level");
         convert = ElementFactory.make("audioconvert", "convert");

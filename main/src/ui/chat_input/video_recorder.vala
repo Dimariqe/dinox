@@ -158,23 +158,8 @@ public class VideoRecorder : GLib.Object {
         pipeline = new Pipeline("video-recorder");
 
         // === VIDEO branch ===
-#if WINDOWS
-        // Windows: use Media Foundation video source directly.
-        // autovideosrc may not find cameras when GST_PLUGIN_SYSTEM_PATH is empty.
-        video_source = ElementFactory.make("mfvideosrc", "video-source");
-        if (video_source == null) {
-            video_source = ElementFactory.make("ksvideosrc", "video-source");
-        }
-        if (video_source == null) {
-            video_source = ElementFactory.make("autovideosrc", "video-source");
-        }
-#else
-        if (ElementFactory.find("pipewiresrc") != null) {
-            video_source = ElementFactory.make("pipewiresrc", "video-source");
-        } else {
-            video_source = ElementFactory.make("autovideosrc", "video-source");
-        }
-#endif
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        video_source = app.av_device_service.create_video_source(app.settings.msg_video_device);
         video_convert = ElementFactory.make("videoconvert", "video-convert");
         video_scale = ElementFactory.make("videoscale", "video-scale");
         video_rate = ElementFactory.make("videorate", "video-rate");
@@ -273,14 +258,7 @@ public class VideoRecorder : GLib.Object {
 
         // === AUDIO branch ===
         // Audio source for the video recording's audio track
-#if WINDOWS
-        audio_source = ElementFactory.make("wasapi2src", "audio-source");
-        if (audio_source == null) {
-            audio_source = ElementFactory.make("autoaudiosrc", "audio-source");
-        }
-#else
-        audio_source = ElementFactory.make("autoaudiosrc", "audio-source");
-#endif
+        audio_source = app.av_device_service.create_audio_source(app.settings.msg_audio_input_device);
         audio_convert = ElementFactory.make("audioconvert", "audio-convert");
         audio_resample = ElementFactory.make("audioresample", "audio-resample");
         audio_capsfilter = ElementFactory.make("capsfilter", "audio-caps");

@@ -36,6 +36,7 @@ endif
 # Source files (platform-independent)
 sources = files(
     'src/main.vala',
+    'src/service/audio_video_device_service.vala',
     'src/ui/add_conversation/add_conference_dialog.vala',
     'src/ui/add_conversation/add_contact_dialog.vala',
     'src/ui/add_conversation/add_groupchat_dialog.vala',
@@ -143,6 +144,7 @@ sources = files(
     'src/windows/preferences_window/contacts_preferences_page.vala',
     'src/windows/preferences_window/encryption_preferences_page.vala',
     'src/windows/preferences_window/general_preferences_page.vala',
+    'src/windows/preferences_window/audio_video_preferences_page.vala',
     'src/windows/preferences_window/preferences_dialog.vala',
     'src/windows/conversation_details.vala',
 )

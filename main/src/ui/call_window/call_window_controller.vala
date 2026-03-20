@@ -486,11 +486,13 @@ public class Dino.Ui.CallWindowController : Object {
         audio_settings_popover.microphone_selected.connect((device) => {
             if (call_state == null) return;
             call_state.set_audio_device(device);
+            ((Dino.Application) GLib.Application.get_default()).settings.call_audio_input_device = device.display_name;
             update_current_audio_device(audio_settings_popover);
         });
         audio_settings_popover.speaker_selected.connect((device) => {
             if (call_state == null) return;
             call_state.set_audio_device(device);
+            ((Dino.Application) GLib.Application.get_default()).settings.call_audio_output_device = device.display_name;
             update_current_audio_device(audio_settings_popover);
         });
         audio_settings_popover.microphone_volume_changed.connect((volume) => {
@@ -544,6 +546,7 @@ public class Dino.Ui.CallWindowController : Object {
 
         video_settings_popover.camera_selected.connect((device) => {
             call_state.set_video_device(device);
+            ((Dino.Application) GLib.Application.get_default()).settings.call_video_device = device.display_name;
             update_current_video_device(video_settings_popover);
             own_video.display_device(device);
         });

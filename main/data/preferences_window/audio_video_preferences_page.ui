@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="DinoUiAudioVideoPreferencesPage" parent="AdwPreferencesPage">
+    <property name="title" translatable="yes">Audio &amp; Video</property>
+    <property name="icon-name">audio-headphones-symbolic</property>
+
+    <!-- Call Devices Group -->
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="title" translatable="yes">Audio/Video Calls</property>
+        <property name="description" translatable="yes">Devices used for real-time calls</property>
+        <child>
+          <object class="AdwComboRow" id="call_mic_row">
+            <property name="title" translatable="yes">Microphone</property>
+            <property name="subtitle" translatable="yes">Audio input for calls</property>
+            <accessibility>
+              <property name="label" translatable="yes">Select microphone for calls</property>
+            </accessibility>
+          </object>
+        </child>
+        <child>
+          <object class="AdwComboRow" id="call_speaker_row">
+            <property name="title" translatable="yes">Speaker</property>
+            <property name="subtitle" translatable="yes">Audio output for calls</property>
+            <accessibility>
+              <property name="label" translatable="yes">Select speaker for calls</property>
+            </accessibility>
+          </object>
+        </child>
+        <child>
+          <object class="AdwComboRow" id="call_camera_row">
+            <property name="title" translatable="yes">Camera</property>
+            <property name="subtitle" translatable="yes">Video input for calls</property>
+            <accessibility>
+              <property name="label" translatable="yes">Select camera for calls</property>
+            </accessibility>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- Message Devices Group -->
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="title" translatable="yes">Voice/Video Messages</property>
+        <property name="description" translatable="yes">Devices used for recording and playing messages</property>
+        <child>
+          <object class="AdwComboRow" id="msg_mic_row">
+            <property name="title" translatable="yes">Recording Microphone</property>
+            <property name="subtitle" translatable="yes">Audio input for voice and video messages</property>
+            <accessibility>
+              <property name="label" translatable="yes">Select microphone for voice messages</property>
+            </accessibility>
+          </object>
+        </child>
+        <child>
+          <object class="AdwComboRow" id="msg_speaker_row">
+            <property name="title" translatable="yes">Playback Speaker</property>
+            <property name="subtitle" translatable="yes">Audio output for playing voice and video messages</property>
+            <accessibility>
+              <property name="label" translatable="yes">Select speaker for message playback</property>
+            </accessibility>
+          </object>
+        </child>
+        <child>
+          <object class="AdwComboRow" id="msg_camera_row">
+            <property name="title" translatable="yes">Recording Camera</property>
+            <property name="subtitle" translatable="yes">Video input for video messages</property>
+            <accessibility>
+              <property name="label" translatable="yes">Select camera for video messages</property>
+            </accessibility>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- Device Testing Group (collapsible) -->
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="title" translatable="yes">Device Testing</property>
+        <property name="description" translatable="yes">Test selected devices before use</property>
+        <child>
+          <object class="AdwExpanderRow" id="test_expander">
+            <property name="title" translatable="yes">Show device tests</property>
+            <property name="show-enable-switch">False</property>
+            <accessibility>
+              <property name="label" translatable="yes">Expand to show device test options</property>
+            </accessibility>
+            <child>
+              <object class="AdwActionRow" id="test_mic_row">
+                <property name="title" translatable="yes">Test Microphone</property>
+                <property name="subtitle" translatable="yes">Record 2 seconds and play back</property>
+                <property name="activatable">True</property>
+                <accessibility>
+                  <property name="label" translatable="yes">Test microphone recording and playback</property>
+                </accessibility>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">audio-input-microphone-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow" id="test_speaker_row">
+                <property name="title" translatable="yes">Test Speaker</property>
+                <property name="subtitle" translatable="yes">Play a test tone on selected speaker</property>
+                <property name="activatable">True</property>
+                <accessibility>
+                  <property name="label" translatable="yes">Test speaker audio output</property>
+                </accessibility>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">audio-speakers-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow" id="test_camera_row">
+                <property name="title" translatable="yes">Test Camera</property>
+                <property name="subtitle" translatable="yes">Show a 5 second live preview</property>
+                <property name="activatable">True</property>
+                <accessibility>
+                  <property name="label" translatable="yes">Test camera video preview</property>
+                </accessibility>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">camera-video-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <!-- Device Management Group -->
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="title" translatable="yes">Device Management</property>
+        <child>
+          <object class="AdwActionRow" id="refresh_row">
+            <property name="title" translatable="yes">Refresh Devices</property>
+            <property name="subtitle" translatable="yes">Rescan available audio and video hardware</property>
+            <property name="activatable">True</property>
+            <accessibility>
+              <property name="label" translatable="yes">Rescan audio and video devices</property>
+            </accessibility>
+            <child type="suffix">
+              <object class="GtkImage">
+                <property name="icon-name">view-refresh-symbolic</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

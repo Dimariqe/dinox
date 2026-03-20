@@ -37,6 +37,16 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     public Plugins.Registry plugin_registry { get; set; default = new Plugins.Registry (); }
     public SearchPathGenerator? search_path_generator { get; set; }
 
+    private AudioVideoDeviceService? _av_device_service;
+    public AudioVideoDeviceService av_device_service {
+        get {
+            if (_av_device_service == null) {
+                _av_device_service = new AudioVideoDeviceService();
+            }
+            return _av_device_service;
+        }
+    }
+
     // Plugins are loaded after the encrypted DB has been unlocked.
     public Plugins.Loader? plugin_loader { get; set; }
 

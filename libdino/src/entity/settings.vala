@@ -26,6 +26,13 @@ public class Settings : Object {
         presence_show_ = col_to_string_or_default("presence_show", "online");
         presence_status_msg_ = col_to_string_or_default("presence_status_msg", "");
         language_ = col_to_string_or_default("language", "system");
+
+        call_audio_input_device_ = col_to_string_or_default("call_audio_input_device", "");
+        call_audio_output_device_ = col_to_string_or_default("call_audio_output_device", "");
+        call_video_device_ = col_to_string_or_default("call_video_device", "");
+        msg_audio_input_device_ = col_to_string_or_default("msg_audio_input_device", "");
+        msg_audio_output_device_ = col_to_string_or_default("msg_audio_output_device", "");
+        msg_video_device_ = col_to_string_or_default("msg_video_device", "");
     }
 
     private bool col_to_bool_or_default(string key, bool def) {
@@ -267,6 +274,78 @@ public class Settings : Object {
             } catch (FileError e) {
                 warning("Could not write language file: %s", e.message);
             }
+        }
+    }
+
+    private string call_audio_input_device_;
+    public string call_audio_input_device {
+        get { return call_audio_input_device_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "call_audio_input_device", true)
+                .value(db.settings.value, value)
+                .perform();
+            call_audio_input_device_ = value;
+        }
+    }
+
+    private string call_audio_output_device_;
+    public string call_audio_output_device {
+        get { return call_audio_output_device_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "call_audio_output_device", true)
+                .value(db.settings.value, value)
+                .perform();
+            call_audio_output_device_ = value;
+        }
+    }
+
+    private string call_video_device_;
+    public string call_video_device {
+        get { return call_video_device_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "call_video_device", true)
+                .value(db.settings.value, value)
+                .perform();
+            call_video_device_ = value;
+        }
+    }
+
+    private string msg_audio_input_device_;
+    public string msg_audio_input_device {
+        get { return msg_audio_input_device_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "msg_audio_input_device", true)
+                .value(db.settings.value, value)
+                .perform();
+            msg_audio_input_device_ = value;
+        }
+    }
+
+    private string msg_audio_output_device_;
+    public string msg_audio_output_device {
+        get { return msg_audio_output_device_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "msg_audio_output_device", true)
+                .value(db.settings.value, value)
+                .perform();
+            msg_audio_output_device_ = value;
+        }
+    }
+
+    private string msg_video_device_;
+    public string msg_video_device {
+        get { return msg_video_device_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "msg_video_device", true)
+                .value(db.settings.value, value)
+                .perform();
+            msg_video_device_ = value;
         }
     }
 

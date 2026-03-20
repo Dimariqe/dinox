@@ -332,7 +332,13 @@ public class Dino.CallState : Object {
 
     public Plugins.MediaDevice? get_microphone_device() {
         if (selected_microphone_device == null) {
-            if (!peers.is_empty) {
+            string saved = ((Dino.Application) GLib.Application.get_default()).settings.call_audio_input_device;
+            if (saved != "") {
+                foreach (var dev in call_plugin.get_devices("audio", false)) {
+                    if (dev.display_name == saved) { selected_microphone_device = dev; break; }
+                }
+            }
+            if (selected_microphone_device == null && !peers.is_empty) {
                 var audio_stream = peers.values.to_array()[0].get_audio_stream();
                 selected_microphone_device = call_plugin.get_device(audio_stream, false);
             }
@@ -345,7 +351,13 @@ public class Dino.CallState : Object {
 
     public Plugins.MediaDevice? get_speaker_device() {
         if (selected_speaker_device == null) {
-            if (!peers.is_empty) {
+            string saved = ((Dino.Application) GLib.Application.get_default()).settings.call_audio_output_device;
+            if (saved != "") {
+                foreach (var dev in call_plugin.get_devices("audio", true)) {
+                    if (dev.display_name == saved) { selected_speaker_device = dev; break; }
+                }
+            }
+            if (selected_speaker_device == null && !peers.is_empty) {
                 var audio_stream = peers.values.to_array()[0].get_audio_stream();
                 selected_speaker_device = call_plugin.get_device(audio_stream, true);
             }
@@ -358,7 +370,13 @@ public class Dino.CallState : Object {
 
     public Plugins.MediaDevice? get_video_device() {
         if (selected_video_device == null) {
-            if (!peers.is_empty) {
+            string saved = ((Dino.Application) GLib.Application.get_default()).settings.call_video_device;
+            if (saved != "") {
+                foreach (var dev in call_plugin.get_devices("video", false)) {
+                    if (dev.display_name == saved) { selected_video_device = dev; break; }
+                }
+            }
+            if (selected_video_device == null && !peers.is_empty) {
                 var video_stream = peers.values.to_array()[0].get_video_stream();
                 selected_video_device = call_plugin.get_device(video_stream, false);
             }

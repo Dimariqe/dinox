@@ -596,14 +596,8 @@ public class AudioPlayerWidget : Box {
         var play_pipe = new Gst.Pipeline("audio-playback");
         var play_src = ElementFactory.make("uridecodebin", "play-src");
         var play_conv = ElementFactory.make("audioconvert", "play-conv");
-#if WINDOWS
-        var play_sink = ElementFactory.make("wasapi2sink", "play-sink");
-        if (play_sink == null) {
-            play_sink = ElementFactory.make("autoaudiosink", "play-sink");
-        }
-#else
-        var play_sink = ElementFactory.make("autoaudiosink", "play-sink");
-#endif
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        var play_sink = app.av_device_service.create_audio_sink(app.settings.msg_audio_output_device);
 
         if (play_src == null || play_conv == null || play_sink == null) {
             warning("Could not create audio playback pipeline");

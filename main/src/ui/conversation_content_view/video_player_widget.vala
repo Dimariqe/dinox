@@ -750,16 +750,16 @@ public class VideoPlayerWidget : Widget {
 
         playbin.set("uri", file_to_play.get_uri());
         playbin.set("video-sink", vbin);
-#if WINDOWS
-        // Windows: playbin's internal autoaudiosink may fail to find wasapi2.
-        // Set audio-sink explicitly.
-        var asink = ElementFactory.make("wasapi2sink", "play-asink");
+        // Use saved audio output device from preferences
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        var asink = app.av_device_service.create_audio_sink(app.settings.msg_audio_output_device);
         if (asink != null) {
-            asink.set("async", false);
-            asink.set("sync", true);
+            if (asink.get_class().find_property("async") != null) {
+                asink.set("async", false);
+                asink.set("sync", true);
+            }
             playbin.set("audio-sink", asink);
         }
-#endif
 
         playback_pipeline = playbin;
 
