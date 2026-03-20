@@ -232,10 +232,15 @@ void main(string[] args) {
         debug("GStreamer: %u plugins loaded from %s",
                 plugins.length(),
                 Environment.get_variable("GST_PLUGIN_PATH") ?? "(default)");
-        // Check critical elements for video playback
+        // Check critical elements for playback + recording
         string[] critical = {"playbin", "videoconvert", "autoaudiosink",
                              "qtdemux", "matroskademux", "avdec_h264",
-                             "openh264dec", "avdec_aac", "opusdec"};
+                             "openh264dec", "avdec_aac", "opusdec",
+                             "wasapi2src", "wasapi2sink", "mfvideosrc",
+                             "mfh264enc", "mfaacenc",
+                             "aacparse", "h264parse", "mp4mux",
+                             "audioconvert", "audioresample",
+                             "filesink", "uridecodebin"};
         foreach (string el in critical) {
             var factory = Gst.ElementFactory.find(el);
             if (factory == null) {

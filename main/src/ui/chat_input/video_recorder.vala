@@ -614,14 +614,14 @@ public class VideoRecorder : GLib.Object {
             // 2. Send EOS so mp4mux writes the moov atom (critical for valid MP4!)
             pipeline.send_event(new Event.eos());
             
-            // 3. Wait for muxer to finalize — 5 seconds for longer videos.
+            // 3. Wait for muxer to finalize — 10s for longer videos.
             //    Without this, mp4mux won't write the moov atom and the file
             //    will be unplayable on any device.
             if (bus != null) {
-                var msg = bus.timed_pop_filtered(5 * Gst.SECOND,
+                var msg = bus.timed_pop_filtered(10 * Gst.SECOND,
                     Gst.MessageType.EOS | Gst.MessageType.ERROR);
                 if (msg == null) {
-                    warning("VideoRecorder: EOS timeout after 5s — MP4 may be incomplete");
+                    warning("VideoRecorder: EOS timeout after 10s — MP4 may be incomplete");
                 } else if (msg.type == Gst.MessageType.ERROR) {
                     Error err;
                     string dbg;

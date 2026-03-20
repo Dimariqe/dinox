@@ -55,6 +55,24 @@ public class ChatInputController : Object {
         this.audio_recorder = new AudioRecorder();
         this.video_recorder = new VideoRecorder();
 
+        // Handle audio pipeline errors: cancel recording and show error to user
+        this.audio_recorder.recording_error.connect((msg) => {
+            is_recording = false;
+            chat_input.record_button.icon_name = "microphone-sensitivity-medium-symbolic";
+            chat_input.record_button.remove_css_class("destructive-action");
+            if (recorder_popover != null) {
+                recorder_popover.popdown();
+            }
+            var root = chat_input.get_root() as Gtk.Window;
+            if (root != null) {
+                var dlg = new Adw.AlertDialog(
+                    _("Audio recording failed"),
+                    msg);
+                dlg.add_response("ok", _("OK"));
+                dlg.present(root);
+            }
+        });
+
         // Handle pipeline errors: cancel recording and show error to user
         this.video_recorder.recording_error.connect((msg) => {
             is_video_recording = false;
@@ -367,6 +385,15 @@ public class ChatInputController : Object {
             chat_input.record_button.add_css_class("destructive-action");
         } catch (Error e) {
             warning("Failed to start recording: %s", e.message);
+            is_recording = false;
+            var root = chat_input.get_root() as Gtk.Window;
+            if (root != null) {
+                var dlg = new Adw.AlertDialog(
+                    _("Audio recording failed"),
+                    e.message);
+                dlg.add_response("ok", _("OK"));
+                dlg.present(root);
+            }
         }
     }
 

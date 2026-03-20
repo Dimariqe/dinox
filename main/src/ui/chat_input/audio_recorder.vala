@@ -42,6 +42,7 @@ public class AudioRecorder : GLib.Object {
     public signal void level_changed(double peak);
     public signal void duration_changed(string text);
     public signal void max_duration_reached();
+    public signal void recording_error(string message);
 
     public AudioRecorder() {
     }
@@ -133,6 +134,18 @@ public class AudioRecorder : GLib.Object {
 
         bus = pipeline.get_bus();
         bus_watch_id = bus.add_watch(0, (b, msg) => {
+            if (msg.type == MessageType.ERROR) {
+                Error err;
+                string debug_info;
+                msg.parse_error(out err, out debug_info);
+                warning("AudioRecorder: Pipeline error: %s (%s)", err.message, debug_info ?? "(none)");
+                Idle.add(() => {
+                    cancel_recording();
+                    recording_error(err.message);
+                    return false;
+                });
+                return false;
+            }
             if (msg.type == MessageType.ELEMENT && level != null && msg.src == level) {
                 unowned Gst.Structure structure = msg.get_structure();
                 if (structure != null && structure.has_field("peak")) {
@@ -231,10 +244,18 @@ public class AudioRecorder : GLib.Object {
             // 2. Send EOS so mp4mux writes the moov atom
             pipeline.send_event(new Event.eos());
             
-            // 3. Wait for muxer to finalize (max 3s — faststart rewrites the entire file)
+            // 3. Wait for muxer to finalize (10s — faststart rewrites the entire file)
             if (bus != null) {
-                bus.timed_pop_filtered(3 * Gst.SECOND,
+                var msg = bus.timed_pop_filtered(10 * Gst.SECOND,
                     Gst.MessageType.EOS | Gst.MessageType.ERROR);
+                if (msg == null) {
+                    warning("AudioRecorder: EOS timeout after 10s — MP4 may be incomplete");
+                } else if (msg.type == Gst.MessageType.ERROR) {
+                    Error err;
+                    string dbg;
+                    msg.parse_error(out err, out dbg);
+                    warning("AudioRecorder: Pipeline error during finalization: %s", err.message);
+                }
                 bus = null;
             }
             
