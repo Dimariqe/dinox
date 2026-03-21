@@ -65,10 +65,29 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
 
     private void handle_existing_devices(Gst.DeviceMonitor device_monitor) {
         var new_devices = new ArrayList<Device>();
+        debug("=== Device enumeration start ===");
         foreach (Gst.Device device in device_monitor.get_devices()) {
-            if (device.properties == null) continue;
-            if (device.properties.has_name("pipewire-proplist") && device.has_classes("Audio")) continue;
-            if (device.properties.get_string("device.class") == "monitor") continue;
+            if (device.properties == null) {
+                debug("  SKIP (no properties): %s classes=%s", device.display_name, device.device_class);
+                continue;
+            }
+            // Log ALL devices before filtering so we see what Windows provides
+            string? dev_class = device.properties.get_string("device.class");
+            bool is_def = false;
+            device.properties.get_boolean("is-default", out is_def);
+            debug("  DEVICE: name='%s' class='%s' dev_class='%s' proplist='%s' is-default=%s caps=%s",
+                  device.display_name, device.device_class,
+                  dev_class ?? "null", device.properties.get_name(),
+                  is_def.to_string(),
+                  device.caps != null ? device.caps.to_string() : "none");
+            if (device.properties.has_name("pipewire-proplist") && device.has_classes("Audio")) {
+                debug("  → SKIP (pipewire audio)");
+                continue;
+            }
+            if (dev_class == "monitor") {
+                debug("  → SKIP (monitor)");
+                continue;
+            }
             var pre_device = devices.first_match((it) => it.matches(device));
             if (pre_device != null) {
                 // Update the Gst.Device ref so the wrapper points at
