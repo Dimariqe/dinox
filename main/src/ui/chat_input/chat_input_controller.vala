@@ -86,7 +86,7 @@ public class ChatInputController : Object {
             if (root != null) {
                 var dlg = new Adw.AlertDialog(
                     _("Video recording failed"),
-                    _("The video encoder could not be initialized:\n\n%s").printf(msg));
+                    msg);
                 dlg.add_response("ok", _("OK"));
                 dlg.present(root);
             }

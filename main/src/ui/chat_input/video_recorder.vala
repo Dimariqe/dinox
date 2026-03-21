@@ -19,7 +19,6 @@ public class VideoRecorder : GLib.Object {
     private Element video_rate;
     private Element video_capsfilter;
     private Element video_encoder;
-    private Element? video_profile_caps;  // capsfilter: force constrained-baseline for mobile compatibility
     private Element? video_parser;
     private Element video_queue;
     private Element audio_source;
@@ -242,14 +241,6 @@ public class VideoRecorder : GLib.Object {
                 "No working H.264 video encoder found.\n\n%s".printf(hint));
         }
 
-        // Force Constrained Baseline profile for maximum mobile compatibility.
-        // High profile is not supported by many Android media players (Monocles, Conversations).
-        video_profile_caps = ElementFactory.make("capsfilter", "video-profile-caps");
-        if (video_profile_caps != null) {
-            video_profile_caps.set("caps", Caps.from_string(
-                "video/x-h264, profile=(string)constrained-baseline"));
-        }
-
         // Parser: h264parse for proper MP4 muxing (optional but recommended)
         video_parser = ElementFactory.make("h264parse", "video-parser");
         if (video_parser == null) {
@@ -357,9 +348,6 @@ public class VideoRecorder : GLib.Object {
             audio_source, audio_volume, audio_convert, audio_resample, audio_capsfilter,
             audio_queue, audio_convert2, audio_encoder,
             muxer, sink);
-        if (video_profile_caps != null) {
-            pipeline.add(video_profile_caps);
-        }
         if (video_parser != null) {
             pipeline.add(video_parser);
         }
@@ -399,16 +387,8 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video_queue → video_encoder");
         }
-        // Build video encoding chain: encoder → [profile_caps →] [parser →] muxer
-        // profile_caps forces Constrained Baseline for mobile compatibility
+        // Build video encoding chain: encoder → [parser →] muxer
         Element last_video = video_encoder;
-        if (video_profile_caps != null) {
-            if (!last_video.link(video_profile_caps)) {
-                throw new Error(Quark.from_string("VideoRecorder"), 0,
-                    "Could not link video_encoder → profile capsfilter");
-            }
-            last_video = video_profile_caps;
-        }
         if (video_parser != null) {
             if (!last_video.link(video_parser)) {
                 throw new Error(Quark.from_string("VideoRecorder"), 0,

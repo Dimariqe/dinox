@@ -225,6 +225,11 @@ public class AudioVideoDeviceService : GLib.Object {
     }
 
     public void rescan() {
+        // On Windows, DeviceMonitor caches device list — stop/start forces fresh scan
+        if (monitor != null && started) {
+            monitor.stop();
+            started = monitor.start();
+        }
         refresh_device_lists();
         devices_changed();
     }

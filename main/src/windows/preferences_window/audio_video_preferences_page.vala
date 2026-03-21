@@ -188,8 +188,8 @@ public class Dino.Ui.AudioVideoPreferencesPage : Adw.PreferencesPage {
 
         pipeline.set_state(Gst.State.PLAYING);
 
-        // Send EOS after 2 seconds to stop recording
-        Timeout.add(2000, () => {
+        // Send EOS after 5 seconds to stop recording
+        Timeout.add(5000, () => {
             if (test_pipeline == pipeline) {
                 pipeline.send_event(new Gst.Event.eos());
             }
@@ -210,7 +210,7 @@ public class Dino.Ui.AudioVideoPreferencesPage : Adw.PreferencesPage {
             return;
         }
 
-        source.set_property("uri", "file://" + mic_test_file);
+        source.set_property("uri", File.new_for_path(mic_test_file).get_uri());
 
         pipeline.add_many(source, convert, sink);
         convert.link(sink);
