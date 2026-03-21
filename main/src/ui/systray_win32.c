@@ -762,8 +762,6 @@ void
 systray_win32_suppress_crt_assertions (void)
 {
     _set_invalid_parameter_handler (silent_invalid_parameter_handler);
-    /* Also disable the CRT "abort/retry/ignore" dialog for _ASSERT and _ASSERTE */
-    _CrtSetReportMode (_CRT_ASSERT, 0);
     tray_log ("CRT invalid-parameter handler suppressed");
 }
 
