@@ -259,6 +259,10 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                     // Find the payload type that matches
                     foreach (var payload_type in content_params.payload_types) {
                         if (payload_type.id == pt) {
+                            if (payload_type.name == null) {
+                                warning("request-pt-map: payload_type id=%u has null name, skipping", pt);
+                                continue;
+                            }
                             string caps_str;
                             if (content_params.media == "audio") {
                                 // Audio caps
@@ -277,7 +281,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                         }
                     }
                     // Also check agreed_payload_type
-                    if (content_params.agreed_payload_type != null && content_params.agreed_payload_type.id == pt) {
+                    if (content_params.agreed_payload_type != null && content_params.agreed_payload_type.id == pt && content_params.agreed_payload_type.name != null) {
                         var payload_type = content_params.agreed_payload_type;
                         string caps_str;
                         if (content_params.media == "audio") {

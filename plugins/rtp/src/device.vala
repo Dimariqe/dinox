@@ -179,12 +179,22 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             bool new_codec = false;
             string? codec = CodecUtil.get_codec_from_payload(media, payload_type);
             if (!codecs.has_key(payload_type)) {
-                codecs[payload_type] = codec_util.get_encode_bin_without_payloader(media, payload_type, @"$(id)_$(codec)_encoder");
+                var encode_bin = codec_util.get_encode_bin_without_payloader(media, payload_type, @"$(id)_$(codec)_encoder");
+                if (encode_bin == null) {
+                    warning("link_source(%s): encoder for %s/%s not available", id, media, codec ?? "?");
+                    return tee;
+                }
+                codecs[payload_type] = encode_bin;
                 pipe.add(codecs[payload_type]);
                 new_codec = true;
             }
             if (!codec_tees.has_key(payload_type)) {
-                codec_tees[payload_type] = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_tee");
+                var ct = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_tee");
+                if (ct == null) {
+                    warning("link_source(%s): failed to create codec tee", id);
+                    return tee;
+                }
+                codec_tees[payload_type] = ct;
                 codec_tees[payload_type].@set("allow-not-linked", true);
                 pipe.add(codec_tees[payload_type]);
                 codecs[payload_type].link(codec_tees[payload_type]);
@@ -193,8 +203,17 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 payloaders[payload_type] = new HashMap<uint, Gst.Element>();
             }
             if (!payloaders[payload_type].has_key(ssrc)) {
-                payloaders[payload_type][ssrc] = codec_util.get_payloader_bin(media, payload_type, @"$(id)_$(codec)_$(ssrc)");
-                var payload = (Gst.RTP.BasePayload) ((Gst.Bin) payloaders[payload_type][ssrc]).get_by_name(@"$(id)_$(codec)_$(ssrc)_rtp_pay");
+                var payloader_bin = codec_util.get_payloader_bin(media, payload_type, @"$(id)_$(codec)_$(ssrc)");
+                if (payloader_bin == null) {
+                    warning("link_source(%s): payloader for %s/%s not available", id, media, codec ?? "?");
+                    return tee;
+                }
+                payloaders[payload_type][ssrc] = payloader_bin;
+                var payload = ((Gst.Bin) payloaders[payload_type][ssrc]).get_by_name(@"$(id)_$(codec)_$(ssrc)_rtp_pay") as Gst.RTP.BasePayload;
+                if (payload == null) {
+                    warning("link_source(%s): payloader element not found in bin", id);
+                    return tee;
+                }
                 payload.ssrc = ssrc;
                 payload.seqnum_offset = seqnum_offset;
                 if (timestamp_offset != 0) {
@@ -208,7 +227,12 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 payloader_tees[payload_type] = new HashMap<uint, Gst.Element>();
             }
             if (!payloader_tees[payload_type].has_key(ssrc)) {
-                payloader_tees[payload_type][ssrc] = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_$(ssrc)_tee");
+                var pt_tee = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_$(ssrc)_tee");
+                if (pt_tee == null) {
+                    warning("link_source(%s): failed to create payloader tee", id);
+                    return tee;
+                }
+                payloader_tees[payload_type][ssrc] = pt_tee;
                 payloader_tees[payload_type][ssrc].@set("allow-not-linked", true);
                 pipe.add(payloader_tees[payload_type][ssrc]);
                 payloaders[payload_type][ssrc].link(payloader_tees[payload_type][ssrc]);
@@ -695,6 +719,12 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                       id, plugin.echoprobe != null ? "yes" : "no",
                       plugin.echoprobe != null ? plugin.echoprobe.get_static_pad("src").is_linked().to_string() : "n/a");
                 mixer = (Gst.Base.Aggregator) Gst.ElementFactory.make("audiomixer", @"mixer_$id");
+                if (mixer == null) {
+                    warning("Device %s: audiomixer not available — audio sink will not work", id);
+                    element.sync_state_with_parent();
+                    plugin.unpause();
+                    return;
+                }
                 // 20ms aggregation latency: gives audiomixer time to collect
                 // samples from all input pads before outputting.  Without this
                 // (default=0) it outputs immediately even when data hasn't
@@ -705,6 +735,13 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
 
                 // Volume ramp-up on receive path to prevent initial crackling
                 recv_volume = Gst.ElementFactory.make("volume", @"recv_vol_$id");
+                if (recv_volume == null) {
+                    warning("Device %s: volume element not available — linking mixer directly to sink", id);
+                    mixer.link(element);
+                    element.sync_state_with_parent();
+                    plugin.unpause();
+                    return;
+                }
                 pipe.add(recv_volume);
                 recv_volume.@set("volume", 0.0);
                 recv_volume.sync_state_with_parent();
@@ -751,43 +788,62 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                         // sinks may require stereo and/or a different rate.
                         sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
                         sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
-                        pipe.add(sink_convert);
-                        pipe.add(sink_resample);
-                        sink_convert.sync_state_with_parent();
-                        sink_resample.sync_state_with_parent();
-                        plugin.echoprobe.link(sink_convert);
-                        sink_convert.link(sink_resample);
-                        sink_resample.link(element);
+                        if (sink_convert != null && sink_resample != null) {
+                            pipe.add(sink_convert);
+                            pipe.add(sink_resample);
+                            sink_convert.sync_state_with_parent();
+                            sink_resample.sync_state_with_parent();
+                            plugin.echoprobe.link(sink_convert);
+                            sink_convert.link(sink_resample);
+                            sink_resample.link(element);
+                        } else {
+                            warning("Device %s: audioconvert/audioresample not available in echoprobe path, linking directly", id);
+                            plugin.echoprobe.link(element);
+                        }
                     } else {
                         recv_volume.link(plugin.echoprobe);
                         sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
                         sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
-                        pipe.add(sink_convert);
-                        pipe.add(sink_resample);
-                        sink_convert.sync_state_with_parent();
-                        sink_resample.sync_state_with_parent();
-                        plugin.echoprobe.link(sink_convert);
-                        sink_convert.link(sink_resample);
-                        sink_resample.link(element);
+                        if (sink_convert != null && sink_resample != null) {
+                            pipe.add(sink_convert);
+                            pipe.add(sink_resample);
+                            sink_convert.sync_state_with_parent();
+                            sink_resample.sync_state_with_parent();
+                            plugin.echoprobe.link(sink_convert);
+                            sink_convert.link(sink_resample);
+                            sink_resample.link(element);
+                        } else {
+                            warning("Device %s: audioconvert/audioresample not available in echoprobe fallback", id);
+                            plugin.echoprobe.link(element);
+                        }
                     }
                 } else {
                     filter = Gst.ElementFactory.make("capsfilter", @"caps_filter_$id");
-                    filter.@set("caps", device_caps);
-                    pipe.add(filter);
-                    filter.sync_state_with_parent();
-                    recv_volume.link(filter);
+                    if (filter != null) {
+                        filter.@set("caps", device_caps);
+                        pipe.add(filter);
+                        filter.sync_state_with_parent();
+                        recv_volume.link(filter);
+                    } else {
+                        warning("Device %s: capsfilter not available, skipping caps filter", id);
+                    }
                     // audioconvert+audioresample between capsfilter and sink
                     // element to handle format differences (e.g. mono→stereo,
                     // 48kHz→44.1kHz on WASAPI2).
                     sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
                     sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
-                    pipe.add(sink_convert);
-                    pipe.add(sink_resample);
-                    sink_convert.sync_state_with_parent();
-                    sink_resample.sync_state_with_parent();
-                    filter.link(sink_convert);
-                    sink_convert.link(sink_resample);
-                    sink_resample.link(element);
+                    if (sink_convert != null && sink_resample != null) {
+                        pipe.add(sink_convert);
+                        pipe.add(sink_resample);
+                        sink_convert.sync_state_with_parent();
+                        sink_resample.sync_state_with_parent();
+                        (filter ?? recv_volume).link(sink_convert);
+                        sink_convert.link(sink_resample);
+                        sink_resample.link(element);
+                    } else {
+                        warning("Device %s: audioconvert/audioresample not available, linking directly", id);
+                        (filter ?? recv_volume).link(element);
+                    }
                 }
             }
             element.sync_state_with_parent();

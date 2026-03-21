@@ -396,14 +396,19 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         }
 
         decode = codec_util.get_decode_bin(media, payload_type, @"decode_$rtpid");
-        decode_depay = (Gst.RTP.BaseDepayload)((Gst.Bin)decode).get_by_name(@"decode_$(rtpid)_rtp_depay");
-        pipe.add(decode);
-        decode.sync_state_with_parent();
-        if (output != null) {
-            decode.link(output);
-            debug("[%s] create(): decode linked to output", media);
+        if (decode == null) {
+            warning("[%s] create(): get_decode_bin returned null — codec %s not available, incoming media will not work",
+                    media, CodecUtil.get_codec_from_payload(media, payload_type) ?? "unknown");
         } else {
-            debug("[%s] create(): NO OUTPUT — decode has no sink", media);
+            decode_depay = ((Gst.Bin)decode).get_by_name(@"decode_$(rtpid)_rtp_depay") as Gst.RTP.BaseDepayload;
+            pipe.add(decode);
+            decode.sync_state_with_parent();
+            if (output != null) {
+                decode.link(output);
+                debug("[%s] create(): decode linked to output", media);
+            } else {
+                debug("[%s] create(): NO OUTPUT — decode has no sink", media);
+            }
         }
 
         // Connect RTP
@@ -1152,9 +1157,20 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         if (created && sending && !paused && input != null) {
             plugin.pause();
             input_pad = input.request_pad_simple(@"src_$rtpid");
+            if (input_pad == null) {
+                warning("set_input_and_pause: request_pad_simple(src_%u) returned null", rtpid);
+                plugin.unpause();
+                return;
+            }
             
             // Add decoupling queue for source
             this.input_queue = Gst.ElementFactory.make("queue", @"input_queue_$rtpid");
+            if (this.input_queue == null) {
+                warning("set_input_and_pause: failed to create input_queue");
+                input_pad.link(send_rtp_sink_pad);
+                plugin.unpause();
+                return;
+            }
             pipe.add(this.input_queue);
             this.input_queue.sync_state_with_parent();
 
@@ -1174,7 +1190,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     public void unpause() {
         if (!paused) return;
         set_input_and_pause(input_device != null ? input_device.link_source(payload_type, our_ssrc, next_seqnum_offset, next_timestamp_offset) : null, false);
-        input_device.update_bitrate(payload_type, target_send_bitrate);
+        if (input_device != null) input_device.update_bitrate(payload_type, target_send_bitrate);
     }
 
     public uint get_participant_ssrc(Xmpp.Jid participant) {
@@ -1198,10 +1214,20 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         }
         this.output = element;
         if (created) {
+            if (decode == null) {
+                warning("add_output(): decode bin is null, cannot link output");
+                return;
+            }
             plugin.pause();
             
             // Add queue to decouple decoding from output (fixes pipeline warnings)
             output_queue = Gst.ElementFactory.make("queue", @"audio_out_queue_$rtpid");
+            if (output_queue == null) {
+                warning("add_output(): failed to create output queue, linking decode directly");
+                decode.link(element);
+                plugin.unpause();
+                return;
+            }
             // Time-based buffering: hold up to 50ms of decoded audio to
             // absorb jitter between decoder and audio sink.  Disable the
             // buffer-count limit so only wall-clock time governs fullness.
@@ -1226,7 +1252,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
             critical("remove_output() invoked without prior add_output()");
             return;
         }
-        if (created) {
+        if (created && decode != null) {
             block_probe_handler_id = decode.get_static_pad("src").add_probe(Gst.PadProbeType.BLOCK, drop_probe);
             
             if (output_queue != null) {
@@ -1263,14 +1289,34 @@ public class Dino.Plugins.Rtp.VideoStream : Stream {
         incoming_video_orientation_changed_handler = incoming_video_orientation_changed.connect(on_video_orientation_changed);
         plugin.pause();
         rotate = Gst.ElementFactory.make("videoflip", @"video_rotate_$rtpid");
+        if (rotate == null) {
+            warning("VideoStream.create(): videoflip element not available");
+            plugin.unpause();
+            base.create();
+            return;
+        }
         pipe.add(rotate);
         
         // Add Pre-Queue for rotation
         var rot_queue = Gst.ElementFactory.make("queue", @"video_rotate_queue_$rtpid");
+        if (rot_queue == null) {
+            warning("VideoStream.create(): queue element not available");
+            add_output(rotate);
+            base.create();
+            plugin.unpause();
+            return;
+        }
         pipe.add(rot_queue);
         rot_queue.sync_state_with_parent();
 
         output_tee = Gst.ElementFactory.make("tee", @"video_tee_$rtpid");
+        if (output_tee == null) {
+            warning("VideoStream.create(): tee element not available");
+            add_output(rotate);
+            base.create();
+            plugin.unpause();
+            return;
+        }
         output_tee.@set("allow-not-linked", true);
         pipe.add(output_tee);
 
