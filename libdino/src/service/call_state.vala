@@ -77,6 +77,8 @@ public class Dino.CallState : Object {
     internal PeerState set_first_peer(Jid peer) {
         var peer_state = new PeerState(peer, call, this, stream_interactor);
         peer_state.first_peer = true;
+        peer_state.we_should_send_video = this.we_should_send_video;
+        peer_state.we_should_send_audio = this.we_should_send_audio;
         add_peer(peer_state);
         return peer_state;
     }
@@ -269,6 +271,7 @@ public class Dino.CallState : Object {
     public void mute_own_audio(bool mute) {
         we_should_send_audio = !mute;
         foreach (PeerState peer in peers.values) {
+            peer.we_should_send_audio = !mute;
             peer.mute_own_audio(mute);
         }
     }
@@ -276,6 +279,7 @@ public class Dino.CallState : Object {
     public void mute_own_video(bool mute) {
         we_should_send_video = !mute;
         foreach (PeerState peer in peers.values) {
+            peer.we_should_send_video = !mute;
             peer.mute_own_video(mute);
         }
     }

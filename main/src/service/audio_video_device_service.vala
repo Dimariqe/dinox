@@ -156,19 +156,39 @@ public class AudioVideoDeviceService : GLib.Object {
     }
 
     public Gst.Element? create_audio_source(string device_name) {
-        return create_element_for(audio_inputs, device_name, "autoaudiosrc", "audio-source");
+#if WINDOWS
+        return create_element_for(audio_inputs, device_name,
+            {"wasapi2src", "autoaudiosrc"}, "audio-source");
+#else
+        return create_element_for(audio_inputs, device_name,
+            {"autoaudiosrc"}, "audio-source");
+#endif
     }
 
     public Gst.Element? create_audio_sink(string device_name) {
-        return create_element_for(audio_outputs, device_name, "autoaudiosink", "audio-sink");
+#if WINDOWS
+        return create_element_for(audio_outputs, device_name,
+            {"wasapi2sink", "autoaudiosink"}, "audio-sink");
+#else
+        return create_element_for(audio_outputs, device_name,
+            {"autoaudiosink"}, "audio-sink");
+#endif
     }
 
     public Gst.Element? create_video_source(string device_name) {
-        return create_element_for(video_inputs, device_name, "autovideosrc", "video-source");
+#if WINDOWS
+        return create_element_for(video_inputs, device_name,
+            {"mfvideosrc", "ksvideosrc", "autovideosrc"}, "video-source");
+#else
+        // Linux: pipewiresrc has higher rank and autovideosrc will pick it,
+        // but try it explicitly first for systems where auto-detect fails.
+        return create_element_for(video_inputs, device_name,
+            {"autovideosrc", "pipewiresrc", "v4l2src"}, "video-source");
+#endif
     }
 
     private Gst.Element? create_element_for(ArrayList<DeviceInfo> devices, string device_name,
-                                              string fallback_factory, string element_name) {
+                                              string[] fallback_factories, string element_name) {
         if (device_name != "") {
             foreach (var info in devices) {
                 if (info.display_name == device_name && info.gst_device != null) {
@@ -178,7 +198,12 @@ public class AudioVideoDeviceService : GLib.Object {
             }
             warning("AudioVideoDeviceService: Device '%s' not found, using default", device_name);
         }
-        return Gst.ElementFactory.make(fallback_factory, element_name);
+        // Try each fallback factory in order until one succeeds
+        foreach (string factory in fallback_factories) {
+            var element = Gst.ElementFactory.make(factory, element_name);
+            if (element != null) return element;
+        }
+        return null;
     }
 
     public void rescan() {

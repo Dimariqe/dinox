@@ -20,9 +20,9 @@ public class Xmpp.Xep.Jingle.Content : Object {
     public Role role { get; private set; }
     public Jid local_full_jid { get; private set; }
     public Jid peer_full_jid { get; private set; }
-    public Role content_creator { get; private set; }
+    public Role content_creator { get; internal set; }
     public string content_name { get; private set; }
-    public Senders senders { get; private set; }
+    public Senders senders { get; internal set; }
 
     public ContentType content_type;
     public ContentParameters? content_params;

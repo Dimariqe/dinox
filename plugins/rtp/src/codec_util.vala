@@ -107,6 +107,9 @@ public class Dino.Plugins.Rtp.CodecUtil {
                         "vah264lpenc",
                         "vah264enc",
 #endif
+#if WINDOWS
+                        "mfh264enc",
+#endif
                         "openh264enc",
                         "x264enc"
                     };
@@ -160,6 +163,9 @@ public class Dino.Plugins.Rtp.CodecUtil {
 #if ENABLE_V4L2SL
                         "v4l2slh264dec",
 #endif
+#if WINDOWS
+                        "mfh264dec",
+#endif
                         "openh264dec",
                         "avdec_h264"
                     };
@@ -199,6 +205,8 @@ public class Dino.Plugins.Rtp.CodecUtil {
         // H264 - key-int-max=30 ensures keyframe every ~1 second at 30fps
         if (encode == "msdkh264enc") return @" rate-control=vbr key-int-max=30";
         if (encode == "vah264lpenc" || encode == "vah264enc") return @" rate-control=vbr key-int-max=30";
+        // Windows Media Foundation H.264 — native hardware-accelerated encoder
+        if (encode == "mfh264enc") return " bframes=0 gop-size=30";
         // openh264enc uses bitrate in bits/sec and gop-size for keyframe interval
         if (encode == "openh264enc") return " bitrate=1500000 gop-size=30";
         if (encode == "x264enc") return @" byte-stream=1 speed-preset=faster tune=zerolatency bframes=0 cabac=false dct8x8=false key-int-max=30";
@@ -243,6 +251,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
             case "msdkh264enc":
             case "vah264lpenc":
             case "vah264enc":
+            case "mfh264enc":
             case "x264enc":
             case "msdkvp8enc":
             case "vavp8enc":
@@ -257,6 +266,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
             case "vp8enc":
             case "vp9enc":
                 bitrate = uint.min(2147483, bitrate);
+                debug("VP8/VP9 encoder target-bitrate set to %u kbps (%u bps)", bitrate, bitrate * 1024);
                 encode.set("target-bitrate", bitrate * 1024);
                 return bitrate;
         }

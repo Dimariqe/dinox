@@ -30,10 +30,16 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
 
     private Device _input_device;
     public Device input_device { get { return _input_device; } set {
+        debug("[%s] input_device setter: sending=%s paused=%s value=%s media=%s",
+              media, sending.to_string(), paused.to_string(),
+              value != null ? value.display_name : "null", media);
         if (sending && !paused) {
             var input = this.input;
             set_input(value != null ? value.link_source(payload_type, our_ssrc, next_seqnum_offset, next_timestamp_offset) : null);
             if (this._input_device != null) this._input_device.unlink(input);
+            debug("[%s] input_device: link_source done, input=%s", media, this.input != null ? "set" : "null");
+        } else {
+            debug("[%s] input_device: skipped link_source (sending=%s paused=%s)", media, sending.to_string(), paused.to_string());
         }
         this._input_device = value;
     }}
@@ -91,6 +97,8 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
 #endif
     private Object? internal_session;
     private uint remb_timeout_id = 0;
+    private uint video_rtp_packet_count = 0;
+    private uint audio_rtp_packet_count = 0;
 
     public Stream(Plugin plugin, Xmpp.Xep.Jingle.Content content) {
         base(content);
@@ -101,6 +109,10 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     }
 
     public void on_senders_changed() {
+        debug("[%s] on_senders_changed: sending=%s receiving=%s input=%s output=%s input_device=%s",
+              media, sending.to_string(), receiving.to_string(),
+              input != null ? "set" : "null", output != null ? "set" : "null",
+              _input_device != null ? _input_device.display_name : "null");
         if (sending && input == null) {
             input_device = input_device;
         }
@@ -293,8 +305,13 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         plugin.pause();
 
         // Create i/o if needed
+        debug("[%s] create(): sending=%s receiving=%s input=%s output=%s input_device=%s",
+              media, sending.to_string(), receiving.to_string(),
+              input != null ? "set" : "null", output != null ? "set" : "null",
+              _input_device != null ? _input_device.display_name : "null");
 
         if (input == null && sending) {
+            debug("[%s] create(): triggering input_device setter for sending", media);
             input_device = input_device;
         }
         if (output == null && receiving && media == "audio") {
@@ -359,6 +376,9 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         if (input != null) {
             input_pad = input.request_pad_simple(@"src_$rtpid");
             input_pad.link(send_rtp_sink_pad);
+            debug("[%s] create(): input linked to rtpbin send_rtp_sink_%u", media, rtpid);
+        } else {
+            debug("[%s] create(): NO INPUT — nothing linked to send_rtp_sink_%u", media, rtpid);
         }
 
         decode = codec_util.get_decode_bin(media, payload_type, @"decode_$rtpid");
@@ -367,6 +387,9 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         decode.sync_state_with_parent();
         if (output != null) {
             decode.link(output);
+            debug("[%s] create(): decode linked to output", media);
+        } else {
+            debug("[%s] create(): NO OUTPUT — decode has no sink", media);
         }
 
         // Connect RTP
@@ -578,6 +601,17 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         Gst.Sample sample = sink.pull_sample();
         Gst.Buffer buffer = sample.get_buffer();
         if (sink == send_rtp) {
+            if (media == "video") {
+                video_rtp_packet_count++;
+                if (video_rtp_packet_count <= 3 || video_rtp_packet_count % 100 == 0) {
+                    debug("[video] RTP packet #%u size=%u bytes", video_rtp_packet_count, (uint)buffer.get_size());
+                }
+            } else {
+                audio_rtp_packet_count++;
+                if (audio_rtp_packet_count == 1 || audio_rtp_packet_count % 500 == 0) {
+                    debug("[audio] RTP packet #%u", audio_rtp_packet_count);
+                }
+            }
             uint buffer_ssrc = 0, buffer_seq = 0;
             Gst.RTP.Buffer rtp_buffer;
             if (Gst.RTP.Buffer.map(buffer, Gst.MapFlags.READ, out rtp_buffer)) {
@@ -1026,6 +1060,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     }
 
     public override void on_rtp_ready() {
+        debug("[%s] RTP transport is READY (sending=%s)", media, sending.to_string());
         // If full frame has been sent before the connection was ready, the counterpart would only display our video after the next full frame.
         // Send a full frame to let the counterpart display our video asap
         rtpbin.send_event(new Gst.Event.custom(
@@ -1041,7 +1076,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         bool rtp_sent;
         GLib.Signal.emit_by_name(rtpbin, "get-internal-session", rtp_session_id, out rtp_session);
         GLib.Signal.emit_by_name(rtp_session, "send-rtcp-full", max_delay, out rtp_sent);
-        debug("RTCP is ready, resending rtcp: %s", rtp_sent.to_string());
+        debug("[%s] RTCP is ready, resending rtcp: %s", media, rtp_sent.to_string());
     }
 
     public void on_ssrc_pad_added(uint32 ssrc, Gst.Pad pad) {
@@ -1243,22 +1278,22 @@ public class Dino.Plugins.Rtp.VideoStream : Stream {
     }
 
     private void on_video_orientation_changed(uint16 degree) {
-        if (rotate != null) {
-            switch (degree) {
-                case 0:
-                    rotate.@set("method", 0);
-                    break;
-                case 90:
-                    rotate.@set("method", 1);
-                    break;
-                case 180:
-                    rotate.@set("method", 2);
-                    break;
-                case 270:
-                    rotate.@set("method", 3);
-                    break;
-            }
+        if (rotate == null) return;
+        int method;
+        switch (degree) {
+            case 90:  method = 1; break;
+            case 180: method = 2; break;
+            case 270: method = 3; break;
+            default:  method = 0; break;
         }
+        // Block data on rotate's src pad so no buffer is mid-copy
+        // in videoflip when we change the rotation method.
+        // Prevents SIGSEGV in gst_video_frame_copy_plane.
+        Gst.Pad srcpad = rotate.get_static_pad("src");
+        srcpad.add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM, (pad, info) => {
+            rotate.@set("method", method);
+            return Gst.PadProbeReturn.REMOVE;
+        });
     }
 
     public override void destroy() {

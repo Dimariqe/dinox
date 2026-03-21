@@ -102,6 +102,9 @@ public class Dino.PeerState : Object {
 
         sid = Xmpp.random_uuid();
 
+        debug("initiate_call: do_jmi=%s we_should_send_video=%s counterpart=%s",
+              do_jmi.to_string(), we_should_send_video.to_string(), counterpart.to_string());
+
         if (do_jmi) {
             XmppStream? stream = stream_interactor.get_stream(call.account);
 
@@ -131,6 +134,8 @@ public class Dino.PeerState : Object {
 
         if (sid == null) sid = Xmpp.random_uuid();
 
+        debug("call_resource: we_should_send_video=%s peer=%s", we_should_send_video.to_string(), full_jid.to_string());
+
         Xep.Jingle.Session session;
         try {
             session = yield stream.get_module<Xep.JingleRtp.Module>(Xep.JingleRtp.Module.IDENTITY).start_call(stream, full_jid, we_should_send_video, sid, group_call != null ? group_call.muc_jid : null);
@@ -155,10 +160,14 @@ public class Dino.PeerState : Object {
             return;
         }
 
+        debug("accept: we_should_send_video=%s session=%s", we_should_send_video.to_string(), session != null ? "set" : "null");
+
         if (session != null) {
             foreach (Xep.Jingle.Content content in session.contents) {
                 Xep.JingleRtp.Parameters? rtp_content_parameter = content.content_params as Xep.JingleRtp.Parameters;
                 if (rtp_content_parameter != null && rtp_content_parameter.media == "video") {
+                    debug("accept: video content '%s' senders=%s we_initiated=%s",
+                          content.content_name, content.senders.to_string(), session.we_initiated.to_string());
                     // We didn't accept video but our peer wants to negotiate that content
                     if (!we_should_send_video && session.senders_include_us(content.senders)) {
                         if (session.senders_include_counterpart(content.senders)) {
