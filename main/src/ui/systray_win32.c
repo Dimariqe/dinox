@@ -735,17 +735,26 @@ systray_win32_set_app_id (const gchar *app_id_utf8)
 /*
  * GStreamer's MediaFoundation plugin spawns worker threads that probe
  * hardware encoders/decoders.  When a device is not available, the MF API
- * sometimes calls CRT functions with invalid parameters.  GLib pushes/pops
- * a custom CRT handler around such calls, but in multi-threaded scenarios
- * the handler stack can get corrupted, causing:
+ * sometimes calls CRT functions with invalid parameters.
+ *
+ * On MinGW64 (MSVCRT runtime), _set_invalid_parameter_handler is process-
+ * wide (not thread-local like on UCRT/MSVC).  GLib's g_win32_push/pop_
+ * invalid_parameter_handler therefore has a TOCTOU race: if any thread
+ * (e.g. MediaFoundation worker) calls _set_invalid_parameter_handler
+ * between GLib's push and pop, the pop assertion fires:
  *
  *   GLib-CRITICAL (recursed) **: g_win32_pop_invalid_parameter_handler:
  *   assertion 'handler->pushed_handler == popped_handler' failed
  *
- * The fix: install a process-wide CRT invalid-parameter handler that
- * silently ignores the call (instead of showing a dialog/aborting).
- * This is safe because GLib and GStreamer already handle the errors
- * gracefully at a higher level.
+ * The "(recursed)" means the g_critical fires while another g_log is
+ * already active on the same thread.  GLib's hardcoded fallback handler
+ * for recursive messages calls MessageBoxW() directly — no GLib API
+ * (g_log_set_handler, g_log_set_writer_func, etc.) can intercept this.
+ *
+ * The fix has two layers:
+ *   1. _set_invalid_parameter_handler → silent handler (reduces frequency)
+ *   2. IAT-patch MessageBoxW in libglib-2.0-0.dll to suppress exactly
+ *      this one dialog while letting all other message boxes through.
  */
 static void
 silent_invalid_parameter_handler (
@@ -758,10 +767,100 @@ silent_invalid_parameter_handler (
     /* intentionally empty — suppress the CRT assertion dialog */
 }
 
+/* --- IAT patching to suppress GLib's recursive CRT handler dialog --- */
+
+typedef int (WINAPI *MessageBoxW_fn)(HWND, LPCWSTR, LPCWSTR, UINT);
+static MessageBoxW_fn Real_MessageBoxW = NULL;
+
+static int WINAPI
+filtered_message_box_w (HWND hWnd, LPCWSTR lpText,
+                        LPCWSTR lpCaption, UINT uType)
+{
+    /* Suppress only the GLib CRT handler mismatch dialog */
+    if (lpText && wcsstr (lpText, L"pop_invalid_parameter_handler"))
+    {
+        tray_log ("Suppressed GLib CRT handler assertion dialog");
+        return IDOK;
+    }
+    return Real_MessageBoxW (hWnd, lpText, lpCaption, uType);
+}
+
+/*
+ * Walk the Import Address Table (IAT) of the given module and replace
+ * the entry for MessageBoxW (from user32.dll) with our filtered version.
+ */
+static void
+patch_module_iat_messagebox (HMODULE module)
+{
+    if (!module) return;
+
+    BYTE *base = (BYTE *) module;
+    PIMAGE_DOS_HEADER dos = (PIMAGE_DOS_HEADER) base;
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE) return;
+
+    PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS) (base + dos->e_lfanew);
+    if (nt->Signature != IMAGE_NT_SIGNATURE) return;
+
+    DWORD import_rva =
+        nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+    if (!import_rva) return;
+
+    PIMAGE_IMPORT_DESCRIPTOR imp = (PIMAGE_IMPORT_DESCRIPTOR) (base + import_rva);
+
+    for (; imp->Name; imp++)
+    {
+        const char *dll = (const char *) (base + imp->Name);
+        if (_stricmp (dll, "user32.dll") != 0)
+            continue;
+
+        PIMAGE_THUNK_DATA orig  = (PIMAGE_THUNK_DATA) (base + imp->OriginalFirstThunk);
+        PIMAGE_THUNK_DATA thunk = (PIMAGE_THUNK_DATA) (base + imp->FirstThunk);
+
+        for (; orig->u1.AddressOfData; orig++, thunk++)
+        {
+            if (IMAGE_SNAP_BY_ORDINAL (orig->u1.Ordinal))
+                continue;
+
+            PIMAGE_IMPORT_BY_NAME name =
+                (PIMAGE_IMPORT_BY_NAME) (base + orig->u1.AddressOfData);
+
+            if (strcmp ((const char *) name->Name, "MessageBoxW") == 0)
+            {
+                Real_MessageBoxW = (MessageBoxW_fn) thunk->u1.Function;
+
+                DWORD old_protect;
+                if (VirtualProtect (&thunk->u1.Function, sizeof (FARPROC),
+                                    PAGE_READWRITE, &old_protect))
+                {
+                    thunk->u1.Function = (ULONG_PTR) filtered_message_box_w;
+                    VirtualProtect (&thunk->u1.Function, sizeof (FARPROC),
+                                    old_protect, &old_protect);
+                    tray_log ("Patched MessageBoxW in GLib IAT");
+                }
+                return;
+            }
+        }
+    }
+    tray_log ("WARNING: MessageBoxW not found in module IAT");
+}
+
 void
 systray_win32_suppress_crt_assertions (void)
 {
+    /* Layer 1: silent CRT handler (reduces trigger frequency) */
     _set_invalid_parameter_handler (silent_invalid_parameter_handler);
+
+    /* Layer 2: patch GLib's MessageBoxW import to suppress the recursive
+     * assertion dialog that no GLib API can intercept */
+    Real_MessageBoxW = (MessageBoxW_fn) GetProcAddress (
+        GetModuleHandleW (L"user32.dll"), "MessageBoxW");
+
+    HMODULE glib = GetModuleHandleW (L"libglib-2.0-0.dll");
+    if (glib)
+        patch_module_iat_messagebox (glib);
+    else
+        tray_log ("WARNING: libglib-2.0-0.dll not loaded yet");
+
     tray_log ("CRT invalid-parameter handler suppressed");
 }
 
