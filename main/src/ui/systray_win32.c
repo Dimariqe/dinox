@@ -701,11 +701,6 @@ systray_win32_attach_parent_console (void)
         freopen ("NUL", "r", stdin);
         tray_log ("Allocated hidden console for child-process inheritance");
     }
-
-    /* Auto-enable GLib debug output ONLY when DINOX_LOG_FILE is explicitly
-     * set.  Normal shell usage (CMD, PowerShell, MSYS2) stays quiet. */
-    if (log_file && *log_file && !g_getenv ("G_MESSAGES_DEBUG"))
-        g_setenv ("G_MESSAGES_DEBUG", "all", FALSE);
 }
 
 /* ---- Set process-level AppUserModelID ---- */
