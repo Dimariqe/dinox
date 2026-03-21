@@ -91,8 +91,14 @@ public class Dino.CallState : Object {
 
     internal void on_peer_stream_created(PeerState peer, string media) {
         if (media == "audio") {
-            call_plugin.set_device(peer.get_audio_stream(), get_microphone_device());
-            call_plugin.set_device(peer.get_audio_stream(), get_speaker_device());
+            var mic = get_microphone_device();
+            var spk = get_speaker_device();
+            debug("on_peer_stream_created audio: mic=%s spk=%s stream=%s",
+                  mic != null ? mic.display_name : "NULL",
+                  spk != null ? spk.display_name : "NULL",
+                  peer.get_audio_stream() != null ? "ok" : "NULL");
+            if (mic != null) call_plugin.set_device(peer.get_audio_stream(), mic);
+            if (spk != null) call_plugin.set_device(peer.get_audio_stream(), spk);
         } else if (media == "video") {
             call_plugin.set_device(peer.get_video_stream(), get_video_device());
         }

@@ -146,18 +146,21 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
     public Gst.Element? link_sink() {
         if (!is_sink) return null;
         if (element == null) create();
+        if (element == null) {
+            warning("link_sink(%s): create() failed, element is still null", id);
+            return null;
+        }
         links++;
         if (mixer != null) {
             sink_peers++;
             Gst.Element rate = Gst.ElementFactory.make("audiorate", @"$(id)_rate_$(Random.next_int())");
-            // Allow small timestamp gaps (up to 40ms) without inserting silence.
-            // Without tolerance, audiorate fills every tiny discontinuity
-            // with silence samples which sounds like clicking/crackling.
             rate.@set("tolerance", (uint64) 40 * Gst.MSECOND);
             rate.@set("skip-to-first", true);
             pipe.add(rate);
             rate.link(mixer);
             update_recv_gain();
+            debug("link_sink(%s): audiorate → mixer → ... → %s (peers=%d)",
+                  id, element.get_factory() != null ? element.get_factory().get_name() : "?", sink_peers);
             return rate;
         }
         if (media == "audio") return filter;
@@ -167,6 +170,10 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
     public Gst.Element? link_source(PayloadType? payload_type = null, uint ssrc = 0, int seqnum_offset = -1, uint32 timestamp_offset = 0) {
         if (!is_source) return null;
         if (element == null) create();
+        if (element == null) {
+            warning("link_source(%s): create() failed, element is still null", id);
+            return null;
+        }
         links++;
         if (payload_type != null && ssrc != 0 && tee != null) {
             bool new_codec = false;
@@ -591,9 +598,18 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             warning("Cannot create device %s — Gst.Device already released", id);
             return;
         }
-        debug("Creating device %s", id);
+        debug("Creating device %s (media=%s, source=%s, sink=%s, protocol=%s, caps=%s)",
+              id, media ?? "null", is_source.to_string(), is_sink.to_string(),
+              protocol.to_string(), device.caps != null ? device.caps.to_string() : "null");
         plugin.pause();
         element = device.create_element(id);
+        if (element == null) {
+            warning("device.create_element(%s) returned null — audio/video will NOT work", id);
+            plugin.unpause();
+            return;
+        }
+        debug("Device %s: created element %s (factory=%s)", id, element.name,
+              element.get_factory() != null ? element.get_factory().get_name() : "unknown");
         if (is_sink) {
             element.@set("async", false);
             element.@set("sync", false);
@@ -675,6 +691,9 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
         }
         if (is_sink) {
             if (media == "audio") {
+                debug("Device %s: building audio SINK chain (echoprobe=%s, echoprobe_src_linked=%s)",
+                      id, plugin.echoprobe != null ? "yes" : "no",
+                      plugin.echoprobe != null ? plugin.echoprobe.get_static_pad("src").is_linked().to_string() : "n/a");
                 mixer = (Gst.Base.Aggregator) Gst.ElementFactory.make("audiomixer", @"mixer_$id");
                 // 20ms aggregation latency: gives audiomixer time to collect
                 // samples from all input pads before outputting.  Without this

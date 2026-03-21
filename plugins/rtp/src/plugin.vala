@@ -563,6 +563,13 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                 deduped.add(dev);
             }
         }
+        debug("get_audio_devices(%s): total=%d devices, pulse=%d, other=%d → result=%d",
+              incoming ? "incoming/sink" : "outgoing/source",
+              devices.size, pulse_devices.size, other_devices.size, deduped.size);
+        foreach (MediaDevice dev in deduped) {
+            debug("  → %s [%s] default=%s", dev.display_name, dev.id,
+                  (dev is Device) ? ((Device)dev).is_default.to_string() : "?");
+        }
         return deduped;
     }
 
@@ -710,10 +717,19 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
     public void set_device(Xmpp.Xep.JingleRtp.Stream? stream, MediaDevice? device) {
         Device? real_device = device as Device?;
         Stream? plugin_stream = stream as Stream?;
-        if (real_device == null || plugin_stream == null) return;
+        if (real_device == null || plugin_stream == null) {
+            warning("RtpPlugin.set_device: device=%s stream=%s — cannot assign",
+                    device != null ? device.display_name : "NULL",
+                    stream != null ? "ok" : "NULL");
+            return;
+        }
         if (real_device.is_source) {
+            debug("RtpPlugin.set_device: assigning input %s to %s stream",
+                  real_device.display_name, plugin_stream.media);
             plugin_stream.input_device = real_device;
         } else if (real_device.is_sink) {
+            debug("RtpPlugin.set_device: assigning output %s to %s stream",
+                  real_device.display_name, plugin_stream.media);
             plugin_stream.output_device = real_device;
         }
     }

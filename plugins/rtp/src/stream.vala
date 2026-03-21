@@ -45,8 +45,22 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     }}
     private Device _output_device;
     public Device output_device { get { return _output_device; } set {
+        debug("[%s] output_device setter: receiving=%s value=%s output=%s",
+              media, receiving.to_string(),
+              value != null ? value.display_name : "null",
+              output != null ? "set" : "null");
         if (output != null) remove_output(output);
-        if (value != null && receiving) add_output(value.link_sink());
+        if (value != null && receiving) {
+            var sink_element = value.link_sink();
+            if (sink_element != null) {
+                add_output(sink_element);
+                debug("[%s] output_device: link_sink done, output=%s", media, this.output != null ? "set" : "null");
+            } else {
+                warning("[%s] output_device: link_sink() returned null for %s", media, value.display_name);
+            }
+        } else if (value != null && !receiving) {
+            debug("[%s] output_device: skipped link_sink (not yet receiving)", media);
+        }
         this._output_device = value;
     }}
 
