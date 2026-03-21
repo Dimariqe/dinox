@@ -219,6 +219,11 @@ void main(string[] args) {
         // Prevent GStreamer from forking gst-plugin-scanner.exe (which
         // flashes a CMD window).  In-process scanning is fine for us.
         Environment.set_variable("GST_REGISTRY_FORK", "no", true);
+
+        // Suppress CRT invalid-parameter-handler assertions BEFORE Gst.init().
+        // GStreamer's MediaFoundation plugin scanning triggers CRT invalid parameter
+        // calls in worker threads which corrupt GLib's handler stack.
+        SystrayWin32.suppress_crt_assertions();
 #endif
 
         debug("Initializing GStreamer…");

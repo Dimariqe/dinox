@@ -63,4 +63,11 @@ void     systray_win32_attach_parent_console (void);
  * and is required for jump list suppression to work correctly. */
 void     systray_win32_set_app_id (const gchar *app_id_utf8);
 
+/* Suppress Windows CRT invalid-parameter-handler assertions.
+ * GStreamer's MediaFoundation plugin scanning triggers CRT invalid parameter
+ * calls in worker threads, which corrupts GLib's handler stack and causes
+ * GLib-CRITICAL (recursed) g_win32_pop_invalid_parameter_handler crashes.
+ * Call this BEFORE Gst.init(). */
+void     systray_win32_suppress_crt_assertions (void);
+
 #endif /* SYSTRAY_WIN32_H */

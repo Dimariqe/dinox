@@ -21,6 +21,7 @@
 #include <objbase.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>   /* _set_invalid_parameter_handler */
 
 /* Ensure definitions for older MinGW-w64 / SDK headers. */
 #ifndef NOTIFYICON_VERSION_4
@@ -730,6 +731,42 @@ systray_win32_set_app_id (const gchar *app_id_utf8)
     }
 }
 
+/* ---- Suppress CRT invalid-parameter assertions ---- */
+/*
+ * GStreamer's MediaFoundation plugin spawns worker threads that probe
+ * hardware encoders/decoders.  When a device is not available, the MF API
+ * sometimes calls CRT functions with invalid parameters.  GLib pushes/pops
+ * a custom CRT handler around such calls, but in multi-threaded scenarios
+ * the handler stack can get corrupted, causing:
+ *
+ *   GLib-CRITICAL (recursed) **: g_win32_pop_invalid_parameter_handler:
+ *   assertion 'handler->pushed_handler == popped_handler' failed
+ *
+ * The fix: install a process-wide CRT invalid-parameter handler that
+ * silently ignores the call (instead of showing a dialog/aborting).
+ * This is safe because GLib and GStreamer already handle the errors
+ * gracefully at a higher level.
+ */
+static void
+silent_invalid_parameter_handler (
+    const wchar_t *expression,
+    const wchar_t *function,
+    const wchar_t *file,
+    unsigned int   line,
+    uintptr_t      reserved)
+{
+    /* intentionally empty — suppress the CRT assertion dialog */
+}
+
+void
+systray_win32_suppress_crt_assertions (void)
+{
+    _set_invalid_parameter_handler (silent_invalid_parameter_handler);
+    /* Also disable the CRT "abort/retry/ignore" dialog for _ASSERT and _ASSERTE */
+    _CrtSetReportMode (_CRT_ASSERT, 0);
+    tray_log ("CRT invalid-parameter handler suppressed");
+}
+
 #else /* !_WIN32 — stubs for Linux builds (never called) */
 
 gboolean systray_win32_check_single_instance (void) { return TRUE; }
@@ -741,5 +778,6 @@ void systray_win32_hide_balloon (void) {}
 void systray_win32_cleanup (void) {}
 void systray_win32_attach_parent_console (void) {}
 void systray_win32_set_app_id (const gchar *app_id_utf8) {}
+void systray_win32_suppress_crt_assertions (void) {}
 
 #endif

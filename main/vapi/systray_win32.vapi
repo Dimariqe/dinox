@@ -46,4 +46,7 @@ namespace SystrayWin32 {
 
     [CCode (cname = "systray_win32_set_app_id")]
     public static void set_app_id (string app_id);
+
+    [CCode (cname = "systray_win32_suppress_crt_assertions")]
+    public static void suppress_crt_assertions ();
 }
