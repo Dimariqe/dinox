@@ -665,6 +665,23 @@ wnd_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
  * attached to our process, all children (and grandchildren) inherit it
  * transparently, and no visible windows appear.
  */
+
+/* Check if a standard handle is already redirected to a pipe or file.
+ * When the user runs  ./dinox.exe 2>&1 | tee log  the shell sets up
+ * stdout/stderr as pipes BEFORE our process starts.  If we blindly
+ * freopen("CONOUT$") we destroy that pipe and the log stays empty.
+ * Likewise for  ./dinox.exe > file  (FILE_TYPE_DISK).
+ * In mintty (MSYS2) stdout is also a pipe (pty emulation) — same rule. */
+static gboolean
+std_handle_is_redirected (DWORD nStdHandle)
+{
+    HANDLE h = GetStdHandle (nStdHandle);
+    if (h == NULL || h == INVALID_HANDLE_VALUE)
+        return FALSE;
+    DWORD type = GetFileType (h);
+    return (type == FILE_TYPE_PIPE || type == FILE_TYPE_DISK);
+}
+
 void
 systray_win32_attach_parent_console (void)
 {
@@ -673,15 +690,21 @@ systray_win32_attach_parent_console (void)
      *   DINOX_LOG_FILE=dinox-debug.log ./dinox.exe            */
     const char *log_file = g_getenv ("DINOX_LOG_FILE");
 
+    /* Preserve existing shell redirections (pipes, files).  Only
+     * redirect streams that are not already connected. */
+    gboolean stdout_piped = std_handle_is_redirected (STD_OUTPUT_HANDLE);
+    gboolean stderr_piped = std_handle_is_redirected (STD_ERROR_HANDLE);
+
     if (AttachConsole (ATTACH_PARENT_PROCESS)) {
-        freopen ("CONOUT$", "w", stdout);
+        if (!stdout_piped)
+            freopen ("CONOUT$", "w", stdout);
         if (log_file && *log_file)
             freopen (log_file, "w", stderr);
-        else
+        else if (!stderr_piped)
             freopen ("CONOUT$", "w", stderr);
-        /* Also fix up stdin so interactive input works if needed. */
         freopen ("CONIN$",  "r", stdin);
-        tray_log ("AttachConsole(PARENT) succeeded — attached to parent console");
+        tray_log ("AttachConsole(PARENT) succeeded — stdout_piped=%d stderr_piped=%d",
+                  stdout_piped, stderr_piped);
     } else {
         /* No parent console (Explorer / desktop shortcut launch).
          * Allocate our own console and immediately hide it so that
@@ -692,14 +715,15 @@ systray_win32_attach_parent_console (void)
         if (console_hwnd)
             ShowWindow (console_hwnd, SW_HIDE);
 
-        /* Redirect C stdio to NUL — there is no terminal to write to. */
-        freopen ("NUL", "w", stdout);
+        if (!stdout_piped)
+            freopen ("NUL", "w", stdout);
         if (log_file && *log_file)
             freopen (log_file, "w", stderr);
-        else
+        else if (!stderr_piped)
             freopen ("NUL", "w", stderr);
         freopen ("NUL", "r", stdin);
-        tray_log ("Allocated hidden console for child-process inheritance");
+        tray_log ("Allocated hidden console — stdout_piped=%d stderr_piped=%d",
+                  stdout_piped, stderr_piped);
     }
 }
 
