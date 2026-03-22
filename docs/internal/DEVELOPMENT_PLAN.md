@@ -802,7 +802,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Item | Description | Status |
 |------|-------------|--------|
-| **Video Messages: pipewiresrc → autovideosrc** | Replace direct `pipewiresrc` usage in `video_recorder.vala` with `autovideosrc`. Fixes EINVAL (-22) on PipeWire >= 1.2 (openSUSE, Fedora, Arch, Ubuntu 26.04 LTS with PipeWire 1.6.0). Root cause: Range-based caps (`width=[1,1280]`) propagate backwards to `pipewiresrc` which rejects them. `autovideosrc` handles caps negotiation correctly via internal wrapping. Also change range-caps to fixed caps (`1280x720@30fps`) matching the working call pipeline. | **PLANNED** — target v1.1.8.x, Ende April 2026 |
+| **Video Messages: pipewiresrc → autovideosrc** | Replace direct `pipewiresrc` usage in `video_recorder.vala` with `autovideosrc`. Fixes EINVAL (-22) on PipeWire >= 1.2 (openSUSE, Fedora, Arch, Ubuntu 26.04 LTS with PipeWire 1.6.0). Root cause: Range-based caps (`width=[1,1280]`) propagate backwards to `pipewiresrc` which rejects them. `autovideosrc` handles caps negotiation correctly via internal wrapping. Also change range-caps to fixed caps (`1280x720@30fps`) matching the working call pipeline. | **DONE** — v1.1.7.6 (42fda212) |
 | **Unified Source Selection** | Long-term: all pipelines (video messages, calls) use consistent source selection: `Gst.DeviceMonitor` → `create_element()` (preferred) or `autovideosrc`/`autoaudiosrc` (fallback). Never use `pipewiresrc`/`v4l2src` directly. | CONCEPT — v1.3.x |
 
 Detailed analysis and implementation plan: [PIPEWIRE_MIGRATION_PLAN.md](PIPEWIRE_MIGRATION_PLAN.md) (gitignored)
