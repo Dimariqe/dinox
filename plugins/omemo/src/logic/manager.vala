@@ -80,8 +80,29 @@ public class Manager : StreamInteractionModule, Object {
             this.waiting_other_devicelists = new_try.other_waiting_lists;
             this.active_send_attempt = false;
             will_send_now = false;
-            if (new_try.other_failure > 0 || (new_try.other_lost == new_try.other_devices && new_try.other_devices > 0)) {
-                msg.marked = Entities.Message.Marked.WONTSEND;
+
+            // Determine WONTSEND: nobody can receive the message
+            bool dominated = false;
+            if (msg.type_ == Entities.Message.Type.GROUPCHAT) {
+                // MUC: send if at least one other participant's device succeeded.
+                // Lost/failed devices (deleted accounts, unreachable servers) are
+                // simply skipped — those participants won't receive the message.
+                // WONTSEND only when NO device succeeded AND nothing is pending.
+                if (new_try.other_success < 1 && new_try.other_unknown < 1
+                        && new_try.other_devices > 0 && new_try.other_waiting_lists < 1) {
+                    msg.marked = Entities.Message.Marked.WONTSEND;
+                    dominated = true;
+                }
+            } else {
+                // 1:1 chat: strict — any hard failure or all devices lost blocks the message.
+                if (new_try.other_failure > 0 || (new_try.other_lost == new_try.other_devices && new_try.other_devices > 0)) {
+                    msg.marked = Entities.Message.Marked.WONTSEND;
+                    dominated = true;
+                }
+            }
+
+            if (dominated) {
+                // Already decided — do not evaluate further
             } else if (new_try.other_waiting_lists > 0 || !new_try.own_list || new_try.own_devices == 0) {
                 // Still waiting for device lists — must block
                 msg.marked = Entities.Message.Marked.UNSENT;
