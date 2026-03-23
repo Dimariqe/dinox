@@ -433,6 +433,29 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         if (input_device != null && media == "video") {
             input_device.update_bitrate(payload_type, target_send_bitrate);
         }
+
+        // Audio send watchdog: check if RTP packets are flowing after 5 seconds
+        if (media == "audio" && sending) {
+            Timeout.add(5000, () => {
+                if (!created) return Source.REMOVE;
+                if (audio_rtp_packet_count == 0) {
+                    warning("⚠ AUDIO SEND WATCHDOG: 0 audio RTP packets after 5s! Audio is NOT being sent.");
+                    warning("  input=%s input_device=%s send_rtp_src_pad=%s",
+                            input != null ? "set" : "NULL",
+                            _input_device != null ? _input_device.display_name : "NULL",
+                            send_rtp_src_pad != null ? "linked" : "NULL");
+                    warning("  send_rtp_sink_pad=%s input_pad=%s",
+                            send_rtp_sink_pad != null ? "set" : "NULL",
+                            input_pad != null ? "set" : "NULL");
+                    if (_input_device != null) {
+                        _input_device.dump_audio_chain_state();
+                    }
+                } else {
+                    debug("Audio send OK: %u RTP packets in first 5s", audio_rtp_packet_count);
+                }
+                return Source.REMOVE;
+            });
+        }
     }
 
     private int last_packets_lost = -1;

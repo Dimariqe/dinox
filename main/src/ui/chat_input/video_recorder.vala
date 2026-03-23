@@ -114,6 +114,7 @@ public class VideoRecorder : GLib.Object {
      */
     private bool test_video_encoder(string factory_name) {
         try {
+            int64 t0 = GLib.get_monotonic_time();
             // Use videoconvert before the encoder so hardware encoders (VAAPI, VA)
             // can negotiate their preferred input format instead of raw I420.
             var test_pipe = Gst.parse_launch(
@@ -122,14 +123,18 @@ public class VideoRecorder : GLib.Object {
 
             test_pipe.set_state(State.PLAYING);
             var test_bus = ((Pipeline)test_pipe).get_bus();
-            var msg = test_bus.timed_pop_filtered(5 * Gst.SECOND,
+            // 2s timeout is plenty for encoding a single 160x120 frame.
+            // Previously 5s — caused 20s+ startup delay when multiple
+            // unavailable encoders were probed sequentially.
+            var msg = test_bus.timed_pop_filtered(2 * Gst.SECOND,
                 MessageType.ERROR | MessageType.EOS);
             bool works = (msg != null && msg.type == MessageType.EOS);
             test_pipe.set_state(State.NULL);
+            int64 elapsed_ms = (GLib.get_monotonic_time() - t0) / 1000;
             if (!works) {
-                debug("VideoRecorder: encoder test FAILED for %s", factory_name);
+                debug("VideoRecorder: encoder test FAILED for %s (%lldms)", factory_name, elapsed_ms);
             } else {
-                debug("VideoRecorder: encoder test OK for %s", factory_name);
+                debug("VideoRecorder: encoder test OK for %s (%lldms)", factory_name, elapsed_ms);
             }
             return works;
         } catch (Error e) {
@@ -226,18 +231,24 @@ public class VideoRecorder : GLib.Object {
         // H.264 encoder - try hardware first, then software fallbacks
         // Each encoder is validated with a 1-frame test pipeline to catch runtime failures
         // (e.g. openh264enc factory exists but the Cisco library can't initialize)
+        int64 encoder_search_start = GLib.get_monotonic_time();
         // Windows Media Foundation H.264 — native on Windows 10+, fastest option
         video_encoder = try_create_encoder("mfh264enc", "video-encoder");
         if (video_encoder != null) {
             debug("Using mfh264enc (Windows Media Foundation) as H.264 encoder");
             video_encoder.set("bitrate", (uint) 1500); // kbps (mfh264enc uses kbps)
         }
+#if !WINDOWS
+        // VA-API / VA encoders are Linux-only (Intel/AMD GPU hardware encoding).
+        // On Windows these factories may be registered by gst-plugins-bad but
+        // always fail at runtime, wasting 2s+ per probe.
         if (video_encoder == null) {
             video_encoder = try_create_encoder("vaapih264enc", "video-encoder");
         }
         if (video_encoder == null) {
             video_encoder = try_create_encoder("vah264enc", "video-encoder");
         }
+#endif
         if (video_encoder == null) {
             video_encoder = try_create_encoder("x264enc", "video-encoder");
             if (video_encoder != null) {
@@ -275,6 +286,10 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "No working H.264 video encoder found.\n\n%s".printf(hint));
         }
+        int64 encoder_search_ms = (GLib.get_monotonic_time() - encoder_search_start) / 1000;
+        debug("VideoRecorder: encoder search took %lldms, using %s",
+              encoder_search_ms,
+              video_encoder.get_factory() != null ? video_encoder.get_factory().get_name() : "?");
 
         // Parser: h264parse for proper MP4 muxing (optional but recommended)
         video_parser = ElementFactory.make("h264parse", "video-parser");
