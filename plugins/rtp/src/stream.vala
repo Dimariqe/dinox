@@ -111,8 +111,6 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
 #endif
     private Object? internal_session;
     private uint remb_timeout_id = 0;
-    private uint video_rtp_packet_count = 0;
-    private uint audio_rtp_packet_count = 0;
 
     public Stream(Plugin plugin, Xmpp.Xep.Jingle.Content content) {
         base(content);
@@ -434,28 +432,6 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
             input_device.update_bitrate(payload_type, target_send_bitrate);
         }
 
-        // Audio send watchdog: check if RTP packets are flowing after 5 seconds
-        if (media == "audio" && sending) {
-            Timeout.add(5000, () => {
-                if (!created) return Source.REMOVE;
-                if (audio_rtp_packet_count == 0) {
-                    warning("⚠ AUDIO SEND WATCHDOG: 0 audio RTP packets after 5s! Audio is NOT being sent.");
-                    warning("  input=%s input_device=%s send_rtp_src_pad=%s",
-                            input != null ? "set" : "NULL",
-                            _input_device != null ? _input_device.display_name : "NULL",
-                            send_rtp_src_pad != null ? "linked" : "NULL");
-                    warning("  send_rtp_sink_pad=%s input_pad=%s",
-                            send_rtp_sink_pad != null ? "set" : "NULL",
-                            input_pad != null ? "set" : "NULL");
-                    if (_input_device != null) {
-                        _input_device.dump_audio_chain_state();
-                    }
-                } else {
-                    debug("Audio send OK: %u RTP packets in first 5s", audio_rtp_packet_count);
-                }
-                return Source.REMOVE;
-            });
-        }
     }
 
     private int last_packets_lost = -1;
@@ -643,17 +619,6 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         Gst.Sample sample = sink.pull_sample();
         Gst.Buffer buffer = sample.get_buffer();
         if (sink == send_rtp) {
-            if (media == "video") {
-                video_rtp_packet_count++;
-                if (video_rtp_packet_count <= 3 || video_rtp_packet_count % 100 == 0) {
-                    debug("[video] RTP packet #%u size=%u bytes", video_rtp_packet_count, (uint)buffer.get_size());
-                }
-            } else {
-                audio_rtp_packet_count++;
-                if (audio_rtp_packet_count == 1 || audio_rtp_packet_count % 500 == 0) {
-                    debug("[audio] RTP packet #%u", audio_rtp_packet_count);
-                }
-            }
             uint buffer_ssrc = 0, buffer_seq = 0;
             Gst.RTP.Buffer rtp_buffer;
             if (Gst.RTP.Buffer.map(buffer, Gst.MapFlags.READ, out rtp_buffer)) {

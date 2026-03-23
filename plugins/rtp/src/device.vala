@@ -143,76 +143,6 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
         }
     }
 
-    // Diagnostic: dump audio source chain element states and caps
-    public void dump_audio_chain_state() {
-        if (media != "audio" || !is_source) return;
-        warning("=== Audio source chain dump for %s ===", id);
-        Gst.State state, pending;
-        if (element != null) {
-            element.get_state(out state, out pending, 0);
-            var pad = element.get_static_pad("src");
-            warning("  [1] %s (%s): state=%s caps=%s",
-                    element.name,
-                    element.get_factory() != null ? element.get_factory().get_name() : "?",
-                    state.to_string(),
-                    pad != null && pad.get_current_caps() != null ? pad.get_current_caps().to_string() : "NONE");
-        } else {
-            warning("  [1] source element: NULL");
-        }
-        if (src_convert != null) {
-            src_convert.get_state(out state, out pending, 0);
-            var pad = src_convert.get_static_pad("src");
-            warning("  [2] audioconvert: state=%s caps=%s", state.to_string(),
-                    pad != null && pad.get_current_caps() != null ? pad.get_current_caps().to_string() : "NONE");
-        }
-        if (src_resample != null) {
-            src_resample.get_state(out state, out pending, 0);
-            var pad = src_resample.get_static_pad("src");
-            warning("  [3] audioresample: state=%s caps=%s", state.to_string(),
-                    pad != null && pad.get_current_caps() != null ? pad.get_current_caps().to_string() : "NONE");
-        }
-        if (filter != null) {
-            filter.get_state(out state, out pending, 0);
-            var pad = filter.get_static_pad("src");
-            warning("  [4] capsfilter: state=%s caps=%s", state.to_string(),
-                    pad != null && pad.get_current_caps() != null ? pad.get_current_caps().to_string() : "NONE");
-        }
-        if (dsp != null) {
-            dsp.get_state(out state, out pending, 0);
-            var pad = dsp.get_static_pad("src");
-            warning("  [5] VoiceProcessor: state=%s caps=%s", state.to_string(),
-                    pad != null && pad.get_current_caps() != null ? pad.get_current_caps().to_string() : "NONE");
-        } else {
-            warning("  [5] VoiceProcessor: NOT CREATED (WITH_VOICE_PROCESSOR=%s)",
-#if WITH_VOICE_PROCESSOR
-                    "yes"
-#else
-                    "NO"
-#endif
-            );
-        }
-        if (volume_element != null) {
-            volume_element.get_state(out state, out pending, 0);
-            double vol = 0.0;
-            volume_element.@get("volume", ref vol);
-            warning("  [6] volume: state=%s volume=%.2f", state.to_string(), vol);
-        }
-        if (source_queue != null) {
-            source_queue.get_state(out state, out pending, 0);
-            uint current_level_buffers = 0;
-            source_queue.@get("current-level-buffers", ref current_level_buffers);
-            warning("  [7] source_queue: state=%s buffers=%u", state.to_string(), current_level_buffers);
-        }
-        if (tee != null) {
-            tee.get_state(out state, out pending, 0);
-            var sink_pad = tee.get_static_pad("sink");
-            warning("  [8] tee: state=%s sink_caps=%s num_src_pads=%d", state.to_string(),
-                    sink_pad != null && sink_pad.get_current_caps() != null ? sink_pad.get_current_caps().to_string() : "NONE",
-                    (int) tee.numsrcpads);
-        }
-        warning("=== End audio source chain dump ===");
-    }
-
     public Gst.Element? link_sink() {
         if (!is_sink) return null;
         if (element == null) create();
@@ -787,44 +717,6 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 (dsp ?? filter).link(source_queue);
             }
             source_queue.link(tee);
-            if (media == "audio") {
-                debug("Audio SOURCE chain complete for %s: %s → audioconvert → audioresample → capsfilter(%s) → %s → volume → queue → tee",
-                      id,
-                      element.get_factory() != null ? element.get_factory().get_name() : "?",
-                      device_caps.to_string(),
-                      dsp != null ? "VoiceProcessor" : "(no DSP)");
-                // Log actual negotiated caps after a brief delay (caps settle after PLAYING)
-                Timeout.add(2000, () => {
-                    if (element == null || filter == null) return Source.REMOVE;
-                    var src_pad = element.get_static_pad("src");
-                    var filter_src = filter.get_static_pad("src");
-                    var tee_sink = tee != null ? tee.get_static_pad("sink") : null;
-                    warning("Audio chain caps check for %s:", id);
-                    warning("  source(%s) src pad caps: %s",
-                            element.get_factory() != null ? element.get_factory().get_name() : "?",
-                            src_pad != null && src_pad.get_current_caps() != null ? src_pad.get_current_caps().to_string() : "NOT NEGOTIATED");
-                    warning("  capsfilter src pad caps: %s",
-                            filter_src != null && filter_src.get_current_caps() != null ? filter_src.get_current_caps().to_string() : "NOT NEGOTIATED");
-                    if (dsp != null) {
-                        var dsp_src = dsp.get_static_pad("src");
-                        var dsp_sink = dsp.get_static_pad("sink");
-                        warning("  VoiceProcessor sink caps: %s",
-                                dsp_sink != null && dsp_sink.get_current_caps() != null ? dsp_sink.get_current_caps().to_string() : "NOT NEGOTIATED");
-                        warning("  VoiceProcessor src caps: %s",
-                                dsp_src != null && dsp_src.get_current_caps() != null ? dsp_src.get_current_caps().to_string() : "NOT NEGOTIATED");
-                        Gst.State dsp_state, dsp_pending;
-                        dsp.get_state(out dsp_state, out dsp_pending, 0);
-                        warning("  VoiceProcessor state: %s (pending: %s)", dsp_state.to_string(), dsp_pending.to_string());
-                    }
-                    warning("  tee sink pad caps: %s",
-                            tee_sink != null && tee_sink.get_current_caps() != null ? tee_sink.get_current_caps().to_string() : "NOT NEGOTIATED");
-                    // Check element states
-                    Gst.State el_state, el_pending;
-                    element.get_state(out el_state, out el_pending, 0);
-                    warning("  source element state: %s (pending: %s)", el_state.to_string(), el_pending.to_string());
-                    return Source.REMOVE;
-                });
-            }
         }
         if (is_sink) {
             if (media == "audio") {
