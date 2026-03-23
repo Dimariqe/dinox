@@ -958,14 +958,33 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 recv_volume = null;
             }
             if (plugin.echoprobe != null && element != null) {
-                plugin.echoprobe.unlink(element);
+                if (sink_resample != null) sink_resample.unlink(element);
+                else plugin.echoprobe.unlink(element);
+                if (sink_convert != null && sink_resample != null) sink_convert.unlink(sink_resample);
+                if (plugin.echoprobe != null && sink_convert != null) plugin.echoprobe.unlink(sink_convert);
+            }
+            if (sink_resample != null) {
+                sink_resample.set_locked_state(true);
+                sink_resample.set_state(Gst.State.NULL);
+                pipe.remove(sink_resample);
+                sink_resample = null;
+            }
+            if (sink_convert != null) {
+                sink_convert.set_locked_state(true);
+                sink_convert.set_state(Gst.State.NULL);
+                pipe.remove(sink_convert);
+                sink_convert = null;
             }
         }
         if (is_source) {
             // 1. Unlink the full source chain to break pad reference cycles.
             //    gst_bin_remove() does NOT unlink pads, so we must do it
             //    explicitly to avoid elements keeping each other alive.
-            if (element != null && filter != null) element.unlink(filter);
+            //    Chain: element → [src_convert → src_resample →] filter → [dsp →] [volume →] source_queue → tee
+            if (element != null && src_convert != null) element.unlink(src_convert);
+            if (src_convert != null && src_resample != null) src_convert.unlink(src_resample);
+            if (src_resample != null && filter != null) src_resample.unlink(filter);
+            if (element != null && filter != null && src_convert == null) element.unlink(filter);
             if (filter != null && dsp != null) filter.unlink(dsp);
             else if (filter != null && volume_element != null) filter.unlink(volume_element);
             else if (filter != null && source_queue != null) filter.unlink(source_queue);
@@ -980,6 +999,8 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             if (volume_element != null) volume_element.set_state(Gst.State.NULL);
             if (dsp != null) dsp.set_state(Gst.State.NULL);
             if (filter != null) filter.set_state(Gst.State.NULL);
+            if (src_resample != null) src_resample.set_state(Gst.State.NULL);
+            if (src_convert != null) src_convert.set_state(Gst.State.NULL);
             
             foreach (var map in payloader_tees.values) {
                 foreach (var pt in map.values) pt.set_state(Gst.State.NULL);
@@ -1029,6 +1050,14 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             if (filter != null) {
                 pipe.remove(filter);
                 filter = null;
+            }
+            if (src_resample != null) {
+                pipe.remove(src_resample);
+                src_resample = null;
+            }
+            if (src_convert != null) {
+                pipe.remove(src_convert);
+                src_convert = null;
             }
         }
         if (element != null) {

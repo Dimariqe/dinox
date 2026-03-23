@@ -383,12 +383,23 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         recv_rtcp_sink_pad = rtpbin.request_pad_simple(@"recv_rtcp_sink_$rtpid");
         recv_rtcp.get_static_pad("src").link(recv_rtcp_sink_pad);
 
-        // Connect input
+        // Connect input (use decoupling queue, same as set_input_and_pause)
         send_rtp_sink_pad = rtpbin.request_pad_simple(@"send_rtp_sink_$rtpid");
         if (input != null) {
             input_pad = input.request_pad_simple(@"src_$rtpid");
-            input_pad.link(send_rtp_sink_pad);
-            debug("[%s] create(): input linked to rtpbin send_rtp_sink_%u", media, rtpid);
+            this.input_queue = Gst.ElementFactory.make("queue", @"input_queue_$rtpid");
+            if (this.input_queue != null) {
+                pipe.add(this.input_queue);
+                this.input_queue.sync_state_with_parent();
+                var link1 = input_pad.link(this.input_queue.get_static_pad("sink"));
+                var link2 = this.input_queue.get_static_pad("src").link(send_rtp_sink_pad);
+                warning("AUDIO-CHECK[3/4] %s input linked to rtpbin (create): pad→queue=%s queue→rtp=%s",
+                        media, link1.to_string(), link2.to_string());
+            } else {
+                var link_res = input_pad.link(send_rtp_sink_pad);
+                warning("AUDIO-CHECK[3/4] %s input linked to rtpbin (create, no queue): %s",
+                        media, link_res.to_string());
+            }
         } else {
             debug("[%s] create(): NO INPUT — nothing linked to send_rtp_sink_%u", media, rtpid);
         }
