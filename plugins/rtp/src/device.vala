@@ -725,8 +725,67 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             if (media == "audio") {
                 Gst.Pad? tee_sink = tee.get_static_pad("sink");
                 Gst.Caps? negotiated = tee_sink != null ? tee_sink.get_current_caps() : null;
-                warning("AUDIO-CHECK[1/4] source chain built: %s → caps: %s",
-                        id, negotiated != null ? negotiated.to_string() : "NOT YET NEGOTIATED");
+                warning("AUDIO-CHECK[1/4] source chain built: %s → caps: %s (dsp=%s)",
+                        id, negotiated != null ? negotiated.to_string() : "NOT YET NEGOTIATED",
+                        dsp != null ? "VoiceProcessor" : "NONE");
+
+                // ── Flow probes: find exactly where data stops ──
+                string dev_id = id;
+
+                // Probe A: data exits wasapi2src?
+                Gst.Pad? el_src = element.get_static_pad("src");
+                if (el_src != null) {
+                    el_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        warning("AUDIO-FLOW[A] %s: buffer exits wasapi2src", dev_id);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
+
+                // Probe B: data exits capsfilter?
+                Gst.Pad? filt_src = filter.get_static_pad("src");
+                if (filt_src != null) {
+                    filt_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        Gst.Caps? c = pad.get_current_caps();
+                        warning("AUDIO-FLOW[B] %s: buffer exits capsfilter → %s", dev_id,
+                                c != null ? c.to_string() : "NO CAPS");
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
+
+                // Probe C: data reaches tee?
+                if (tee_sink != null) {
+                    tee_sink.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        warning("AUDIO-FLOW[C] %s: buffer reaches tee", dev_id);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
+
+                // Delayed state check: 2 seconds after chain built
+                Gst.Element? el_ref = element;
+                Gst.Element? dsp_ref = dsp;
+                Gst.Element? vol_ref = volume_element;
+                GLib.Timeout.add_seconds(2, () => {
+                    if (el_ref == null) return false;
+                    Gst.State el_st, el_pend;
+                    el_ref.get_state(out el_st, out el_pend, 0);
+                    Gst.Caps? neg = tee_sink != null ? tee_sink.get_current_caps() : null;
+                    string dsp_state = "n/a";
+                    if (dsp_ref != null) {
+                        Gst.State ds, dp;
+                        dsp_ref.get_state(out ds, out dp, 0);
+                        dsp_state = ds.to_string();
+                    }
+                    string vol_state = "n/a";
+                    if (vol_ref != null) {
+                        Gst.State vs, vp;
+                        vol_ref.get_state(out vs, out vp, 0);
+                        vol_state = vs.to_string();
+                    }
+                    warning("AUDIO-FLOW[D] %s 2s-check: src=%s dsp=%s vol=%s caps=%s",
+                            dev_id, el_st.to_string(), dsp_state, vol_state,
+                            neg != null ? neg.to_string() : "STILL NONE");
+                    return false;
+                });
             }
         }
         if (is_sink) {
