@@ -62,6 +62,11 @@ public class VideoRecorder : GLib.Object {
      * a distro-specific install hint for GStreamer H.264 encoder packages.
      */
     private static string get_h264_install_hint() {
+#if WINDOWS
+        return "MSYS2/MINGW64: pacman -S mingw-w64-x86_64-gst-plugins-ugly "
+             + "mingw-w64-x86_64-gst-libav\n"
+             + "Then re-run: bash scripts/update_dist.sh";
+#else
         string? os_id = null;
         try {
             string contents;
@@ -74,14 +79,8 @@ public class VideoRecorder : GLib.Object {
                 }
             }
         } catch (FileError e) {
-            // /etc/os-release not found — likely Windows or unusual system
+            // /etc/os-release not found
         }
-
-#if WINDOWS
-        return "MSYS2/MINGW64: pacman -S mingw-w64-x86_64-gst-plugins-ugly "
-             + "mingw-w64-x86_64-gst-libav\n"
-             + "Then re-run: bash scripts/update_dist.sh";
-#endif
 
         if (os_id != null) {
             if (os_id.contains("opensuse") || os_id.contains("suse")) {
@@ -99,6 +98,7 @@ public class VideoRecorder : GLib.Object {
         // Debian/Ubuntu default (also fallback for unknown distros)
         return "Debian/Ubuntu: sudo apt install gstreamer1.0-plugins-ugly gstreamer1.0-libav "
              + "(or gstreamer1.0-vaapi for Intel/AMD hardware encoding)";
+#endif
     }
 
     ~VideoRecorder() {
