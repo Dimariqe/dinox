@@ -455,6 +455,7 @@ public class VideoRecorder : GLib.Object {
 
         // Link video source chain up to tee
         t0 = GLib.get_monotonic_time();
+        int64 t_link = GLib.get_monotonic_time();
         // video_source → [src_capsfilter →] video_convert → video_scale → video_rate → video_caps → tee
         if (video_src_capsfilter != null) {
             if (!video_source.link(video_src_capsfilter) ||
@@ -468,14 +469,20 @@ public class VideoRecorder : GLib.Object {
                     "Could not link video source → videoconvert");
             }
         }
+        warning("VideoRecorder TIMING: link video_source→convert = %lldms",
+                (GLib.get_monotonic_time() - t_link) / 1000);
+        t_link = GLib.get_monotonic_time();
         if (!video_convert.link(video_scale) ||
             !video_scale.link(video_rate) || !video_rate.link(video_capsfilter) ||
             !video_capsfilter.link(tee)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video source chain");
         }
+        warning("VideoRecorder TIMING: link convert→tee = %lldms",
+                (GLib.get_monotonic_time() - t_link) / 1000);
 
         // Tee → preview branch: preview_queue → preview_convert → preview_sink
+        t_link = GLib.get_monotonic_time();
         var tee_preview_pad = tee.request_pad_simple("src_%u");
         var preview_queue_pad = preview_queue.get_static_pad("sink");
         if (tee_preview_pad.link(preview_queue_pad) != PadLinkReturn.OK) {
@@ -486,8 +493,11 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link preview branch");
         }
+        warning("VideoRecorder TIMING: link preview branch = %lldms",
+                (GLib.get_monotonic_time() - t_link) / 1000);
 
         // Tee → record branch: video_queue → video_encoder → [video_parser →] muxer
+        t_link = GLib.get_monotonic_time();
         var tee_record_pad = tee.request_pad_simple("src_%u");
         var record_queue_pad = video_queue.get_static_pad("sink");
         if (tee_record_pad.link(record_queue_pad) != PadLinkReturn.OK) {
@@ -498,6 +508,8 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video_queue → video_encoder");
         }
+        warning("VideoRecorder TIMING: link queue→encoder = %lldms",
+                (GLib.get_monotonic_time() - t_link) / 1000);
         // Build video encoding chain: encoder → [parser →] muxer
         Element last_video = video_encoder;
         if (video_parser != null) {
@@ -511,8 +523,11 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video chain → muxer");
         }
+        warning("VideoRecorder TIMING: link encoder→muxer = %lldms",
+                (GLib.get_monotonic_time() - t_link) / 1000);
 
         // Audio chain: source → volume → convert → resample → caps → queue → convert2 → encoder → parser → muxer
+        t_link = GLib.get_monotonic_time();
         // No audio processing (noise gate, compressor etc.) — pass-through for cleanest signal
         if (!audio_source.link(audio_volume)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0, "Could not link audio_source → audio_volume");
@@ -550,12 +565,15 @@ public class VideoRecorder : GLib.Object {
             }
         }
 
+        warning("VideoRecorder TIMING: link audio chain = %lldms",
+                (GLib.get_monotonic_time() - t_link) / 1000);
+
         // Muxer → sink
         if (!muxer.link(sink)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link muxer to sink");
         }
-        warning("VideoRecorder TIMING: link pipeline = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
+        warning("VideoRecorder TIMING: link pipeline TOTAL = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
 
         // Store preview sink reference for the popover to access
         gtk_sink = preview_sink;
