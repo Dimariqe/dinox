@@ -182,12 +182,18 @@ public class AudioRecorder : GLib.Object {
         is_recording = true;
         start_time = GLib.get_monotonic_time();
 
-        // Unmute after PipeWire transient has passed (400ms)
-        // Volume 1.0 = no software amplification → cleanest signal, system mic gain handles level
+        // Smooth ramp-up after PipeWire/WASAPI2 transient has passed (400ms)
+        // 20 steps × 10ms = 200ms fade-in from 0→1.0 to avoid click/knack
         Timeout.add(400, () => {
-            if (volume != null && is_recording) {
-                volume.set("volume", 1.0);
-            }
+            if (volume == null || !is_recording) return false;
+            int ramp_step = 0;
+            Timeout.add(10, () => {
+                if (volume == null || !is_recording) return false;
+                ramp_step++;
+                double vol = (double) ramp_step / 20.0;
+                volume.set("volume", double.min(vol, 1.0));
+                return ramp_step < 20;
+            });
             return false;
         });
 
