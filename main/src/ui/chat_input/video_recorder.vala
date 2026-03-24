@@ -160,6 +160,7 @@ public class VideoRecorder : GLib.Object {
     }
 
     public void start_recording(string output_path) throws Error {
+        int64 t_start = GLib.get_monotonic_time();
         debug("VideoRecorder.start_recording: output_path=%s", output_path);
         if (is_recording) return;
 
@@ -169,7 +170,9 @@ public class VideoRecorder : GLib.Object {
 
         // === VIDEO branch ===
         var app = (Dino.Ui.Application) GLib.Application.get_default();
+        int64 t0 = GLib.get_monotonic_time();
         video_source = app.av_device_service.create_video_source(app.settings.msg_video_device);
+        debug("VideoRecorder TIMING: create_video_source = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
         video_source.set("do-timestamp", true);
         video_convert = ElementFactory.make("videoconvert", "video-convert");
         video_scale = ElementFactory.make("videoscale", "video-scale");
@@ -234,45 +237,56 @@ public class VideoRecorder : GLib.Object {
             debug("gdkpixbufsink not available, using appsink for preview");
         }
 
-        // H.264 encoder - try hardware first, then software fallbacks
-        // Each encoder is validated with a 1-frame test pipeline to catch runtime failures
-        // (e.g. openh264enc factory exists but the Cisco library can't initialize)
-        int64 encoder_search_start = GLib.get_monotonic_time();
-
-        // Use cached encoder if already probed in this app session
+        // H.264 encoder selection
+        int64 t_enc = GLib.get_monotonic_time();
+#if WINDOWS
+        // Windows portable: we bundle everything, no probing needed.
+        // Just create the encoder directly — zero overhead.
+        video_encoder = ElementFactory.make("mfh264enc", "video-encoder");
+        if (video_encoder != null) {
+            video_encoder.set("bitrate", (uint) 1500); // kbps
+            debug("VideoRecorder: using mfh264enc (Windows MF, no probe)");
+        }
+        if (video_encoder == null) {
+            video_encoder = ElementFactory.make("x264enc", "video-encoder");
+            if (video_encoder != null) {
+                video_encoder.set("speed-preset", 2); // superfast
+                video_encoder.set("tune", 4); // zerolatency
+                video_encoder.set("bitrate", 1500); // kbps
+                video_encoder.set("key-int-max", 60);
+                debug("VideoRecorder: using x264enc (no probe)");
+            }
+        }
+        if (video_encoder == null) {
+            video_encoder = ElementFactory.make("openh264enc", "video-encoder");
+            if (video_encoder != null) {
+                video_encoder.set("bitrate", 1500000); // bps
+                video_encoder.set("complexity", 1);
+                debug("VideoRecorder: using openh264enc (no probe)");
+            }
+        }
+#else
+        // Linux: probe encoders because we don't control what's installed.
+        // Use static cache to avoid re-probing on subsequent recordings.
         if (encoder_cache_probed && cached_h264_factory != null) {
             video_encoder = ElementFactory.make(cached_h264_factory, "video-encoder");
             if (video_encoder != null) {
-                debug("VideoRecorder: using cached encoder '%s' (no probing needed)", cached_h264_factory);
+                debug("VideoRecorder: using cached encoder '%s'", cached_h264_factory);
             } else {
-                // Cache is stale (element disappeared?) — re-probe
                 encoder_cache_probed = false;
                 cached_h264_factory = null;
             }
         }
-
         if (video_encoder == null && !encoder_cache_probed) {
             encoder_cache_probed = true;
-
-            // Windows Media Foundation H.264 — native on Windows 10+, fastest option
-            video_encoder = try_create_encoder("mfh264enc", "video-encoder");
-            if (video_encoder != null) {
-                cached_h264_factory = "mfh264enc";
-                debug("Using mfh264enc (Windows Media Foundation) as H.264 encoder");
-            }
-#if !WINDOWS
-            // VA-API / VA encoders are Linux-only (Intel/AMD GPU hardware encoding).
-            // On Windows these factories may be registered by gst-plugins-bad but
-            // always fail at runtime, wasting 500ms+ per probe.
-            if (video_encoder == null) {
-                video_encoder = try_create_encoder("vaapih264enc", "video-encoder");
-                if (video_encoder != null) cached_h264_factory = "vaapih264enc";
-            }
+            // Hardware first
+            video_encoder = try_create_encoder("vaapih264enc", "video-encoder");
+            if (video_encoder != null) cached_h264_factory = "vaapih264enc";
             if (video_encoder == null) {
                 video_encoder = try_create_encoder("vah264enc", "video-encoder");
                 if (video_encoder != null) cached_h264_factory = "vah264enc";
             }
-#endif
+            // Software fallbacks
             if (video_encoder == null) {
                 video_encoder = try_create_encoder("x264enc", "video-encoder");
                 if (video_encoder != null) cached_h264_factory = "x264enc";
@@ -285,41 +299,32 @@ public class VideoRecorder : GLib.Object {
                 video_encoder = try_create_encoder("openh264enc", "video-encoder");
                 if (video_encoder != null) cached_h264_factory = "openh264enc";
             }
-        } // end encoder probing
-
-        // Configure encoder-specific properties
+        }
+        // Configure encoder-specific properties (Linux path)
         if (video_encoder != null) {
             string enc_name = video_encoder.get_factory() != null ? video_encoder.get_factory().get_name() : "";
-            if (enc_name == "mfh264enc") {
-                video_encoder.set("bitrate", (uint) 1500); // kbps
-            } else if (enc_name == "x264enc") {
-                video_encoder.set("speed-preset", 2); // superfast
-                video_encoder.set("tune", 4); // zerolatency
-                video_encoder.set("bitrate", 1500); // kbps
+            if (enc_name == "x264enc") {
+                video_encoder.set("speed-preset", 2);
+                video_encoder.set("tune", 4);
+                video_encoder.set("bitrate", 1500);
                 video_encoder.set("key-int-max", 60);
             } else if (enc_name == "avenc_h264") {
-                debug("Using avenc_h264 (ffmpeg) as H.264 encoder fallback");
-                video_encoder.set("bitrate", 1500000); // bps
+                video_encoder.set("bitrate", 1500000);
                 video_encoder.set("max-threads", 2);
             } else if (enc_name == "openh264enc") {
-                debug("Using openh264enc as H.264 encoder fallback");
-                video_encoder.set("bitrate", 1500000); // bps
-                video_encoder.set("complexity", 1); // medium
+                video_encoder.set("bitrate", 1500000);
+                video_encoder.set("complexity", 1);
             }
         }
+#endif
+        debug("VideoRecorder TIMING: encoder selection = %lldms", (GLib.get_monotonic_time() - t_enc) / 1000);
 
         if (video_encoder == null) {
-            // No working H.264 encoder found.
-            // We do NOT fall back to VP8/WebM because most mobile XMPP clients
-            // (Monocles, Conversations) cannot play WebM video messages.
-            // H.264/MP4 is the only universally supported format.
             string hint = get_h264_install_hint();
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "No working H.264 video encoder found.\n\n%s".printf(hint));
         }
-        int64 encoder_search_ms = (GLib.get_monotonic_time() - encoder_search_start) / 1000;
-        debug("VideoRecorder: encoder search took %lldms, using %s",
-              encoder_search_ms,
+        debug("VideoRecorder: using encoder %s",
               video_encoder.get_factory() != null ? video_encoder.get_factory().get_name() : "?");
 
         // Parser: h264parse for proper MP4 muxing (optional but recommended)
@@ -330,7 +335,9 @@ public class VideoRecorder : GLib.Object {
 
         // === AUDIO branch ===
         // Audio source for the video recording's audio track
+        t0 = GLib.get_monotonic_time();
         audio_source = app.av_device_service.create_audio_source(app.settings.msg_audio_input_device);
+        debug("VideoRecorder TIMING: create_audio_source = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
         audio_convert = ElementFactory.make("audioconvert", "audio-convert");
         audio_resample = ElementFactory.make("audioresample", "audio-resample");
         audio_capsfilter = ElementFactory.make("capsfilter", "audio-caps");
@@ -427,6 +434,7 @@ public class VideoRecorder : GLib.Object {
         preview_queue.set("leaky", 2); // downstream = drop oldest
 
         // Add all elements to pipeline
+        t0 = GLib.get_monotonic_time();
         pipeline.add_many(video_source, video_convert, video_scale, video_rate,
             video_capsfilter, tee, video_queue, video_encoder,
             preview_queue, preview_convert, preview_sink,
@@ -442,8 +450,10 @@ public class VideoRecorder : GLib.Object {
         if (audio_parser != null) {
             pipeline.add(audio_parser);
         }
+        debug("VideoRecorder TIMING: add elements = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
 
         // Link video source chain up to tee
+        t0 = GLib.get_monotonic_time();
         // video_source → [src_capsfilter →] video_convert → video_scale → video_rate → video_caps → tee
         if (video_src_capsfilter != null) {
             if (!video_source.link(video_src_capsfilter) ||
@@ -544,6 +554,7 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link muxer to sink");
         }
+        debug("VideoRecorder TIMING: link pipeline = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
 
         // Store preview sink reference for the popover to access
         gtk_sink = preview_sink;
@@ -581,7 +592,13 @@ public class VideoRecorder : GLib.Object {
         // Start directly in PLAYING - live sources (pipewiresrc, autoaudiosrc)
         // don't produce data in PAUSED state and may block preroll.
         // Direct PLAYING start is the reliable approach for live pipelines.
-        pipeline.set_state(State.PLAYING);
+        t0 = GLib.get_monotonic_time();
+        var state_ret = pipeline.set_state(State.PLAYING);
+        debug("VideoRecorder TIMING: set_state(PLAYING) = %lldms (ret=%s)",
+              (GLib.get_monotonic_time() - t0) / 1000,
+              state_ret.to_string());
+        debug("VideoRecorder TIMING: TOTAL start_recording = %lldms",
+              (GLib.get_monotonic_time() - t_start) / 1000);
         is_recording = true;
         start_time = GLib.get_monotonic_time();
         timeout_id = Timeout.add(100, update_duration);
@@ -658,6 +675,7 @@ public class VideoRecorder : GLib.Object {
     }
 
     public void stop_recording() {
+        int64 t_stop = GLib.get_monotonic_time();
         debug("VideoRecorder.stop_recording: called");
         if (timeout_id != 0) {
             Source.remove(timeout_id);
@@ -671,6 +689,7 @@ public class VideoRecorder : GLib.Object {
             }
             
             // 2. Send EOS so mp4mux writes the moov atom (critical for valid MP4!)
+            int64 t0 = GLib.get_monotonic_time();
             pipeline.send_event(new Event.eos());
             
             // 3. Wait for muxer to finalize — 10s for longer videos.
@@ -689,14 +708,18 @@ public class VideoRecorder : GLib.Object {
                 } else {
                     debug("VideoRecorder: EOS received, MP4 file finalized");
                 }
+                debug("VideoRecorder TIMING: EOS wait = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
                 bus = null;
             }
             
             // 4. Kill pipeline — synchronously releases all device connections
+            t0 = GLib.get_monotonic_time();
             pipeline.set_state(State.NULL);
+            debug("VideoRecorder TIMING: set_state(NULL) = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
             pipeline = null;
             is_recording = false;
             cleanup_elements();
+            debug("VideoRecorder TIMING: TOTAL stop_recording = %lldms", (GLib.get_monotonic_time() - t_stop) / 1000);
             debug("VideoRecorder.stop_recording: pipeline closed");
         }
     }
