@@ -680,6 +680,13 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
         }
         debug("Device %s: created element %s (factory=%s)", id, element.name,
               element.get_factory() != null ? element.get_factory().get_name() : "unknown");
+        // Enable low-latency mode on WASAPI2 elements (Windows) for
+        // tighter audio buffers.  The property only exists on wasapi2src
+        // and wasapi2sink — check with find_property to avoid warnings.
+        if (element.get_class().find_property("low-latency") != null) {
+            element.@set("low-latency", true);
+            debug("Device %s: low-latency=true", id);
+        }
         if (is_sink) {
             element.@set("async", false);
             element.@set("sync", false);
@@ -699,6 +706,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 // capsfilter.  On Linux these are pass-through (zero overhead).
                 src_convert = Gst.ElementFactory.make("audioconvert", @"src_convert_$id");
                 src_resample = Gst.ElementFactory.make("audioresample", @"src_resample_$id");
+                src_resample.@set("quality", 10);
                 pipe.add(src_convert);
                 pipe.add(src_resample);
                 src_convert.sync_state_with_parent();
@@ -882,6 +890,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                     // to avoid caps mismatches (e.g. stereo from some peers/devices) degrading AEC.
                     echo_convert = Gst.ElementFactory.make("audioconvert", @"echo_convert_$id");
                     echo_resample = Gst.ElementFactory.make("audioresample", @"echo_resample_$id");
+                    if (echo_resample != null) echo_resample.@set("quality", 10);
                     echo_filter = Gst.ElementFactory.make("capsfilter", @"echo_caps_$id");
                     if (echo_convert != null && echo_resample != null && echo_filter != null) {
                         echo_filter.@set("caps", Gst.Caps.from_string("audio/x-raw,rate=48000,channels=1,layout=interleaved,format=S16LE"));
@@ -901,6 +910,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                         // sinks may require stereo and/or a different rate.
                         sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
                         sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                        if (sink_resample != null) sink_resample.@set("quality", 10);
                         if (sink_convert != null && sink_resample != null) {
                             pipe.add(sink_convert);
                             pipe.add(sink_resample);
@@ -917,6 +927,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                         recv_volume.link(plugin.echoprobe);
                         sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
                         sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                        if (sink_resample != null) sink_resample.@set("quality", 10);
                         if (sink_convert != null && sink_resample != null) {
                             pipe.add(sink_convert);
                             pipe.add(sink_resample);
@@ -945,6 +956,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                     // 48kHz→44.1kHz on WASAPI2).
                     sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
                     sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                    if (sink_resample != null) sink_resample.@set("quality", 10);
                     if (sink_convert != null && sink_resample != null) {
                         pipe.add(sink_convert);
                         pipe.add(sink_resample);

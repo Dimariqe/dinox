@@ -390,7 +390,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
         string decode_args = get_decode_args(media, codec, decode, payload_type) ?? "";
         string decode_suffix = get_decode_suffix(media, codec, decode, payload_type) ?? "";
         string depay_args = get_depay_args(media, codec, decode, payload_type) ?? "";
-        string resample = media == "audio" ? @" ! audioresample name=$(base_name)_resample" : "";
+        string resample = media == "audio" ? @" ! audioresample quality=10 name=$(base_name)_resample" : "";
         return @"queue ! $depay$depay_args name=$(base_name)_rtp_depay ! $decode_prefix$decode$decode_args name=$(base_name)_$(codec)_decode$decode_suffix ! $(media)convert name=$(base_name)_convert$resample";
     }
 
@@ -437,7 +437,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
         string encode_prefix = get_encode_prefix(media, codec, encode, payload_type) ?? "";
         string encode_args = get_encode_args(media, codec, encode, payload_type) ?? "";
         string encode_suffix = get_encode_suffix(media, codec, encode, payload_type) ?? "";
-        string rescale = media == "audio" ? @" ! audioresample name=$(base_name)_resample" : @" ! videoscale name=$(base_name)_rescale ! capsfilter name=$(base_name)_rescale_caps";
+        string rescale = media == "audio" ? @" ! audioresample quality=10 name=$(base_name)_resample" : @" ! videoscale name=$(base_name)_rescale ! capsfilter name=$(base_name)_rescale_caps";
         return @"$(media)convert name=$(base_name)_convert$rescale ! queue ! $encode_prefix$encode$encode_args name=$(base_name)_encode$encode_suffix";
     }
 
