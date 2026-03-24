@@ -51,7 +51,21 @@ extern "C" void *dino_plugins_rtp_voice_processor_init_native(gint stream_delay)
     webrtc::AudioProcessing::Config config;
     config.echo_canceller.enabled = true;
     config.echo_canceller.mobile_mode = false; // Desktop mode: better echo cancellation quality
-    
+
+#ifdef _WIN32
+    // Windows WASAPI2 shared mode: the Windows Audio Engine already applies
+    // noise suppression, echo cancellation, and automatic gain control on
+    // the capture stream.  Applying our own WebRTC processing on top creates
+    // double-processing artifacts (musical noise, pumping, metallic sound).
+    // Keep only our AEC (has proper playback reference) and high-pass filter.
+    config.noise_suppression.enabled = false;
+
+    config.gain_controller1.enabled = true;
+    config.gain_controller1.mode = webrtc::AudioProcessing::Config::GainController1::kFixedDigital;
+    config.gain_controller1.target_level_dbfs = 6;
+    config.gain_controller1.compression_gain_db = 3; // Minimal: Windows AGC already handled gain
+    config.gain_controller1.enable_limiter = true;    // Safety limiter still useful
+#else
     config.noise_suppression.enabled = true;
     config.noise_suppression.level = webrtc::AudioProcessing::Config::NoiseSuppression::kLow;
     
@@ -60,7 +74,8 @@ extern "C" void *dino_plugins_rtp_voice_processor_init_native(gint stream_delay)
     config.gain_controller1.target_level_dbfs = 6;  // -6 dBFS target: more headroom than -3
     config.gain_controller1.compression_gain_db = 9; // 9dB: compromise between 6 (too quiet) and 12 (too aggressive)
     config.gain_controller1.enable_limiter = true;
-    
+#endif
+
     config.high_pass_filter.enabled = true;
     config.transient_suppression.enabled = false; // Disabled: was cutting first syllables of sentences
     
@@ -72,7 +87,12 @@ extern "C" void *dino_plugins_rtp_voice_processor_init_native(gint stream_delay)
     apm->ApplyConfig(config);
     native->apm = apm;
 
-    g_debug("voice_processor_native.cpp: init (WEBRTC1/2): rate=%d channels=%d stream_delay=%dms aec=%d(mobile=%d) ns=%d(level=%d) agc=%d(mode=%d target=%d comp=%d) highpass=%d ts=%d", \
+    g_warning("voice_processor_native.cpp: init (%s): rate=%d channels=%d stream_delay=%dms aec=%d(mobile=%d) ns=%d(level=%d) agc=%d(mode=%d target=%d comp=%d) highpass=%d ts=%d",
+#ifdef _WIN32
+            "WINDOWS — reduced processing (no NS, low AGC) to avoid double-processing with WASAPI",
+#else
+            "LINUX — full processing",
+#endif
             SAMPLE_RATE,
             SAMPLE_CHANNELS,
             native->stream_delay,
