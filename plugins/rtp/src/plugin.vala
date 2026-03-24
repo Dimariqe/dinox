@@ -149,7 +149,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
             return;
         }
         rtpbin.pad_added.connect(on_rtp_pad_added);
-        rtpbin.@set("latency", 100);
+        rtpbin.@set("latency", 150);
         rtpbin.@set("do-lost", true);
 //        rtpbin.@set("do-sync-event", true);
         rtpbin.@set("drop-on-latency", false);
