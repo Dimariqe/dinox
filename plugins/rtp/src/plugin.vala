@@ -136,6 +136,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
 
     public void init_call_pipe() {
         if (pipe != null) return;
+        tearing_down = false;
         debug("Creating call pipe.");
         start_device_monitor();
         pipe = new Gst.Pipeline(null);
@@ -190,6 +191,9 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
             Source.remove(pipe_watch_id);
             pipe_watch_id = 0;
         }
+        // Flush any pending bus messages so they don't fire after the
+        // watch is removed but before the pipeline reaches NULL.
+        pipe.bus.set_flushing(true);
         pipe.set_state(Gst.State.NULL);
         // All device elements are children of this pipe — null their
         // references so create() re-builds them on the next call.
@@ -330,25 +334,33 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
         if (pad.name.has_prefix("recv_rtp_src_")) {
             string[] split = pad.name.split("_");
             uint8 rtpid = (uint8)int.parse(split[3]);
+            warning("RECV-RTP-SRC pad %s created for stream %hhu (streams=%d)", pad.name, rtpid, streams.size);
+            bool found = false;
             foreach (Stream stream in streams) {
                 if (stream.rtpid == rtpid) {
                     stream.on_ssrc_pad_added((uint32) uint64.parse(split[4]), pad);
+                    found = true;
                 }
             }
+            if (!found) warning("RECV-RTP-SRC: no matching stream for rtpid %hhu!", rtpid);
         }
         if (pad.name.has_prefix("send_rtp_src_")) {
             string[] split = pad.name.split("_");
             uint8 rtpid = (uint8)int.parse(split[3]);
-            debug("pad %s for stream %hhu", pad.name, rtpid);
+            warning("SEND-RTP-SRC pad %s created for stream %hhu (streams=%d)", pad.name, rtpid, streams.size);
+            bool found = false;
             foreach (Stream stream in streams) {
                 if (stream.rtpid == rtpid) {
                     stream.on_send_rtp_src_added(pad);
+                    found = true;
                 }
             }
+            if (!found) warning("SEND-RTP-SRC: no matching stream for rtpid %hhu!", rtpid);
         }
     }
 
     private void on_pipe_bus_message(Gst.Message message) {
+        if (tearing_down) return;
         switch (message.type) {
             case Gst.MessageType.ERROR:
                 Error error;
@@ -365,6 +377,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                 debug(str);
                 break;
             case Gst.MessageType.CLOCK_LOST:
+                if (tearing_down) break;
                 debug("Clock lost. Restarting");
                 pipe.set_state(Gst.State.READY);
                 pipe.set_state(Gst.State.PLAYING);
@@ -486,14 +499,19 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
     }
 
     public void close_stream(Stream stream) {
+        tearing_down = true;
         streams.remove(stream);
         stream.destroy();
         destroy_call_pipe_if_unused();
+        // If pipe survives (other streams still active), allow bus
+        // message handling again.
+        if (pipe != null) tearing_down = false;
     }
 
     public void dispose_pipeline() {
         // Force-close all remaining streams and destroy the pipeline.
         // Safety net for zombie sessions that survived normal teardown.
+        tearing_down = true;
         debug("dispose_pipeline() called, %d streams remaining", streams.size);
         var remaining = new Gee.ArrayList<Stream>();
         remaining.add_all(streams);

@@ -67,6 +67,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     public bool created { get; private set; default = false; }
     public bool paused { get; private set; default = false; }
     private bool push_recv_data = false;
+    private int recv_rtp_packet_count = 0;
     private uint our_ssrc = Random.next_int();
     private int next_seqnum_offset = -1;
     private uint32 next_timestamp_offset_base = 0;
@@ -985,6 +986,11 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     public signal void incoming_video_orientation_changed(uint16 degree);
 
     public override void on_recv_rtp_data(Bytes bytes) {
+        recv_rtp_packet_count++;
+        if (recv_rtp_packet_count == 1 || recv_rtp_packet_count == 50) {
+            warning("RECV-VIDEO[3/3] %s RTP packet #%d received (%zd bytes) push_recv_data=%s",
+                    media, recv_rtp_packet_count, bytes.length, push_recv_data.to_string());
+        }
         if (rtcp_mux && bytes.length >= 2 && bytes.get(1) >= 192 && bytes.get(1) < 224) {
             on_recv_rtcp_data(bytes);
             return;
@@ -1104,7 +1110,7 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
     }
 
     public void on_ssrc_pad_added(uint32 ssrc, Gst.Pad pad) {
-        debug("New ssrc %u with pad %s", ssrc, pad.name);
+        warning("RECV-VIDEO[1/3] %s: new ssrc %u pad %s decode=%s output=%s", media, ssrc, pad.name, decode != null ? "set" : "null", output != null ? "set" : "null");
         if (participant_ssrc != 0 && participant_ssrc != ssrc) {
             warning("Got second ssrc on stream (old: %u, new: %u), ignoring", participant_ssrc, ssrc);
             return;
@@ -1113,9 +1119,12 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         recv_rtp_src_pad = pad;
         if (decode != null) {
             plugin.pause();
-            debug("Link %s to %s decode for %s", recv_rtp_src_pad.name, media, name);
-            recv_rtp_src_pad.link(decode.get_static_pad("sink"));
+            warning("RECV-VIDEO[2/3] %s: Linking %s to decode", media, recv_rtp_src_pad.name);
+            var link_res = recv_rtp_src_pad.link(decode.get_static_pad("sink"));
+            warning("RECV-VIDEO[2/3] %s: link result=%s", media, link_res.to_string());
             plugin.unpause();
+        } else {
+            warning("RECV-VIDEO[2/3] %s: decode is NULL, cannot link recv pad!", media);
         }
     }
 
@@ -1123,9 +1132,11 @@ public class Dino.Plugins.Rtp.Stream : Xmpp.Xep.JingleRtp.Stream {
         send_rtp_src_pad = pad;
         if (send_rtp != null) {
             plugin.pause();
-            debug("Link %s to %s send_rtp for %s", send_rtp_src_pad.name, media, name);
-            send_rtp_src_pad.link(send_rtp.get_static_pad("sink"));
+            var link_res = send_rtp_src_pad.link(send_rtp.get_static_pad("sink"));
+            warning("SEND-RTP-SRC %s linked appsink for %s: %s", send_rtp_src_pad.name, media, link_res.to_string());
             plugin.unpause();
+        } else {
+            warning("SEND-RTP-SRC %s: send_rtp is NULL for %s!", pad.name, media);
         }
     }
 
@@ -1409,6 +1420,8 @@ public class Dino.Plugins.Rtp.VideoStream : Stream {
             base.add_output(element);
             return;
         }
+        warning("RECV-VIDEO-DISPLAY: VideoStream.add_output() called, output_tee=%s outputs=%d",
+                output_tee != null ? "set" : "null", outputs.size);
         outputs.add(element);
         if (output_tee != null) {
             var queue = Gst.ElementFactory.make("queue", null);

@@ -241,13 +241,21 @@ public class Xmpp.Xep.Jingle.Session : Object {
         Content content = contents_map[content_node.name];
 
         if (content_node.creator != content.content_creator) warning("Counterpart accepts content with an unexpected `creator`");
+        Senders? accepted_senders = null;
         if (content_node.senders != content.senders) {
-            warning("Counterpart accepted content '%s' with senders=%s (we proposed %s)",
+            warning("Counterpart accepted content '%s' with senders=%s (we proposed %s) — will apply after stream setup",
                  content_node.name, content_node.senders.to_string(), content.senders.to_string());
+            accepted_senders = content_node.senders;
         }
         if (content_node.transport.ns_uri != content.transport_params.ns_uri) throw new IqError.BAD_REQUEST("session-accept with unnegotiated transport method");
 
         content.handle_accept(stream, content_node);
+
+        // Apply counterpart's senders AFTER handle_accept so the RTP stream
+        // is fully created before any notify["senders"] triggers.
+        if (accepted_senders != null) {
+            content.senders = accepted_senders;
+        }
     }
 
     private void handle_content_modify(XmppStream stream, StanzaNode jingle_node, Iq.Stanza iq) throws IqError {

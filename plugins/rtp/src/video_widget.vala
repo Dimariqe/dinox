@@ -344,7 +344,12 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         if (sink == null) return;
         if (attached) {
             debug("Detaching");
-            // FIRST: stop the prepare bin so videoconvert finishes its
+            // Freeze the paintable FIRST so no more textures are queued
+            // from the streaming thread.  This prevents a race where a
+            // late texture arrives after the pipeline elements below are
+            // destroyed, leaving a stale reference in GTK's render tree.
+            sink.paintable.release_texture();
+            // THEN: stop the prepare bin so videoconvert finishes its
             // current frame.  This must happen BEFORE we unlink from the
             // stream/device, otherwise remove_output flushes the upstream
             // queue while videoconvert is still doing memcpy → SIGSEGV.

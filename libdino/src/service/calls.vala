@@ -210,6 +210,7 @@ namespace Dino {
                 if (counterpart_wants_video && !call_states[peer_state.call].we_should_send_video) {
                     debug("on_incoming_call: upgrading we_should_send_video to true (session has video content)");
                     call_states[peer_state.call].we_should_send_video = true;
+                    peer_state.we_should_send_video = true;
                 }
                 jmi_request_peer[peer_state.call].set_session(session);
                 jmi_request_peer[peer_state.call].accept();

@@ -518,22 +518,28 @@ public class Dino.PeerState : Object {
             return;
         }
 
-        // Our peer shouldn't tell us to start sending, that's for us to initiate
-        if (session.senders_include_us(content.senders)) {
-            if (session.senders_include_counterpart(content.senders)) {
-                // If our peer wants to send, let them
+        // If this is a video content-add and we should be sending video, accept with both senders
+        bool dominated_by_us = session.senders_include_us(content.senders);
+        bool includes_peer = session.senders_include_counterpart(content.senders);
+        if (dominated_by_us && !we_should_send_video) {
+            if (includes_peer) {
+                // Peer wants to send too — let them, but exclude us
                 content.modify(session.we_initiated ? Xep.Jingle.Senders.RESPONDER : Xep.Jingle.Senders.INITIATOR);
             } else {
-                // If only we're supposed to send, reject
+                // Only we're supposed to send but we don't want to — reject
                 content.reject();
+                return;
             }
         }
+        // If we_should_send_video, keep senders as-is (both)
 
         connect_content_signals(content, rtp_content_parameter);
         content.accept();
     }
 
     private void on_stream_created(string media, Xep.JingleRtp.Stream stream) {
+        warning("RECV-VIDEO-SIGNAL: on_stream_created media=%s sending=%s receiving=%s",
+                media, stream.sending.to_string(), stream.receiving.to_string());
         if (media == "video" && stream.receiving) {
             counterpart_sends_video = true;
             // Guard against duplicate on_stream_created() calls (e.g. ICE restart)
@@ -542,11 +548,14 @@ public class Dino.PeerState : Object {
                 video_content_parameter.disconnect(video_connection_ready_extra_handler_id);
             }
             video_connection_ready_extra_handler_id = video_content_parameter.connection_ready.connect((status) => {
+                warning("RECV-VIDEO-SIGNAL: video connection_ready fired, emitting counterpart_sends_video_updated(false)");
                 Idle.add(() => {
                     counterpart_sends_video_updated(false);
                     return false;
                 });
             });
+        } else if (media == "video" && !stream.receiving) {
+            warning("RECV-VIDEO-SIGNAL: video stream NOT receiving! counterpart won't send video");
         }
 
         // Outgoing audio/video might have been muted in the meanwhile.

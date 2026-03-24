@@ -186,6 +186,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 }
                 codecs[payload_type] = encode_bin;
                 pipe.add(codecs[payload_type]);
+                codecs[payload_type].sync_state_with_parent();
                 new_codec = true;
             }
             if (!codec_tees.has_key(payload_type)) {
@@ -197,6 +198,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 codec_tees[payload_type] = ct;
                 codec_tees[payload_type].@set("allow-not-linked", true);
                 pipe.add(codec_tees[payload_type]);
+                codec_tees[payload_type].sync_state_with_parent();
                 codecs[payload_type].link(codec_tees[payload_type]);
             }
             if (!payloaders.has_key(payload_type)) {
@@ -220,6 +222,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                     payload.timestamp_offset = timestamp_offset;
                 }
                 pipe.add(payloaders[payload_type][ssrc]);
+                payloaders[payload_type][ssrc].sync_state_with_parent();
                 codec_tees[payload_type].link(payloaders[payload_type][ssrc]);
                 debug("Payload for %s with %s using ssrc %u, seqnum_offset %u, timestamp_offset %u", media, codec, ssrc, seqnum_offset, timestamp_offset);
             }
@@ -235,6 +238,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 payloader_tees[payload_type][ssrc] = pt_tee;
                 payloader_tees[payload_type][ssrc].@set("allow-not-linked", true);
                 pipe.add(payloader_tees[payload_type][ssrc]);
+                payloader_tees[payload_type][ssrc].sync_state_with_parent();
                 payloaders[payload_type][ssrc].link(payloader_tees[payload_type][ssrc]);
             }
             if (!payloader_links.has_key(payload_type)) {
@@ -247,10 +251,27 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             }
             if (new_codec) {
                 bool link_ok = tee.link(codecs[payload_type]);
-                warning("AUDIO-CHECK[2/4] %s encode pipeline linked to tee: codec=%s encoder=%s link=%s",
+                // Check element states after sync + link
+                Gst.State enc_st, enc_pend;
+                codecs[payload_type].get_state(out enc_st, out enc_pend, 0);
+                Gst.State ct_st, ct_pend;
+                codec_tees[payload_type].get_state(out ct_st, out ct_pend, 0);
+                warning("AUDIO-CHECK[2/4] %s encode pipeline linked to tee: codec=%s encoder=%s link=%s enc_state=%s codec_tee_state=%s",
                         id, codec ?? "?",
                         codecs[payload_type].name ?? "?",
-                        link_ok ? "OK" : "FAILED");
+                        link_ok ? "OK" : "FAILED",
+                        enc_st.to_string(), ct_st.to_string());
+                // Flow probe on encode bin output to confirm data passes through
+                string probe_id = id;
+                Gst.Pad? enc_src = codecs[payload_type].get_static_pad("src");
+                if (enc_src != null) {
+                    enc_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        warning("AUDIO-FLOW[E] %s: buffer exits encode_bin", probe_id);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                } else {
+                    warning("AUDIO-FLOW[E] %s: encode_bin has NO src pad!", probe_id);
+                }
             }
             // Bandwidth coordination: immediately cap encoder bitrate
             // when a new outgoing peer is added for video.
@@ -260,6 +281,23 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 debug("Bandwidth: new peer #%d, capping encoder to %u kbps",
                       payloaders[payload_type].size, budget);
                 update_bitrate(payload_type, budget);
+            }
+            // Payloader state check + flow probe
+            {
+                Gst.State pay_st, pay_pend;
+                payloaders[payload_type][ssrc].get_state(out pay_st, out pay_pend, 0);
+                Gst.State pt_st, pt_pend;
+                payloader_tees[payload_type][ssrc].get_state(out pt_st, out pt_pend, 0);
+                warning("AUDIO-CHECK[2.5/4] %s payloader_state=%s payloader_tee_state=%s",
+                        id, pay_st.to_string(), pt_st.to_string());
+                string probe_id2 = id;
+                Gst.Pad? pt_src = payloader_tees[payload_type][ssrc].get_static_pad("sink");
+                if (pt_src != null) {
+                    pt_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        warning("AUDIO-FLOW[F] %s: buffer reaches payloader_tee", probe_id2);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
             }
             return payloader_tees[payload_type][ssrc];
         }
