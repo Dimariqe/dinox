@@ -330,7 +330,7 @@ git pull
 
 # 2. COMPLETELY delete build directory (MANDATORY!)
 rm -rf build
-
+rm -f dist/lib/gstreamer-1.0/registry.bin
 # 3. Set up Meson from scratch
 meson setup build \
     -Dplugin-omemo=enabled \

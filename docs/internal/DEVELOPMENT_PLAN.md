@@ -1,6 +1,6 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 25, 2026 (v1.1.7.8)
+> **Last Updated**: March 26, 2026 (v1.1.7.9)
 > **Current Release Line**: 1.1.7.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.7.8 |
+| **Current Version** | 1.1.7.9 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
@@ -20,6 +20,15 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.7.9 (Windows Sound Notifications, MF Warm-up, Debug Cleanup)
+- **Cross-platform sound notifications**: GStreamer playbin on Windows with 4 bundled WAV GResource files; Linux libcanberra unchanged
+- **GStreamer MF warm-up**: Background thread pre-loads MF/WASAPI2/codec DLLs at startup — video recording ~2s instead of ~8s
+- **Missing gio plugin**: Added to update_dist.sh for resource:// URI playback
+- **Video bitrate**: 1500→800 kbps for mobile, REMB 256→800
+- **Debug cleanup**: 18 TIMING warnings removed, voice_processor g_warning→g_debug
+- **AppImage**: --no-net for appimagetool
+- 7 commits, ~15 files changed
 
 ### v1.1.7.8 (AV Device Settings, GStreamer Performance, Windows Call Fixes)
 - **Audio/Video device preferences**: New preferences page with persistent mic/speaker/camera selection

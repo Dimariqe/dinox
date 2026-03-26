@@ -5,6 +5,37 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7.9] - 2026-03-26
+
+### Added — Windows Sound Notifications
+- **Cross-platform sound notifications**: Windows now uses GStreamer playbin with bundled WAV files (GResource); Linux libcanberra path completely unchanged
+- **4 notification sounds**: message.wav, incoming-call.wav, outgoing-ringback.wav, alert.wav — embedded as GResource, played via `resource://` URIs
+- **3 independent playbin channels**: Message, ringtone, and ringback can play concurrently without interrupting each other
+- **MQTT CRITICAL alert sound**: Alert playbin in MQTT plugin plays alert.wav on CRITICAL priority messages
+- **Toast audio silenced**: Windows Toast notifications now use `silent="true"` — sound comes from GStreamer plugin instead of broken `ms-winsoundevent`
+
+### Performance — Windows Video Message Recording
+- **GStreamer MF warm-up thread**: Background thread at startup pre-loads Media Foundation DLLs (mfvideosrc, mfh264enc, wasapi2src, avenc_aac, mp4mux) — first video recording starts in ~2s instead of ~8s
+- **Faster video message thumbnails**: Improved thumbnail display speed
+
+### Fixed — Windows Distribution
+- **Missing GStreamer `gio` plugin**: Added to `update_dist.sh` — required for `resource://` URI playback of bundled sounds
+- **Video bitrate optimized**: 1500→800 kbps for mobile-friendly video messages, receive REMB 256→800
+
+### Fixed — Build & CI
+- **AppImage build**: Added `--no-net` to appimagetool — decouples AppImage build from website availability
+- **README images**: Restored appdata screenshots in docs/
+
+### Cleanup
+- **Debug warnings removed**: All TIMING warnings from video_recorder.vala (18 warnings) and voice_processor_native.cpp `g_warning`→`g_debug`
+- **Diagnostic warnings→debug()**: All remaining diagnostic `warning()` calls converted to `debug()` across RTP and video recording
+
+### Stats
+- 7 commits, ~15 files changed
+- Major new feature: Windows sound notifications via GStreamer
+- Major performance improvement: MF DLL pre-warming (~6s faster first video recording)
+- Windows distribution fix: gio plugin for resource:// URI support
+
 ## [1.1.7.8] - 2026-03-25
 
 ### Added — Audio/Video Device Settings
