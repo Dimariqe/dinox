@@ -161,7 +161,6 @@ public class VideoRecorder : GLib.Object {
     }
 
     public void start_recording(string output_path) throws Error {
-        int64 t_start = GLib.get_monotonic_time();
         debug("VideoRecorder.start_recording: output_path=%s", output_path);
         if (is_recording) return;
 
@@ -171,9 +170,7 @@ public class VideoRecorder : GLib.Object {
 
         // === VIDEO branch ===
         var app = (Dino.Ui.Application) GLib.Application.get_default();
-        int64 t0 = GLib.get_monotonic_time();
         video_source = app.av_device_service.create_video_source(app.settings.msg_video_device);
-        warning("VideoRecorder TIMING: create_video_source = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
         video_source.set("do-timestamp", true);
         video_convert = ElementFactory.make("videoconvert", "video-convert");
         video_scale = ElementFactory.make("videoscale", "video-scale");
@@ -239,7 +236,6 @@ public class VideoRecorder : GLib.Object {
         }
 
         // H.264 encoder selection
-        int64 t_enc = GLib.get_monotonic_time();
 #if WINDOWS
         // Windows portable: we bundle everything, no probing needed.
         // Just create the encoder directly — zero overhead.
@@ -318,7 +314,6 @@ public class VideoRecorder : GLib.Object {
             }
         }
 #endif
-        warning("VideoRecorder TIMING: encoder selection = %lldms", (GLib.get_monotonic_time() - t_enc) / 1000);
 
         if (video_encoder == null) {
             string hint = get_h264_install_hint();
@@ -336,10 +331,7 @@ public class VideoRecorder : GLib.Object {
 
         // === AUDIO branch ===
         // Audio source for the video recording's audio track
-        t0 = GLib.get_monotonic_time();
         audio_source = app.av_device_service.create_audio_source(app.settings.msg_audio_input_device);
-        warning("VideoRecorder TIMING: create_audio_source = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
-        t0 = GLib.get_monotonic_time();
         audio_convert = ElementFactory.make("audioconvert", "audio-convert");
         audio_resample = ElementFactory.make("audioresample", "audio-resample");
         audio_capsfilter = ElementFactory.make("capsfilter", "audio-caps");
@@ -365,7 +357,6 @@ public class VideoRecorder : GLib.Object {
             muxer.set("faststart", true);
         }
         sink = ElementFactory.make("filesink", "sink");
-        warning("VideoRecorder TIMING: create audio+muxer elements = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
 
         current_output_path = output_path;
 
@@ -437,7 +428,6 @@ public class VideoRecorder : GLib.Object {
         preview_queue.set("leaky", 2); // downstream = drop oldest
 
         // Add all elements to pipeline
-        t0 = GLib.get_monotonic_time();
         pipeline.add_many(video_source, video_convert, video_scale, video_rate,
             video_capsfilter, tee, video_queue, video_encoder,
             preview_queue, preview_convert, preview_sink,
@@ -453,20 +443,15 @@ public class VideoRecorder : GLib.Object {
         if (audio_parser != null) {
             pipeline.add(audio_parser);
         }
-        warning("VideoRecorder TIMING: add elements = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
-
         // Link video chain — skip ALL link checks and specify explicit pad names.
         // On Windows, gst_element_link_pads_full with null names calls
         // gst_element_get_compatible_pad() which triggers caps queries back to
         // mfvideosrc (Media Foundation device enumeration, ~seconds).
         // With NOTHING flag + explicit pads, linking is just pointer assignment.
         // Actual caps negotiation happens at set_state(PLAYING).
-        t0 = GLib.get_monotonic_time();
-        int64 t_link;
         var FAST = Gst.PadLinkCheck.NOTHING;
 
         // video_source → [src_capsfilter →] video_convert → video_scale → video_rate → video_caps → tee
-        t_link = GLib.get_monotonic_time();
         if (video_src_capsfilter != null) {
             if (!video_source.link_pads("src", video_src_capsfilter, "sink", FAST) ||
                 !video_src_capsfilter.link_pads("src", video_convert, "sink", FAST)) {
@@ -479,9 +464,6 @@ public class VideoRecorder : GLib.Object {
                     "Could not link video source → videoconvert");
             }
         }
-        warning("VideoRecorder TIMING: link src→convert = %lldms",
-                (GLib.get_monotonic_time() - t_link) / 1000);
-        t_link = GLib.get_monotonic_time();
         if (!video_convert.link_pads("src", video_scale, "sink", FAST) ||
             !video_scale.link_pads("src", video_rate, "sink", FAST) ||
             !video_rate.link_pads("src", video_capsfilter, "sink", FAST) ||
@@ -489,11 +471,8 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video source chain");
         }
-        warning("VideoRecorder TIMING: link convert→tee = %lldms",
-                (GLib.get_monotonic_time() - t_link) / 1000);
 
         // Tee → preview branch: preview_queue → preview_convert → preview_sink
-        t_link = GLib.get_monotonic_time();
         var tee_preview_pad = tee.request_pad_simple("src_%u");
         var preview_queue_pad = preview_queue.get_static_pad("sink");
         if (tee_preview_pad.link(preview_queue_pad, FAST) != PadLinkReturn.OK) {
@@ -505,11 +484,8 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link preview branch");
         }
-        warning("VideoRecorder TIMING: link preview = %lldms",
-                (GLib.get_monotonic_time() - t_link) / 1000);
 
         // Tee → record branch: video_queue → video_encoder → [video_parser →] muxer
-        t_link = GLib.get_monotonic_time();
         var tee_record_pad = tee.request_pad_simple("src_%u");
         var record_queue_pad = video_queue.get_static_pad("sink");
         if (tee_record_pad.link(record_queue_pad, FAST) != PadLinkReturn.OK) {
@@ -533,9 +509,6 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video chain → muxer");
         }
-        warning("VideoRecorder TIMING: link record = %lldms",
-                (GLib.get_monotonic_time() - t_link) / 1000);
-
         // Audio chain: source → volume → convert → resample → caps → queue → convert2 → encoder → parser → muxer
         // No audio processing (noise gate, compressor etc.) — pass-through for cleanest signal
         if (!audio_source.link(audio_volume)) {
@@ -579,8 +552,6 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link muxer to sink");
         }
-        warning("VideoRecorder TIMING: link pipeline TOTAL = %lldms", (GLib.get_monotonic_time() - t0) / 1000);
-
         // Store preview sink reference for the popover to access
         gtk_sink = preview_sink;
 
@@ -617,13 +588,7 @@ public class VideoRecorder : GLib.Object {
         // Start directly in PLAYING - live sources (pipewiresrc, autoaudiosrc)
         // don't produce data in PAUSED state and may block preroll.
         // Direct PLAYING start is the reliable approach for live pipelines.
-        t0 = GLib.get_monotonic_time();
-        var state_ret = pipeline.set_state(State.PLAYING);
-        warning("VideoRecorder TIMING: set_state(PLAYING) = %lldms (ret=%s)",
-              (GLib.get_monotonic_time() - t0) / 1000,
-              state_ret.to_string());
-        warning("VideoRecorder TIMING: TOTAL start_recording = %lldms",
-              (GLib.get_monotonic_time() - t_start) / 1000);
+        pipeline.set_state(State.PLAYING);
         is_recording = true;
         start_time = GLib.get_monotonic_time();
         timeout_id = Timeout.add(100, update_duration);
@@ -704,7 +669,6 @@ public class VideoRecorder : GLib.Object {
     private int eos_pending = 0;
 
     public void stop_recording() {
-        warning("VideoRecorder.stop_recording: called");
         if (timeout_id != 0) {
             Source.remove(timeout_id);
             timeout_id = 0;
@@ -729,7 +693,6 @@ public class VideoRecorder : GLib.Object {
         // 2. In the probe callback, push EOS downstream programmatically
         // 3. This injects EOS into the data flow from the correct thread
         // 4. mp4mux receives EOS on both sink pads → writes moov atom → posts EOS on bus
-        int64 t_eos_start = GLib.get_monotonic_time();
         eos_pending = 0;
 
         Gst.Pad? v_src_pad = (video_source != null) ? video_source.get_static_pad("src") : null;
@@ -740,7 +703,7 @@ public class VideoRecorder : GLib.Object {
 
         if (eos_pending == 0) {
             // No sources? Just kill pipeline.
-            finalize_stop(t_eos_start);
+            finalize_stop();
             return;
         }
 
@@ -785,20 +748,11 @@ public class VideoRecorder : GLib.Object {
                     string dbg;
                     msg.parse_error(out err, out dbg);
                     warning("VideoRecorder: error during finalization: %s", err.message);
-                } else {
-                    warning("VideoRecorder: EOS received — MP4 finalized OK");
                 }
             }
-            warning("VideoRecorder TIMING: EOS wait = %lldms",
-                    (GLib.get_monotonic_time() - t_eos_start) / 1000);
 
             // Kill pipeline
-            int64 t0 = GLib.get_monotonic_time();
             pipe.set_state(State.NULL);
-            warning("VideoRecorder TIMING: set_state(NULL) = %lldms",
-                    (GLib.get_monotonic_time() - t0) / 1000);
-            warning("VideoRecorder TIMING: TOTAL stop_recording = %lldms",
-                    (GLib.get_monotonic_time() - t_eos_start) / 1000);
 
             // Signal completion back on the main thread
             Idle.add(() => {
@@ -809,7 +763,7 @@ public class VideoRecorder : GLib.Object {
         });
     }
 
-    private void finalize_stop(int64 t_start) {
+    private void finalize_stop() {
         if (pipeline != null) {
             pipeline.set_state(State.NULL);
             pipeline = null;
@@ -817,8 +771,6 @@ public class VideoRecorder : GLib.Object {
         bus = null;
         string? path = current_output_path;
         cleanup_elements();
-        warning("VideoRecorder TIMING: TOTAL stop_recording = %lldms",
-                (GLib.get_monotonic_time() - t_start) / 1000);
         recording_stopped(path);
     }
 

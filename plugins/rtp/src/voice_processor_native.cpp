@@ -87,7 +87,7 @@ extern "C" void *dino_plugins_rtp_voice_processor_init_native(gint stream_delay)
     apm->ApplyConfig(config);
     native->apm = apm;
 
-    g_warning("voice_processor_native.cpp: init (%s): rate=%d channels=%d stream_delay=%dms aec=%d(mobile=%d) ns=%d(level=%d) agc=%d(mode=%d target=%d comp=%d) highpass=%d ts=%d",
+    g_debug("voice_processor_native.cpp: init (%s): rate=%d channels=%d stream_delay=%dms aec=%d(mobile=%d) ns=%d(level=%d) agc=%d(mode=%d target=%d comp=%d) highpass=%d ts=%d",
 #ifdef _WIN32
             "WINDOWS — reduced processing (no NS, low AGC) to avoid double-processing with WASAPI",
 #else
