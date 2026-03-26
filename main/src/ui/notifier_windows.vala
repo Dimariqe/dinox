@@ -222,7 +222,7 @@ namespace Dino.Ui {
                     "<action content=\"%s\" arguments=\"%s\" activationType=\"foreground\"/>" +
                     "<action content=\"%s\" arguments=\"%s\" activationType=\"foreground\"/>" +
                     "</actions>" +
-                    "<audio src=\"ms-winsoundevent:Notification.Looping.Call\" loop=\"true\"/>" +
+                    "<audio silent=\"true\"/>" +
                     "</toast>").printf(
                 Markup.escape_text("open-conversation:%d".printf(conv_id)),
                 Markup.escape_text(caller),

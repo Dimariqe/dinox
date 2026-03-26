@@ -85,6 +85,10 @@
     <file>occupant_list_item.ui</file>
     <file>quote.ui</file>
     <file>search_autocomplete.ui</file>
+    <file>sounds/message.wav</file>
+    <file>sounds/incoming-call.wav</file>
+    <file>sounds/outgoing-ringback.wav</file>
+    <file>sounds/alert.wav</file>
     <file>style.css</file>
   </gresource>
 </gresources>

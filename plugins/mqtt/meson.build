@@ -29,6 +29,7 @@ if dep_mosquitto_check.found() and plugin_mqtt_opt.allowed()
         dep_gio,
         dep_glib,
         dep_gmodule,
+        dep_gstreamer,
         dep_gtk4,
         dep_json_glib,
         dep_libadwaita,
