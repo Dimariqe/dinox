@@ -5,6 +5,21 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8.0] - 2026-03-26
+
+### Fixed — Windows Database Reset
+- **Race condition in database reset**: On Windows, two separate batch files (delete DBs + restart dinox.exe) ran in parallel with the same ~2s delay — dinox.exe often restarted *before* files were deleted, making the reset appear to do nothing (all old OMEMO keys and messages still present)
+- **Fix**: Delete + restart combined into a single sequential batch file: wait for process exit → delete all DB files → then restart dinox.exe
+- **Factory reset fixed too**: Same race condition pattern fixed for factory reset on Windows
+
+### Fixed — Build & CI
+- **AppImage build fix**: Removed `--no-net` flag from appimagetool — the "continuous" release (commit 5735cc5, 2023-03-08) does not support this option, causing both x86_64 and aarch64 CI builds to fail with `Option parsing failed: Unknown option --no-net`
+
+### Stats
+- 2 commits, 2 files changed
+- Critical Windows bug fix: database/factory reset now works reliably
+- CI fix: AppImage builds restored
+
 ## [1.1.7.9] - 2026-03-26
 
 ### Added — Windows Sound Notifications

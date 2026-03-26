@@ -1,7 +1,7 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 26, 2026 (v1.1.7.9)
-> **Current Release Line**: 1.1.7.x
+> **Last Updated**: March 26, 2026 (v1.1.8.0)
+> **Current Release Line**: 1.1.8.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
 
@@ -11,7 +11,7 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.7.9 |
+| **Current Version** | 1.1.8.0 |
 | **XEPs Implemented** | ~78 |
 | **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
@@ -20,6 +20,12 @@ This document is organized as a **chronological release timeline** first, follow
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.8.0 (Windows DB Reset Fix, AppImage CI Fix)
+- **Windows database reset race condition**: Delete + restart combined into single sequential batch file — reset now works reliably
+- **Windows factory reset**: Same fix applied
+- **AppImage CI**: Removed unsupported `--no-net` flag from appimagetool (continuous build doesn't support it)
+- 2 commits
 
 ### v1.1.7.9 (Windows Sound Notifications, MF Warm-up, Debug Cleanup)
 - **Cross-platform sound notifications**: GStreamer playbin on Windows with 4 bundled WAV GResource files; Linux libcanberra unchanged
