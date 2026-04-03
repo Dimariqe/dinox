@@ -490,6 +490,32 @@ public class FileManager : StreamInteractionModule, Object {
 
             FileMeta file_meta = yield get_file_meta(file_provider, file_transfer, conversation, receive_data);
 
+            // If the server reports text/html or xhtml, this is a webpage link, not a file.
+            // Open it in the browser instead of downloading and saving it.
+            if (file_meta.mime_type != null) {
+                string ct = file_meta.mime_type.down();
+                if (ct.has_prefix("text/html") || ct.has_prefix("application/xhtml")) {
+                    // Try to get the URL from receive_data
+                    string? url = null;
+                    var http_data = receive_data as HttpFileReceiveData;
+                    if (http_data != null) url = http_data.url;
+                    if (url == null && file_transfer.info != null && file_transfer.info.has_prefix("url:")) {
+                        url = file_transfer.info.substring("url:".length);
+                    }
+                    if (url != null) {
+                        debug("file_manager: mime is %s, opening URL in browser: %s", file_meta.mime_type, url);
+                        try {
+                            AppInfo.launch_default_for_uri(url, null);
+                        } catch (Error e) {
+                            warning("file_manager: failed to open URL in browser: %s", e.message);
+                        }
+                        // Mark as failed so the widget doesn't stay in NOT_STARTED
+                        file_transfer.state = FileTransfer.State.NOT_STARTED;
+                        return;
+                    }
+                }
+            }
+
             // Download and decrypt file
             file_transfer.state = FileTransfer.State.IN_PROGRESS;
 
