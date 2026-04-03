@@ -79,14 +79,24 @@ public class StatusNotifierItem : Object {
         // With an empty IconThemePath the host falls back to its own XDG
         // hicolor lookup using IconName alone — which works correctly.
         string icons_dir = Path.get_dirname(hicolor);
-        bool is_system_icons = (icons_dir == "/usr/share/icons" ||
-                                icons_dir == "/usr/local/share/icons");
-        if (icons_dir.length > 0 && !is_system_icons) {
-            icon_theme_path = icons_dir;
-            debug("Systray: IconThemePath set to %s (from %s)", icons_dir, hicolor);
+
+        // Normalize the path (resolve /usr/bin/../share/icons → /usr/share/icons)
+        // so that exe-relative paths compare correctly against known system prefixes.
+        // Posix.realpath resolves ".." and symlinks by hitting the filesystem.
+        string icons_dir_real = icons_dir;
+        string? rp = Posix.realpath(icons_dir, null);
+        if (rp != null) icons_dir_real = (!) rp;
+
+        bool is_system_icons = (icons_dir_real == "/usr/share/icons" ||
+                                icons_dir_real == "/usr/local/share/icons" ||
+                                icons_dir_real.has_prefix("/usr/share/icons/") ||
+                                icons_dir_real.has_prefix("/usr/local/share/icons/"));
+        if (icons_dir_real.length > 0 && !is_system_icons) {
+            icon_theme_path = icons_dir_real;
+            debug("Systray: IconThemePath set to %s (from %s)", icons_dir_real, hicolor);
         } else {
             icon_theme_path = "";
-            debug("Systray: IconThemePath left empty (system install at %s)", hicolor);
+            debug("Systray: IconThemePath left empty (system install at %s → %s)", hicolor, icons_dir_real);
         }
 
         var builder = new VariantBuilder(new VariantType("a(iiay)"));
