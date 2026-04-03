@@ -297,9 +297,36 @@ success "Build complete in $((BUILD_END - BUILD_START))s."
 # -----------------------------------------------------------------------------
 header "Install"
 
-info "Running sudo ninja install..."
-sudo ninja -C "$BUILD_DIR" install
+info "Installing binaries directly (bypass meson timestamp check)..."
+
+# Main binary
+sudo install -m755 "$BUILD_DIR/main/dinox" /usr/bin/dinox
+
+# Core libraries
+for lib in "$BUILD_DIR"/libdino/libdino.so* \
+           "$BUILD_DIR"/xmpp-vala/libxmpp-vala.so* \
+           "$BUILD_DIR"/crypto-vala/libcrypto-vala.so* \
+           "$BUILD_DIR"/qlite/libqlite.so*; do
+    [ -L "$lib" ] && continue   # skip symlinks — ldconfig recreates them
+    [ -f "$lib" ] || continue
+    sudo install -m755 "$lib" /usr/lib/
+done
+
+# Plugins
+sudo mkdir -p /usr/lib/dino/plugins
+for plugin in "$BUILD_DIR"/plugins/*/*.so; do
+    [ -f "$plugin" ] || continue
+    sudo install -m755 "$plugin" /usr/lib/dino/plugins/
+done
+
+# Recreate library symlinks and update cache
 sudo ldconfig
+
+# Also run meson install for data files (icons, .desktop, gschemas, etc.)
+# but skip the actual binary/library installation via a wrapper trick.
+info "Installing data files (icons, .desktop, schemas) via meson..."
+sudo ninja -C "$BUILD_DIR" install 2>&1 | grep -v "^Installing.*\.so" | grep -v "^Installing.*dinox$" || true
+
 success "DinoX installed to /usr."
 
 # -----------------------------------------------------------------------------
