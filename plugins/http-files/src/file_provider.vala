@@ -148,7 +148,7 @@ public class FileProvider : Dino.FileProvider, Object {
         var file_meta = new HttpFileMeta();
         file_meta.file_name = extract_file_name_from_url(url);
         file_meta.message = message;
-        
+
         // Try to get metadata from SFS element
         var file_shares = Xep.StatelessFileSharing.get_file_shares(stanza);
         if (file_shares != null && !file_shares.is_empty) {
@@ -202,6 +202,42 @@ public class FileProvider : Dino.FileProvider, Object {
         }
 
         uint status = head_message.status_code;
+
+        // Some servers don't support HEAD (405 Method Not Allowed, 501 Not Implemented).
+        // Fall back to a minimal GET with Range: bytes=0-0 to get Content-Type headers.
+        if (status == 405 || status == 501) {
+            debug("http-files: HEAD returned %u for %s, retrying with GET Range:0-0",
+                  status, url);
+            var get_message = new Soup.Message("GET", url);
+            get_message.request_headers.append("Range", "bytes=0-0");
+            get_message.request_headers.append("Accept-Encoding", "identity");
+#if SOUP_3_0
+            get_message.accept_certificate.connect((peer_cert, errors) => {
+                return ConnectionManager.on_invalid_certificate(transfer_host, peer_cert, errors, dino_db);
+            });
+            try {
+                var stream = yield session.send_async(get_message, GLib.Priority.LOW, null);
+                stream.close();
+            } catch (Error e) {
+                return false;
+            }
+#else
+            try {
+                yield session.send_async(get_message, null);
+            } catch (Error e) {
+                return false;
+            }
+#endif
+            string? ct_get = null;
+            get_message.response_headers.foreach((name, val) => {
+                if (name.down() == "content-type") ct_get = val;
+            });
+            if (ct_get == null) return false;
+            string ct_get_lower = ct_get.down().strip();
+            return ct_get_lower.has_prefix("text/html") || ct_get_lower.has_prefix("application/xhtml");
+        }
+
+        // Treat redirects that haven't been followed as non-files (conservative).
         if (status < 200 || status >= 300) {
             return false;
         }
