@@ -7,7 +7,7 @@
 #   ./install.sh --clean      Remove build directory before building
 #   ./install.sh --uninstall  Uninstall DinoX from the system
 #   ./install.sh --deps-only  Install pacman dependencies only, then exit
-#   ./install.sh --no-service Do not enable the systemd user service
+#   ./install.sh --no-service Do not create the XDG autostart entry
 #   ./install.sh --help       Show this help
 #
 # The script:
@@ -16,7 +16,8 @@
 #   3. Compiles with ninja
 #   4. Installs via sudo ninja install
 #   5. Cleans up any conflicting /usr/local installation
-#   6. Enables and starts dinox.service via systemctl --user
+#   6. Creates ~/.config/autostart/im.github.rallep71.DinoX.desktop
+#      (XDG autostart — works with UWSM/Hyprland, GNOME, KDE, XFCE, etc.)
 # =============================================================================
 set -euo pipefail
 
@@ -126,11 +127,18 @@ done
 if $DO_UNINSTALL; then
     header "Uninstall DinoX"
 
-    # Stop and disable the systemd user service first
-    if systemctl --user is-enabled dinox.service &>/dev/null 2>&1; then
-        info "Disabling systemd user service..."
-        systemctl --user disable --now dinox.service || true
-        success "dinox.service disabled and stopped."
+    # Remove XDG autostart entry if present
+    AUTOSTART_FILE="$HOME/.config/autostart/im.github.rallep71.DinoX.desktop"
+    if [ -f "$AUTOSTART_FILE" ]; then
+        info "Removing XDG autostart entry..."
+        rm -f "$AUTOSTART_FILE"
+        success "Autostart entry removed."
+    fi
+
+    # Stop the running instance if any
+    if systemctl --user is-active --quiet dinox.service 2>/dev/null; then
+        info "Stopping dinox.service..."
+        systemctl --user stop dinox.service || true
     fi
 
     if [ ! -f "$BUILD_DIR/build.ninja" ]; then
@@ -295,30 +303,31 @@ sudo ldconfig
 success "DinoX installed to /usr."
 
 # -----------------------------------------------------------------------------
-# 7. Enable systemd user service
+# 7. XDG autostart entry
 # -----------------------------------------------------------------------------
-header "Systemd User Service"
+header "Autostart"
 
 if $DO_SERVICE; then
-    SERVICE_FILE="/usr/lib/systemd/user/dinox.service"
-    if [ ! -f "$SERVICE_FILE" ]; then
-        warn "Service file not found at $SERVICE_FILE — skipping systemctl setup."
-        warn "  (meson may need to be reconfigured with --prefix=/usr on a Linux build)"
-    else
-        info "Reloading systemd user daemon..."
-        systemctl --user daemon-reload
-        info "Enabling dinox.service to start with the graphical session..."
-        systemctl --user enable dinox.service
-        info "Starting dinox.service..."
-        systemctl --user start dinox.service || warn "Could not start dinox.service right now (no graphical session?). It will start automatically on next login."
-        if systemctl --user is-active --quiet dinox.service; then
-            success "dinox.service is running."
-        else
-            warn "dinox.service is not active yet — it will start when a graphical session is available."
-        fi
-    fi
+    AUTOSTART_DIR="$HOME/.config/autostart"
+    AUTOSTART_FILE="$AUTOSTART_DIR/im.github.rallep71.DinoX.desktop"
+    mkdir -p "$AUTOSTART_DIR"
+    cat > "$AUTOSTART_FILE" << 'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=DinoX
+Comment=Start DinoX minimized to tray on login
+Icon=im.github.rallep71.DinoX
+Exec=dinox --minimized
+Terminal=false
+Categories=Network;Chat;InstantMessaging;
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+DESKTOP
+    success "XDG autostart entry created: $AUTOSTART_FILE"
+    info "DinoX will start minimized to tray on next login."
+    info "(systemd-xdg-autostart-generator will run it as part of graphical-session.target)"
 else
-    info "Skipping systemd service setup (--no-service)."
+    info "Skipping autostart setup (--no-service)."
 fi
 
 # -----------------------------------------------------------------------------
@@ -351,9 +360,9 @@ fi
 echo ""
 echo -e "${GREEN}${BOLD}  DinoX installation complete!${NC}"
 echo ""
-echo -e "  Run:           ${BOLD}dinox${NC}"
-echo -e "  Service status: ${BOLD}systemctl --user status dinox.service${NC}"
-echo -e "  Stop service:   ${BOLD}systemctl --user stop dinox.service${NC}"
-echo -e "  Disable service:${BOLD}systemctl --user disable dinox.service${NC}"
-echo -e "  Uninstall:      ${BOLD}./install.sh --uninstall${NC}"
+echo -e "  Run:              ${BOLD}dinox${NC}"
+echo -e "  Run minimized:    ${BOLD}dinox --minimized${NC}"
+echo -e "  Autostart file:   ${BOLD}~/.config/autostart/im.github.rallep71.DinoX.desktop${NC}"
+echo -e "  Disable autostart:${BOLD}rm ~/.config/autostart/im.github.rallep71.DinoX.desktop${NC}"
+echo -e "  Uninstall:        ${BOLD}./install.sh --uninstall${NC}"
 echo ""

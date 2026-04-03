@@ -41,8 +41,10 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     public Plugins.Loader? plugin_loader { get; set; }
 
     internal static bool print_version = false; // vala-lint=naming-convention
+    internal static bool start_minimized_flag = false; // vala-lint=naming-convention
     private const OptionEntry[] OPTIONS = {
-        { "version", 0, 0, OptionArg.NONE, ref print_version, "Display version number", null },
+        { "version",   0, 0, OptionArg.NONE, ref print_version,       "Display version number",                    null },
+        { "minimized", 0, 0, OptionArg.NONE, ref start_minimized_flag, "Start minimized to tray (XDG autostart)",  null },
         { null }
     };
 
@@ -192,59 +194,60 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     // Shared post-unlock / post-set-password initialization.
     // Extracted to eliminate duplication between prompt_unlock() and prompt_set_password().
     // ---------------------------------------------------------------------------
-    // Autostart helpers — manage the systemd user service unit
+    // Autostart helpers — manage ~/.config/autostart/im.github.rallep71.DinoX.desktop
+    //
+    // systemd-xdg-autostart-generator (used by UWSM / Hyprland / most DEs) reads
+    // XDG autostart .desktop files and generates a proper
+    // app-<id>@autostart.service unit that already has the right ordering
+    // (After=graphical-session.target, Slice=app-graphical.slice, full session
+    // environment injected by UWSM).  This is exactly how AyuGram/Telegram work.
     // ---------------------------------------------------------------------------
 
-    private static string AUTOSTART_SERVICE = "dinox.service";
+    private static string AUTOSTART_DESKTOP_ID = "im.github.rallep71.DinoX.desktop";
 
-    /** Returns true if the systemd user service is currently enabled. */
-    public static bool autostart_get_enabled () {
-#if WINDOWS
-        return false;
-#else
-        try {
-            string stdout_buf, stderr_buf;
-            int exit_status;
-            Process.spawn_sync (null,
-                {"systemctl", "--user", "is-enabled", "--quiet", AUTOSTART_SERVICE},
-                null,
-                SpawnFlags.SEARCH_PATH,
-                null,
-                out stdout_buf, out stderr_buf, out exit_status);
-            return exit_status == 0;
-        } catch (SpawnError e) {
-            debug ("autostart_get_enabled: spawn error: %s", e.message);
-            return false;
-        }
-#endif
+    private static string get_autostart_path () {
+        return Path.build_filename (Environment.get_user_config_dir (),
+                                    "autostart", AUTOSTART_DESKTOP_ID);
     }
 
-    /** Enable or disable the systemd user service for autostart. */
+    /** Returns true when the XDG autostart desktop file exists. */
+    public static bool autostart_get_enabled () {
+        return FileUtils.test (get_autostart_path (), FileTest.EXISTS);
+    }
+
+    /**
+     * Create or remove ~/.config/autostart/im.github.rallep71.DinoX.desktop.
+     * The file passes --minimized so the window starts hidden in the tray.
+     */
     public static void autostart_set_enabled (bool enable) {
-#if WINDOWS
-        return;
-#else
-        string[] cmd;
+        string path = get_autostart_path ();
         if (enable) {
-            cmd = {"systemctl", "--user", "enable", AUTOSTART_SERVICE};
-        } else {
-            cmd = {"systemctl", "--user", "disable", AUTOSTART_SERVICE};
-        }
-        try {
-            string stdout_buf, stderr_buf;
-            int exit_status;
-            Process.spawn_sync (null, cmd, null,
-                SpawnFlags.SEARCH_PATH,
-                null,
-                out stdout_buf, out stderr_buf, out exit_status);
-            if (exit_status != 0) {
-                warning ("autostart_set_enabled(%s): systemctl exited %d: %s",
-                    enable.to_string (), exit_status, stderr_buf.strip ());
+            // Ensure the autostart directory exists
+            string dir = Path.get_dirname (path);
+            DirUtils.create_with_parents (dir, 0755);
+
+            string contents = "[Desktop Entry]\n" +
+                "Type=Application\n" +
+                "Name=DinoX\n" +
+                "Comment=Start DinoX minimized to tray on login\n" +
+                "Icon=im.github.rallep71.DinoX\n" +
+                "Exec=dinox --minimized\n" +
+                "Terminal=false\n" +
+                "Categories=Network;Chat;InstantMessaging;\n" +
+                "X-GNOME-Autostart-enabled=true\n" +
+                "StartupNotify=false\n";
+            try {
+                FileUtils.set_contents (path, contents);
+                debug ("autostart: created %s", path);
+            } catch (FileError e) {
+                warning ("autostart: failed to write %s: %s", path, e.message);
             }
-        } catch (SpawnError e) {
-            warning ("autostart_set_enabled: spawn error: %s", e.message);
+        } else {
+            if (FileUtils.test (path, FileTest.EXISTS)) {
+                FileUtils.remove (path);
+                debug ("autostart: removed %s", path);
+            }
         }
-#endif
     }
 
     private void finish_post_unlock () {
@@ -279,15 +282,15 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         systray_manager = new SystrayManager (this);
 
-        // Sync the autostart setting with the actual systemd service state on startup.
-        // If they diverge (e.g. user manually ran systemctl), re-align to the DB value.
-        bool db_autostart = settings.autostart;
-        bool svc_enabled  = autostart_get_enabled ();
-        if (db_autostart != svc_enabled) {
+        // Sync the DB setting with the actual XDG autostart file on startup.
+        // If they diverge (e.g. user manually deleted the file), align to the DB value.
+        bool db_autostart  = settings.autostart;
+        bool file_enabled  = autostart_get_enabled ();
+        if (db_autostart != file_enabled) {
             autostart_set_enabled (db_autostart);
         }
 
-        // React to future autostart changes from the preferences dialog.
+        // React to future autostart toggle from the preferences dialog.
         settings.notify["autostart"].connect (() => {
             autostart_set_enabled (settings.autostart);
         });
@@ -660,13 +663,15 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 #endif
             }
 
-            // If start_minimized is set, hide to tray instead of presenting the window.
-            // Only applies on the very first activation (window just created or not yet visible).
-            bool start_hidden = settings.start_minimized
+            // Hide to tray instead of presenting the window when:
+            //  • --minimized CLI flag is set (launched by XDG autostart), OR
+            //  • the "Start Minimized to Tray" preference is on
+            // Only suppresses the window on the very first activation.
+            bool start_hidden = (start_minimized_flag || settings.start_minimized)
                 && systray_manager != null
                 && !window.is_visible ();
             if (start_hidden) {
-                // Keep app running but do not show the window
+                start_minimized_flag = false; // consume the flag — only hide once
                 window.set_visible (false);
                 if (systray_manager != null) systray_manager.is_hidden = true;
             } else {
