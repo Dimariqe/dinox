@@ -23,6 +23,7 @@ public class Dino.Ui.ViewModel.GeneralPreferencesPage : Object {
     public bool stickers_enabled { get; set; }
     public bool sticker_animations_enabled { get; set; }
     public bool location_sharing_enabled { get; set; }
+    public bool link_previews { get; set; }
     public bool bot_features_enabled { get; set; }
     public string api_mode { get; set; default = "local"; }
     public int api_port { get; set; default = 7842; }
@@ -43,6 +44,7 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
     [GtkChild] private unowned Adw.SwitchRow stickers_enabled_row;
     [GtkChild] private unowned Adw.SwitchRow sticker_animations_row;
     [GtkChild] private unowned Adw.SwitchRow location_sharing_row;
+    [GtkChild] private unowned Adw.SwitchRow link_previews_row;
     [GtkChild] private unowned Adw.SwitchRow bot_features_row;
     [GtkChild] private unowned Adw.ComboRow api_mode_row;
     [GtkChild] private unowned Adw.SpinRow api_port_row;
@@ -188,6 +190,7 @@ public class Dino.Ui.GeneralPreferencesPage : Adw.PreferencesPage {
                 model.bind_property("stickers-enabled", stickers_enabled_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("sticker-animations-enabled", sticker_animations_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("location-sharing-enabled", location_sharing_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
+                model.bind_property("link-previews", link_previews_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL),
                 model.bind_property("bot-features-enabled", bot_features_row, "active", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL)
             };
 

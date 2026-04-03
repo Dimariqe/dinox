@@ -301,7 +301,7 @@ public class MessageMetaItem : ContentMetaItem {
         double n = Math.pow(2, zoom);
         int xtile = (int)(n * ((lon + 180.0) / 360.0));
         int ytile = (int)(n * (1.0 - (Math.log(Math.tan(lat_rad) + 1.0/Math.cos(lat_rad)) / Math.PI)) / 2.0);
-        
+
         string tile_url = "https://tile.openstreetmap.org/%d/%d/%d.png".printf(zoom, xtile, ytile);
         debug("MessageMetaItem: Tile URL: %s", tile_url);
 
@@ -310,7 +310,7 @@ public class MessageMetaItem : ContentMetaItem {
         box.halign = Align.START;
         box.hexpand = false;
         box.width_request = 256;
-        
+
         Overlay overlay = new Overlay();
         overlay.set_size_request(256, 256);
         overlay.halign = Align.START;
@@ -369,7 +369,7 @@ public class MessageMetaItem : ContentMetaItem {
         overlay.add_overlay(marker);
 
         box.append(overlay);
-        
+
         Label caption = new Label(_("Navigate to location"));
         caption.add_css_class("dim-label");
         caption.margin_top = 5;
@@ -427,11 +427,13 @@ public class MessageMetaItem : ContentMetaItem {
             }
         }
 
-        // URL link preview (Telegram-style)
-        string? preview_url = Dino.Ui.extract_preview_url(message_item.message.body);
-        if (preview_url != null) {
-            var preview_widget = new Dino.Ui.UrlPreviewWidget(preview_url);
-            outer.set_widget(preview_widget, Plugins.WidgetType.GTK4, 3);
+        // URL link preview (Telegram-style) — gated by setting to prevent IP leakage
+        if (Dino.Application.get_default().settings.link_previews) {
+            string? preview_url = Dino.Ui.extract_preview_url(message_item.message.body);
+            if (preview_url != null) {
+                var preview_widget = new Dino.Ui.UrlPreviewWidget(preview_url);
+                outer.set_widget(preview_widget, Plugins.WidgetType.GTK4, 3);
+            }
         }
 
         return main_widget;

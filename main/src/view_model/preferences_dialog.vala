@@ -199,6 +199,7 @@ public class Dino.Ui.ViewModel.PreferencesDialog : Object {
         settings.bind_property("stickers-enabled", general_page, "stickers-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("sticker-animations-enabled", general_page, "sticker-animations-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("location-sharing-enabled", general_page, "location-sharing-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
+        settings.bind_property("link-previews", general_page, "link-previews", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("bot-features-enabled", general_page, "bot-features-enabled", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("autostart", general_page, "autostart", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);
         settings.bind_property("start-minimized", general_page, "start-minimized", BindingFlags.SYNC_CREATE | BindingFlags.BIDIRECTIONAL);

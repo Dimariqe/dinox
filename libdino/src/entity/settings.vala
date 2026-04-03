@@ -18,6 +18,7 @@ public class Settings : Object {
         stickers_enabled_ = col_to_bool_or_default("stickers_enabled", true);
         sticker_animations_enabled_ = col_to_bool_or_default("sticker_animations_enabled", true);
         location_sharing_enabled_ = col_to_bool_or_default("location_sharing_enabled", true);
+        link_previews_ = col_to_bool_or_default("link_previews", false);
         bot_features_enabled_ = col_to_bool_or_default("bot_features_enabled", false);
         autostart_ = col_to_bool_or_default("autostart", false);
         start_minimized_ = col_to_bool_or_default("start_minimized", false);
@@ -170,6 +171,18 @@ public class Settings : Object {
                 .value(db.settings.value, value.to_string())
                 .perform();
             location_sharing_enabled_ = value;
+        }
+    }
+
+    private bool link_previews_;
+    public bool link_previews {
+        get { return link_previews_; }
+        set {
+            db.settings.upsert()
+                .value(db.settings.key, "link_previews", true)
+                .value(db.settings.value, value.to_string())
+                .perform();
+            link_previews_ = value;
         }
     }
 

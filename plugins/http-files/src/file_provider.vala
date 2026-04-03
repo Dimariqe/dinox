@@ -116,6 +116,13 @@ public class FileProvider : Dino.FileProvider, Object {
                 // sent by other clients (Gajim, Monal, Conversations, etc.) rather
                 // than file transfers.  Do a HEAD request to check Content-Type.
                 if (from_body_only && normal_file) {
+                    // When link previews are disabled, skip HEAD request entirely
+                    // and treat all body-only URLs as text messages (privacy: no IP leak)
+                    if (!Dino.Application.get_default().settings.link_previews) {
+                        debug("http-files: link_previews disabled, treating body-only URL as text: %s",
+                              FileProvider.sanitize_for_log(url_candidate));
+                        return false;
+                    }
                     bool is_webpage = yield outer.check_is_webpage(url_candidate, conversation.account);
                     if (is_webpage) {
                         debug("http-files: body-only URL is a webpage, treating as text message: %s",

@@ -35,6 +35,19 @@
             <property name="use-underline">True</property>
           </object>
         </child>
+        <child>
+          <object class="AdwSwitchRow" id="link_previews_row">
+            <property
+                            name="title"
+                            translatable="yes"
+                        >Link Previews</property>
+            <property
+                            name="subtitle"
+                            translatable="yes"
+                        >Fetch and display URL previews. Disabling prevents IP address leaks from incoming links.</property>
+            <property name="use-underline">True</property>
+          </object>
+        </child>
       </object>
     </child>
     <child>
