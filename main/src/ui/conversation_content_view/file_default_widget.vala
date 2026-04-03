@@ -98,9 +98,9 @@ public class FileDefaultWidget : Gtk.Box {
                 break;
             case FileTransfer.State.NOT_STARTED:
                 if (mime_description != null && size >= 0) {
-                    mime_label.label =  _("%%s offered: %%s").printf(mime_description, get_size_string(size));
+                    mime_label.label =  _("%s offered: %s").printf(mime_description, get_size_string(size));
                 } else if (mime_description != null) {
-                    mime_label.label = _("%%s offered").printf(mime_description);
+                    mime_label.label = _("%s offered").printf(mime_description);
                 } else if (size >= 0) {
                     mime_label.label = _("File offered: %s").printf(get_size_string(size));
                 } else {

@@ -71,12 +71,22 @@ public class StatusNotifierItem : Object {
             return;
         }
 
-        // Set IconThemePath to the parent of hicolor so Qt/KDE trays
-        // can look up the icon by name (e.g. /usr/share/icons).
+        // Set IconThemePath only for AppImage/non-system installs.
+        // For system installs (/usr/share/icons/hicolor) leave it empty:
+        // Quickshell and other SNI hosts build the path as
+        //   file://${IconThemePath}/${IconName}
+        // which produces an invalid path when IconThemePath=/usr/share/icons.
+        // With an empty IconThemePath the host falls back to its own XDG
+        // hicolor lookup using IconName alone — which works correctly.
         string icons_dir = Path.get_dirname(hicolor);
-        if (icons_dir.length > 0) {
+        bool is_system_icons = (icons_dir == "/usr/share/icons" ||
+                                icons_dir == "/usr/local/share/icons");
+        if (icons_dir.length > 0 && !is_system_icons) {
             icon_theme_path = icons_dir;
             debug("Systray: IconThemePath set to %s (from %s)", icons_dir, hicolor);
+        } else {
+            icon_theme_path = "";
+            debug("Systray: IconThemePath left empty (system install at %s)", hicolor);
         }
 
         var builder = new VariantBuilder(new VariantType("a(iiay)"));
@@ -548,11 +558,33 @@ public class SystrayManager : Object {
     }
 
     // Emit D-Bus signals (replaces [DBus] auto-generated signal emission)
+    // The SNI spec only accepts "Active", "Passive", "NeedsAttention".
+    // Map XMPP show values to valid SNI statuses before emitting.
     private void emit_new_status(string new_status_value) {
-        if (connection != null && !connection.is_closed()) {
-            SniDbus.emit_signal(connection, "/StatusNotifierItem",
-                "NewStatus", new Variant("(s)", new_status_value));
+        if (connection == null || connection.is_closed()) return;
+
+        string sni_status;
+        switch (new_status_value) {
+            case "dnd":
+                sni_status = "NeedsAttention";
+                break;
+            case "away":
+            case "xa":
+                sni_status = "Passive";
+                break;
+            default:
+                // "online", "chat", or any unknown value → Active
+                sni_status = "Active";
+                break;
         }
+
+        if (status_notifier != null) {
+            status_notifier.status = sni_status;
+        }
+
+        SniDbus.emit_signal(connection, "/StatusNotifierItem",
+            "NewStatus", new Variant("(s)", sni_status));
+        debug("Systray: emit_new_status %s → %s", new_status_value, sni_status);
     }
 }
 
