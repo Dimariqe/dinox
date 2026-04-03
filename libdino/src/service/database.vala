@@ -33,11 +33,13 @@ public class Database : Qlite.Database {
         public Column<string> proxy_type = new Column.Text("proxy_type") { min_version=36, default="'none'" };
         public Column<string> proxy_host = new Column.Text("proxy_host") { min_version=36 };
         public Column<int> proxy_port = new Column.Integer("proxy_port") { min_version=36 };
+        public Column<string> proxy_user = new Column.Text("proxy_user") { min_version=38 };
+        public Column<string> proxy_pass = new Column.Text("proxy_pass") { min_version=38 };
         public Column<bool> require_channel_binding = new Column.BoolInt("require_channel_binding") { min_version=37, default="0" };
 
         internal AccountTable(Database db) {
             base(db, "account");
-            init({id, bare_jid, resourcepart, password, alias, enabled, roster_version, mam_earliest_synced, custom_host, custom_port, proxy_type, proxy_host, proxy_port, require_channel_binding});
+            init({id, bare_jid, resourcepart, password, alias, enabled, roster_version, mam_earliest_synced, custom_host, custom_port, proxy_type, proxy_host, proxy_port, proxy_user, proxy_pass, require_channel_binding});
         }
     }
 

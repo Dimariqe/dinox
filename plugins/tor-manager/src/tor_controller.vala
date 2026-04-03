@@ -32,20 +32,13 @@ namespace Dino.Plugins.TorManager {
 #if WINDOWS
         // Get the directory where the executable is located
         private string? get_executable_dir() {
-            // On Windows, use Win32 API via GLib
-            string? exe_path = null;
-            // GLib provides this via get_current_dir, but we need the exe location
-            // Use environment or fallback
-            string? path = Environment.get_variable("_");  // The full path to the running exe
-            if (path != null && path.has_suffix(".exe")) {
-                exe_path = Path.get_dirname(path);
+            // Use DINOX_EXE_DIR set by main.vala (reliable, based on args[0])
+            string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+            if (exe_dir != null) {
+                return exe_dir;
             }
-            
-            if (exe_path == null) {
-                // Fallback: Check current working directory
-                exe_path = Environment.get_current_dir();
-            }
-            return exe_path;
+            // Fallback: current working directory
+            return Environment.get_current_dir();
         }
 #endif
 
@@ -66,7 +59,7 @@ namespace Dino.Plugins.TorManager {
 #else
                 string[] argv = {"tor", "--version"};
 #endif
-                Subprocess proc = new Subprocess.newv(argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
+                Subprocess proc = new Subprocess.newv(argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_MERGE);
                 yield proc.wait_async();
                 if (proc.get_if_exited() && proc.get_exit_status() == 0) {
                     debug("Tor executable found.");
@@ -130,10 +123,17 @@ namespace Dino.Plugins.TorManager {
             // We do this BEFORE finding a free port to free up the default port (9155) if possible.
             try {
 #if WINDOWS
-                // Windows: Use taskkill to kill any running tor.exe
+                // Windows: Use taskkill to kill any running tor.exe and lyrebird.exe (pluggable transport)
                 string[] kill_cmd = {"taskkill", "/F", "/IM", "tor.exe"};
-                var kill_proc = new Subprocess.newv(kill_cmd, SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+                var kill_proc = new Subprocess.newv(kill_cmd, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
                 yield kill_proc.wait_async();
+                try {
+                    string[] kill_pt_cmd = {"taskkill", "/F", "/IM", "lyrebird.exe"};
+                    var kill_pt = new Subprocess.newv(kill_pt_cmd, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+                    yield kill_pt.wait_async();
+                } catch (Error e) {
+                    // lyrebird might not be running — that's fine
+                }
 #else
                 // Linux/macOS: Use pkill to match config file path
                 string[] kill_cmd = {"pkill", "-9", "-f", "dinox/tor/torrc"};
@@ -174,14 +174,33 @@ namespace Dino.Plugins.TorManager {
             torrc.append_printf("SocksPort %d\n", socks_port);
             
             // Try to find GeoIP files
+#if WINDOWS
+            string? edir = get_executable_dir();
+            string[] geoip_opts = {};
+            if (edir != null) {
+                geoip_opts += Path.build_filename(edir, "share", "tor", "geoip");
+            }
+            geoip_opts += "C:\\msys64\\mingw64\\share\\tor\\geoip";
+            geoip_opts += "C:\\msys64\\share\\tor\\geoip";
+#else
             string[] geoip_opts = {"/app/share/tor/geoip", "/usr/share/tor/geoip", "/usr/local/share/tor/geoip"};
+#endif
             foreach (string p in geoip_opts) {
                 if (FileUtils.test(p, FileTest.EXISTS)) {
                     torrc.append_printf("GeoIPFile %s\n", p);
                     break;
                 }
             }
+#if WINDOWS
+            string[] geoip6_opts = {};
+            if (edir != null) {
+                geoip6_opts += Path.build_filename(edir, "share", "tor", "geoip6");
+            }
+            geoip6_opts += "C:\\msys64\\mingw64\\share\\tor\\geoip6";
+            geoip6_opts += "C:\\msys64\\share\\tor\\geoip6";
+#else
             string[] geoip6_opts = {"/app/share/tor/geoip6", "/usr/share/tor/geoip6", "/usr/local/share/tor/geoip6"};
+#endif
             foreach (string p in geoip6_opts) {
                  if (FileUtils.test(p, FileTest.EXISTS)) {
                     torrc.append_printf("GeoIPv6File %s\n", p);
@@ -309,7 +328,7 @@ namespace Dino.Plugins.TorManager {
 #endif
 
             try {
-                tor_process = new Subprocess.newv(argv, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
+                tor_process = new Subprocess.newv(argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
                 is_running = true;
                 is_starting = false;
                 debug("Tor process started with PID: %s", tor_process.get_identifier());
@@ -337,7 +356,12 @@ namespace Dino.Plugins.TorManager {
         private async void wait_until_port_open(int port) {
             debug("Waiting for Tor request port %d to open...", port);
             // Wait up to 20 seconds (200 * 100ms) - Bridges can be slow to initialize
-            for (int i = 0; i < 200; i++) { 
+            for (int i = 0; i < 200; i++) {
+                // Abort early if user disabled Tor while we were waiting
+                if (!is_running) {
+                    debug("Tor stopped while waiting for port %d. Aborting.", port);
+                    return;
+                }
                 try {
                     Socket socket = new Socket(SocketFamily.IPV4, SocketType.STREAM, SocketProtocol.TCP);
                     InetAddress address = new InetAddress.from_string("127.0.0.1");
@@ -368,6 +392,18 @@ namespace Dino.Plugins.TorManager {
 #if WINDOWS
                 // Windows has no POSIX signals; terminate the process directly.
                 tor_process.force_exit();
+
+                // Also kill lyrebird.exe (pluggable transport child process).
+                // TerminateProcess only kills the target process, not its children.
+                // Use async kill to avoid blocking the GTK main loop.
+                try {
+                    var kill_pt = new Subprocess.newv(
+                        {"taskkill", "/F", "/IM", "lyrebird.exe"},
+                        SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+                    kill_pt.wait_async.begin();
+                } catch (Error e) {
+                    // Ignored: lyrebird might not be running
+                }
 #else
                 // Send SIGTERM first to let Tor clean up its state files gracefully.
                 // force_exit() sends SIGKILL which doesn't allow cleanup and can

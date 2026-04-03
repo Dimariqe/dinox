@@ -897,6 +897,126 @@
 
     <release>
       <Version>
+        <name>1.1.8.0</name>
+        <created>2026-03-26</created>
+        <revision>1.1.8.0</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.9</name>
+        <created>2026-03-26</created>
+        <revision>1.1.7.9</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.8</name>
+        <created>2026-03-25</created>
+        <revision>1.1.7.8</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.7</name>
+        <created>2026-03-18</created>
+        <revision>1.1.7.7</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.6</name>
+        <created>2026-03-17</created>
+        <revision>1.1.7.6</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.5</name>
+        <created>2026-03-15</created>
+        <revision>1.1.7.5</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.4</name>
+        <created>2026-03-14</created>
+        <revision>1.1.7.4</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.3</name>
+        <created>2026-03-14</created>
+        <revision>1.1.7.3</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.2</name>
+        <created>2026-03-14</created>
+        <revision>1.1.7.2</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.1</name>
+        <created>2026-03-14</created>
+        <revision>1.1.7.1</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.7.0</name>
+        <created>2026-03-14</created>
+        <revision>1.1.7.0</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.6.9</name>
+        <created>2026-03-14</created>
+        <revision>1.1.6.9</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.6.8</name>
+        <created>2026-03-14</created>
+        <revision>1.1.6.8</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.6.7</name>
+        <created>2026-03-14</created>
+        <revision>1.1.6.7</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
+        <name>1.1.6.6</name>
+        <created>2026-03-14</created>
+        <revision>1.1.6.6</revision>
+      </Version>
+    </release>
+
+    <release>
+      <Version>
         <name>1.1.6.5</name>
         <created>2026-03-13</created>
         <revision>1.1.6.5</revision>

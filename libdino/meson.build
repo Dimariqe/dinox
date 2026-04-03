@@ -100,9 +100,6 @@ c_args = [
     '-DG_LOG_DOMAIN="libdino"',
 ]
 vala_args = []
-if host_machine.system() == 'windows'
-    vala_args += ['-D', 'WINDOWS']
-endif
 if meson.get_compiler('vala').version().version_compare('=0.56.11')
     vala_args += ['-D', 'VALA_0_56_11']
 endif

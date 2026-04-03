@@ -29,7 +29,23 @@ public abstract class Xmpp.IoXmppStream : XmppStream {
         }
         log.str("OUT", "</stream:stream>", this);
         yield writer.write("</stream:stream>", Priority.LOW, new Cancellable());
-        yield stream.close_async();
+        // Close with 5-second timeout to avoid indefinite hang on slow SOCKS5 proxies
+        // (TLS close_notify round-trip through external proxy can take minutes)
+        var close_cancel = new Cancellable();
+        bool timeout_fired = false;
+        uint timeout_id = Timeout.add_seconds(5, () => {
+            timeout_fired = true;
+            close_cancel.cancel();
+            return Source.REMOVE;
+        });
+        try {
+            yield stream.close_async(Priority.DEFAULT, close_cancel);
+        } catch (IOError.CANCELLED e) {
+            // Timeout — TLS close_notify took too long, socket force-closed
+        }
+        if (!timeout_fired) {
+            Source.remove(timeout_id);
+        }
     }
 
     public void reset_stream(IOStream stream) {

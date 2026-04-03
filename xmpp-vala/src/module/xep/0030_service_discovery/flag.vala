@@ -21,7 +21,9 @@ public class Flag : XmppStreamFlag {
 
     public void add_own_feature(string feature) {
         if (own_features_.contains(feature)) {
-            warning("Tried to add the feature %s a second time".printf(feature));
+            // This is expected during Stream Management resume (XEP-0198):
+            // old flags are restored, then modules re-attach and add features again.
+            debug("Tried to add the feature %s a second time (SM resume?)".printf(feature));
             return;
         }
         own_features_.add(feature);

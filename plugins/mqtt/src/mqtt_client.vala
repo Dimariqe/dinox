@@ -63,6 +63,13 @@ public class MqttClient : Object {
     private string? broker_password = null;
     private bool initial_connect_done = false;
 
+    /* Proxy settings for SOCKS5/Tor */
+    private string? broker_proxy_type = null;
+    private string? broker_proxy_host = null;
+    private int broker_proxy_port = 0;
+    private string? broker_proxy_user = null;
+    private string? broker_proxy_pass = null;
+
     /* Topics to re-subscribe after reconnect */
     private Gee.HashMap<string, int> subscribed_topics =
         new Gee.HashMap<string, int>();
@@ -127,7 +134,12 @@ public class MqttClient : Object {
     public async bool connect_async(string host, int port = 1883,
                                     bool use_tls = false,
                                     string? username = null,
-                                    string? password = null) {
+                                    string? password = null,
+                                    string? proxy_type = null,
+                                    string? proxy_host = null,
+                                    int proxy_port = 0,
+                                    string? proxy_user = null,
+                                    string? proxy_pass = null) {
         if (is_connected) {
             debug("MQTT: Already connected to %s:%d", broker_host, broker_port);
             return true;
@@ -139,13 +151,18 @@ public class MqttClient : Object {
         broker_use_tls = use_tls;
         broker_username = username;
         broker_password = password;
+        broker_proxy_type = proxy_type;
+        broker_proxy_host = proxy_host;
+        broker_proxy_port = proxy_port;
+        broker_proxy_user = proxy_user;
+        broker_proxy_pass = proxy_pass;
 
         /* Create mosquitto client — pass instance_id as userdata for
          * C callback dispatch (supports multiple MqttClient instances) */
         string client_id = "dinox-%u-%lld".printf(_instance_id,
                                                    GLib.get_real_time() / 1000);
         mosq = new Mosquitto.Client(client_id, true,
-                                     (void*)(ulong)_instance_id);
+                                     (void*)(int64)_instance_id);
 
         if (mosq == null) {
             warning("MQTT: mosquitto_new() failed");
@@ -163,29 +180,44 @@ public class MqttClient : Object {
             string? capath = null;
 
 #if WINDOWS
-            /* Windows: check bundled ca-bundle.crt next to dinox.exe,
-             * then MSYS2 development locations */
-            string cwd = Environment.get_current_dir();
-            string[] win_ca_paths = {
-                Path.build_filename(cwd, "ssl", "certs", "ca-bundle.crt"),
-                Path.build_filename(cwd, "ca-bundle.crt"),
-                "C:\\msys64\\mingw64\\ssl\\certs\\ca-bundle.crt",
-                "/mingw64/ssl/certs/ca-bundle.crt",
-            };
-            foreach (string p in win_ca_paths) {
-                if (FileUtils.test(p, FileTest.EXISTS)) {
-                    cafile = p;
-                    break;
+            /* Windows: prefer SSL_CERT_FILE env var (set by main.vala from exe_dir),
+             * then probe common locations as fallback */
+            string? env_cert = Environment.get_variable("SSL_CERT_FILE");
+            if (env_cert != null && FileUtils.test(env_cert, FileTest.EXISTS)) {
+                cafile = env_cert;
+            } else {
+                string cwd = Environment.get_current_dir();
+                string[] win_ca_paths = {
+                    Path.build_filename(cwd, "ssl", "certs", "ca-bundle.crt"),
+                    Path.build_filename(cwd, "ca-bundle.crt"),
+                    "C:\\msys64\\mingw64\\ssl\\certs\\ca-bundle.crt",
+                    "/mingw64/ssl/certs/ca-bundle.crt",
+                };
+                foreach (string p in win_ca_paths) {
+                    if (FileUtils.test(p, FileTest.EXISTS)) {
+                        cafile = p;
+                        break;
+                    }
                 }
-            }
-            if (cafile == null) {
-                warning("MQTT: No CA certificate bundle found — TLS may fail. " +
-                        "Tried: %s", string.joinv(", ", win_ca_paths));
+                if (cafile == null) {
+                    warning("MQTT: No CA certificate bundle found — TLS may fail. " +
+                            "Tried: SSL_CERT_FILE env, %s", string.joinv(", ", win_ca_paths));
+                }
             }
 #else
             /* Linux / macOS: standard CA certificate locations */
             if (FileUtils.test("/etc/ssl/certs/ca-certificates.crt", FileTest.EXISTS)) {
                 cafile = "/etc/ssl/certs/ca-certificates.crt";
+            } else if (FileUtils.test("/etc/pki/tls/certs/ca-bundle.crt", FileTest.EXISTS)) {
+                cafile = "/etc/pki/tls/certs/ca-bundle.crt";
+            } else if (FileUtils.test("/etc/ssl/ca-bundle.pem", FileTest.EXISTS)) {
+                cafile = "/etc/ssl/ca-bundle.pem";
+            } else if (FileUtils.test("/var/lib/ca-certificates/ca-bundle.pem", FileTest.EXISTS)) {
+                cafile = "/var/lib/ca-certificates/ca-bundle.pem";
+            } else if (FileUtils.test("/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", FileTest.EXISTS)) {
+                cafile = "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem";
+            } else if (FileUtils.test("/etc/ssl/cert.pem", FileTest.EXISTS)) {
+                cafile = "/etc/ssl/cert.pem";
             } else if (FileUtils.test("/etc/ssl/certs/ca-bundle.crt", FileTest.EXISTS)) {
                 cafile = "/etc/ssl/certs/ca-bundle.crt";
             } else if (FileUtils.test("/etc/ssl/certs", FileTest.IS_DIR)) {
@@ -220,6 +252,22 @@ public class MqttClient : Object {
         mosq.int_option(Mosquitto.Option.PROTOCOL_VERSION,
                          Mosquitto.PROTOCOL_V5);
         mosq.message_v5_callback_set(on_message_v5_cb);
+
+        /* SOCKS5 proxy — must be set before connect */
+        if (proxy_type == "socks5" || proxy_type == "tor") {
+            string ph = (proxy_host != null && proxy_host != "") ? proxy_host : "127.0.0.1";
+            int pp = (proxy_port > 0) ? proxy_port : (proxy_type == "tor" ? 9050 : 1080);
+            int socks_rc = mosq.socks5_set(ph, pp,
+                                            (proxy_user != null && proxy_user != "") ? proxy_user : null,
+                                            (proxy_pass != null && proxy_pass != "") ? proxy_pass : null);
+            if (socks_rc != Mosquitto.Error.SUCCESS) {
+                warning("MQTT: socks5_set(%s:%d) failed rc=%d", ph, pp, socks_rc);
+            } else {
+                GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG,
+                         "MQTT: proxy socks5://%s:%d (auth=%s)", ph, pp,
+                         (proxy_user != null && proxy_user != "") ? "yes" : "no");
+            }
+        }
 
         /* ---------- TCP connect in background thread ---------- */
         int tcp_rc = Mosquitto.Error.UNKNOWN;
@@ -402,7 +450,7 @@ public class MqttClient : Object {
     /* ── Mosquitto C callbacks (static → dispatch via instance registry) ── */
 
     private static unowned MqttClient? lookup(void* userdata) {
-        uint id = (uint)(ulong)userdata;
+        uint id = (uint)(int64)userdata;
         if (_instances != null && _instances.has_key(id)) {
             return _instances[id];
         }

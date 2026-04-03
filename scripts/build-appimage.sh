@@ -579,6 +579,20 @@ export PIPEWIRE_RUNTIME_DIR="${PIPEWIRE_RUNTIME_DIR:-$XDG_RUNTIME_DIR}"
 # This allows the app to use German, French, etc. based on system LANG
 export TEXTDOMAINDIR="$APPDIR/usr/share/locale"
 
+# Locale data: Do NOT set LOCPATH — it forces glibc to look for individual
+# locale directories and skip locale-archive (where most distros store the
+# compiled locale data).  The host glibc finds its own locale-archive without
+# our help.  The fallback code in main.vala handles any remaining failures.
+
+# GTK4 does not support legacy GTK3-era IM modules.  If the host sets
+# GTK_IM_MODULE to a GTK3-only module (e.g. cedilla, xim), GTK4 prints a
+# warning.  Unset only known GTK3-only modules; leave ibus/fcitx5/etc. alone.
+case "$GTK_IM_MODULE" in
+    cedilla|xim)
+        unset GTK_IM_MODULE
+        ;;
+esac
+
 # Set GSettings schema path
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEMA_DIR"
 
@@ -592,6 +606,23 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 # Prepend the bundled share directory so GTK finds the app icon for About dialog,
 # window icon, and the desktop can find it for systray (SNI icon_name lookup).
 export XDG_DATA_DIRS="$APPDIR/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}:/usr/local/share:/usr/share"
+
+# CA certificates: The bundled GnuTLS defaults to Debian's path which doesn't
+# exist on openSUSE, Fedora, etc. Probe well-known locations and tell GnuTLS.
+if [ -z "$GTLS_SYSTEM_CA_FILE" ]; then
+    for ca in \
+        /etc/ssl/certs/ca-certificates.crt \
+        /etc/pki/tls/certs/ca-bundle.crt \
+        /etc/ssl/ca-bundle.pem \
+        /var/lib/ca-certificates/ca-bundle.pem \
+        /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+        /etc/ssl/cert.pem; do
+        if [ -f "$ca" ]; then
+            export GTLS_SYSTEM_CA_FILE="$ca"
+            break
+        fi
+    done
+fi
 
 # Run DinoX
 exec "$APPDIR/usr/bin/dinox" "$@"

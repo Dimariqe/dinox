@@ -36,6 +36,7 @@ endif
 # Source files (platform-independent)
 sources = files(
     'src/main.vala',
+    'src/service/audio_video_device_service.vala',
     'src/ui/add_conversation/add_conference_dialog.vala',
     'src/ui/add_conversation/add_contact_dialog.vala',
     'src/ui/add_conversation/add_groupchat_dialog.vala',
@@ -139,6 +140,7 @@ sources = files(
     'src/windows/preferences_window/account_preferences_subpage.vala',
     'src/windows/preferences_window/accounts_preferences_page.vala',
     'src/windows/preferences_window/add_account_dialog.vala',
+    'src/windows/preferences_window/audio_video_preferences_page.vala',
     'src/windows/preferences_window/certificate_warning_dialog.vala',
     'src/windows/preferences_window/change_password_dialog.vala',
     'src/windows/preferences_window/contacts_preferences_page.vala',
@@ -150,6 +152,10 @@ sources = files(
 # Platform-specific systray implementation
 if host_machine.system() == 'windows'
     sources += files('src/ui/systray_windows.vala')
+    sources += files('src/ui/systray_win32.c')
+    sources += files('src/ui/notifier_windows.vala')
+    sources += files('src/ui/toast_win32.c')
+    sources += files('src/ui/certstore_win32.c')
 else
     sources += files('src/ui/systray.vala')
     sources += files('src/ui/systray_sni_dbus.c')
@@ -171,7 +177,20 @@ vala_args = [
     '--vapidir=' + (meson.current_source_dir() / 'vapi'),
 ]
 message('VAPI DIR: ' + (meson.current_source_dir() / 'vapi'))
-if host_machine.system() != 'windows'
+cc = meson.get_compiler('c')
+if host_machine.system() == 'windows'
+    vala_args += ['--pkg', 'systray_win32']
+    vala_args += ['--pkg', 'toast_win32']
+    vala_args += ['--pkg', 'certstore_win32']
+    dependencies += [
+        cc.find_library('shell32'),
+        cc.find_library('user32'),
+        cc.find_library('ole32'),
+        cc.find_library('propsys'),
+        cc.find_library('shlwapi'),
+        cc.find_library('crypt32'),
+    ]
+else
     vala_args += ['--pkg', 'systray_sni_dbus']
     vala_args += ['-D', 'HAVE_MALLOC_TRIM']
 endif
@@ -275,6 +294,7 @@ exe_dino = executable(
     dependencies: dependencies,
     install: true,
     install_rpath: default_install_rpath,
+    win_subsystem: 'windows',
 )
 
 # Install app icons (PNG sizes for better systray support)

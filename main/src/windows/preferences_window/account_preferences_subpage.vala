@@ -24,9 +24,13 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
     [GtkChild] public unowned Button disable_account_button;
     [GtkChild] public unowned Adw.EntryRow custom_host_entry;
     [GtkChild] public unowned Adw.EntryRow custom_port_entry;
-    [GtkChild] public unowned Adw.ComboRow proxy_type_row;
+    [GtkChild] public unowned Adw.SwitchRow proxy_enable_row;
     [GtkChild] public unowned Adw.EntryRow proxy_host_entry;
     [GtkChild] public unowned Adw.EntryRow proxy_port_entry;
+    [GtkChild] public unowned Adw.EntryRow proxy_user_entry;
+    [GtkChild] public unowned Adw.PasswordEntryRow proxy_pass_entry;
+    [GtkChild] public unowned Adw.ActionRow proxy_status_row;
+    [GtkChild] public unowned Adw.PreferencesGroup proxy_group;
     [GtkChild] public unowned Adw.SwitchRow require_channel_binding_switch;
 
     [GtkChild] public unowned Adw.EntryRow vcard_fn;
@@ -68,15 +72,26 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
     private ulong alias_entry_changed = 0;
     private ulong custom_host_entry_changed = 0;
     private ulong custom_port_entry_changed = 0;
-    private ulong proxy_type_row_changed = 0;
+    private ulong proxy_enable_row_changed = 0;
     private ulong proxy_host_entry_changed = 0;
     private ulong proxy_port_entry_changed = 0;
+    private ulong proxy_user_entry_changed = 0;
+    private ulong proxy_pass_entry_changed = 0;
     private ulong require_cb_changed = 0;
+    private Cancellable? proxy_check_cancel = null;
 
     construct {
         title = "Account";
         headerbar.show_title = false;
         button_container.layout_manager = new NaturalDirectionBoxLayout((BoxLayout)button_container.layout_manager);
+
+        // Clear focus when page is unmapped to prevent GTK
+        // "GtkText - did not receive a focus-out event" warnings
+        this.unmap.connect(() => {
+            var root = this.get_root() as Gtk.Root;
+            if (root != null) root.set_focus(null);
+        });
+
         edit_avatar_button.clicked.connect(() => {
             show_select_avatar();
         });
@@ -188,40 +203,145 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
                 });
 
                 // Populate and bind proxy fields
-                if (proxy_type_row_changed != 0) proxy_type_row.disconnect(proxy_type_row_changed);
+                if (proxy_enable_row_changed != 0) proxy_enable_row.disconnect(proxy_enable_row_changed);
                 if (proxy_host_entry_changed != 0) proxy_host_entry.disconnect(proxy_host_entry_changed);
                 if (proxy_port_entry_changed != 0) proxy_port_entry.disconnect(proxy_port_entry_changed);
+                if (proxy_user_entry_changed != 0) proxy_user_entry.disconnect(proxy_user_entry_changed);
+                if (proxy_pass_entry_changed != 0) proxy_pass_entry.disconnect(proxy_pass_entry_changed);
 
-                int type_index = 0;
-                if (account.proxy_type == "socks5") type_index = 1;
-                proxy_type_row.selected = type_index;
+                bool is_tor_managed = (account.proxy_type == "tor");
+                // SOCKS5 switch only reflects standalone SOCKS5, NOT Tor
+                proxy_enable_row.active = (account.proxy_type == "socks5");
 
-                proxy_host_entry.text = account.proxy_host ?? "";
-                proxy_port_entry.text = account.proxy_port > 0 ? account.proxy_port.to_string() : "";
-                
-                update_proxy_visibility();
+                // Fields ALWAYS show saved SOCKS5 config and are ALWAYS editable.
+                // Switch only controls whether the proxy is USED.
+                string? saved_host = model.db.account_settings.get_value(account.id, "socks5_host");
+                string? saved_port = model.db.account_settings.get_value(account.id, "socks5_port");
+                string? saved_user = model.db.account_settings.get_value(account.id, "socks5_user");
+                string? saved_pass = model.db.account_settings.get_value(account.id, "socks5_pass");
+                // If currently active as socks5, also sync from live account data
+                if (account.proxy_type == "socks5") {
+                    if (saved_host == null && account.proxy_host != null) saved_host = account.proxy_host;
+                    if (saved_port == null && account.proxy_port > 0) saved_port = account.proxy_port.to_string();
+                    if (saved_user == null && account.proxy_user != null) saved_user = account.proxy_user;
+                    if (saved_pass == null && account.proxy_pass != null) saved_pass = account.proxy_pass;
+                }
+                proxy_host_entry.text = saved_host ?? "";
+                proxy_port_entry.text = saved_port ?? "";
+                proxy_user_entry.text = saved_user ?? "";
+                proxy_pass_entry.text = saved_pass ?? "";
+                proxy_host_entry.sensitive = true;
+                proxy_port_entry.sensitive = true;
+                proxy_user_entry.visible = true;
+                proxy_pass_entry.visible = true;
+                proxy_user_entry.sensitive = true;
+                proxy_pass_entry.sensitive = true;
+                if (is_tor_managed) {
+                    proxy_enable_row.subtitle = _("Tor proxy active (global setting)");
+                } else {
+                    proxy_enable_row.subtitle = "";
+                }
 
-                proxy_type_row_changed = proxy_type_row.notify["selected"].connect(() => {
-                    if (proxy_type_row.selected == 0) account.proxy_type = "none";
-                    else if (proxy_type_row.selected == 1) account.proxy_type = "socks5";
-                    
-                    update_proxy_visibility();
+                proxy_enable_row_changed = proxy_enable_row.notify["active"].connect(() => {
+                    if (proxy_enable_row.active) {
+                        // User enables SOCKS5 — apply current field data to account
+                        account.proxy_type = "socks5";
+                        account.proxy_host = proxy_host_entry.text.length > 0 ? proxy_host_entry.text : null;
+                        int p = int.parse(proxy_port_entry.text);
+                        account.proxy_port = (p > 0 && p <= 65535) ? p : 0;
+                        account.proxy_user = proxy_user_entry.text.length > 0 ? proxy_user_entry.text : null;
+                        account.proxy_pass = proxy_pass_entry.text.length > 0 ? proxy_pass_entry.text : null;
+                        proxy_enable_row.subtitle = "";
+                    } else {
+                        // User disables SOCKS5 — check if Tor is globally enabled
+                        bool tor_globally_enabled = false;
+                        var tor_row = model.db.settings.select({model.db.settings.value})
+                            .with(model.db.settings.key, "=", "tor_manager_enabled")
+                            .single().row();
+                        if (tor_row.is_present()) {
+                            tor_globally_enabled = (tor_row[model.db.settings.value] == "true");
+                        }
+                        if (tor_globally_enabled) {
+                            account.proxy_type = "tor";
+                            account.proxy_host = "127.0.0.1";
+                            // Read Tor port from DB (stored by TorManager on start)
+                            int tor_port = 9150;
+                            var port_row = model.db.settings.select({model.db.settings.value})
+                                .with(model.db.settings.key, "=", "tor_socks_port")
+                                .single().row();
+                            if (port_row.is_present()) {
+                                int p = int.parse(port_row[model.db.settings.value]);
+                                if (p > 0) tor_port = p;
+                            }
+                            // Fallback: scan other Tor accounts
+                            if (tor_port == 9150) {
+                                foreach (var acc in model.stream_interactor.get_accounts()) {
+                                    if (acc != account && acc.proxy_type == "tor" && acc.proxy_port > 0) {
+                                        tor_port = acc.proxy_port;
+                                        break;
+                                    }
+                                }
+                            }
+                            account.proxy_port = tor_port;
+                            proxy_enable_row.subtitle = _("Tor proxy active (global setting)");
+                        } else {
+                            account.proxy_type = "none";
+                            account.proxy_host = null;
+                            account.proxy_port = 0;
+                            proxy_enable_row.subtitle = "";
+                        }
+                    }
                     check_proxy_availability.begin();
-                    
                     if (account.enabled) {
                         model.reconnect_account(account);
                     }
                 });
 
                 proxy_host_entry_changed = proxy_host_entry.changed.connect(() => {
-                    account.proxy_host = proxy_host_entry.text.length > 0 ? proxy_host_entry.text : null;
+                    model.db.account_settings.upsert()
+                        .value(model.db.account_settings.account_id, account.id, true)
+                        .value(model.db.account_settings.key, "socks5_host", true)
+                        .value(model.db.account_settings.value, proxy_host_entry.text)
+                        .perform();
+                    if (account.proxy_type == "socks5") {
+                        account.proxy_host = proxy_host_entry.text.length > 0 ? proxy_host_entry.text : null;
+                    }
                     check_proxy_availability.begin();
                 });
 
                 proxy_port_entry_changed = proxy_port_entry.changed.connect(() => {
-                    int port = int.parse(proxy_port_entry.text);
-                    account.proxy_port = (port > 0 && port <= 65535) ? port : 0;
+                    model.db.account_settings.upsert()
+                        .value(model.db.account_settings.account_id, account.id, true)
+                        .value(model.db.account_settings.key, "socks5_port", true)
+                        .value(model.db.account_settings.value, proxy_port_entry.text)
+                        .perform();
+                    if (account.proxy_type == "socks5") {
+                        int port = int.parse(proxy_port_entry.text);
+                        account.proxy_port = (port > 0 && port <= 65535) ? port : 0;
+                    }
                     check_proxy_availability.begin();
+                });
+
+                proxy_user_entry_changed = proxy_user_entry.changed.connect(() => {
+                    model.db.account_settings.upsert()
+                        .value(model.db.account_settings.account_id, account.id, true)
+                        .value(model.db.account_settings.key, "socks5_user", true)
+                        .value(model.db.account_settings.value, proxy_user_entry.text)
+                        .perform();
+                    if (account.proxy_type == "socks5") {
+                        account.proxy_user = proxy_user_entry.text.length > 0 ? proxy_user_entry.text : null;
+                    }
+                });
+
+                proxy_pass_entry_changed = proxy_pass_entry.changed.connect(() => {
+                    model.db.account_settings.upsert()
+                        .value(model.db.account_settings.account_id, account.id, true)
+                        .value(model.db.account_settings.key, "socks5_pass", true)
+                        .value(model.db.account_settings.value, proxy_pass_entry.text)
+                        .perform();
+                    if (account.proxy_type == "socks5") {
+                        account.proxy_pass = proxy_pass_entry.text.length > 0 ? proxy_pass_entry.text : null;
+                    }
                 });
 
                 // Channel binding downgrade protection
@@ -242,6 +362,7 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
                 bindings += account.bind_property("enabled", avatar_menu_box, "visible", BindingFlags.SYNC_CREATE);
                 bindings += account.bind_property("enabled", password_change, "visible", BindingFlags.SYNC_CREATE);
                 bindings += account.bind_property("enabled", connection_status, "visible", BindingFlags.SYNC_CREATE);
+                bindings += account.bind_property("enabled", proxy_group, "sensitive", BindingFlags.SYNC_CREATE);
                 bindings += model.selected_account.bind_property("connection-state", connection_status, "subtitle", BindingFlags.SYNC_CREATE, (binding, from, ref to) => {
                     to = get_status_label();
                     update_certificate_info();
@@ -253,7 +374,8 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
                 });
                 bindings += model.selected_account.bind_property("connection-error", enter_password_button, "visible", BindingFlags.SYNC_CREATE, (binding, from, ref to) => {
                     var error = (ConnectionManager.ConnectionError) from;
-                    to = error != null && error.source == ConnectionManager.ConnectionError.Source.SASL;
+                    to = error != null && error.source == ConnectionManager.ConnectionError.Source.SASL
+                         && error.identifier != "channel-binding-required";
                     return true;
                 });
 
@@ -268,53 +390,134 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
                     update_connection_error_ui();
                     update_certificate_info();
                 });
+                model.selected_account.notify["connection-state"].connect(() => {
+                    // Update proxy status when connection state changes (e.g. after reconnect)
+                    check_proxy_availability.begin();
+                });
                 update_connection_error_ui();
                 update_certificate_info();
             });
         });
     }
 
-    private void update_proxy_visibility() {
-        bool show_settings = proxy_type_row.selected == 1; // SOCKS5
-        proxy_host_entry.visible = show_settings;
-        proxy_port_entry.visible = show_settings;
-    }
-
     private async void check_proxy_availability() {
-        if (proxy_type_row.selected == 0) { // None
-            proxy_type_row.subtitle = "";
-            proxy_type_row.remove_css_class("error");
-            proxy_type_row.remove_css_class("success");
+        // Cancel any pending check to avoid race conditions
+        if (proxy_check_cancel != null) {
+            proxy_check_cancel.cancel();
+        }
+        proxy_check_cancel = new Cancellable();
+        var cancel = proxy_check_cancel;
+
+        // Account disabled — show disabled status, don't check connectivity
+        if (!account.enabled) {
+            proxy_status_row.subtitle = _("%s (account disabled)").printf(
+                proxy_enable_row.active ? _("Configured") : _("Disabled"));
+            proxy_status_row.remove_css_class("success");
+            proxy_status_row.remove_css_class("error");
             return;
         }
 
-        string host;
-        int port;
+        bool enabled = proxy_enable_row.active;
+        // For status display, use field values (always show saved SOCKS5 config)
+        string field_host = proxy_host_entry.text;
+        int field_port = int.parse(proxy_port_entry.text);
 
-        // SOCKS5 (index 1)
-        host = account.proxy_host ?? "";
-        port = account.proxy_port;
-
-        if (host == "" || port <= 0) {
-            proxy_type_row.subtitle = "";
+        // SOCKS5 toggle OFF — show disabled/Tor status, no TCP check
+        if (!enabled) {
+            if (account.proxy_type == "tor") {
+                // Tor manages this account — show Tor connection state
+                var conn_state = model.stream_interactor.connection_manager.get_state(account);
+                if (conn_state == ConnectionManager.ConnectionState.CONNECTED) {
+                    proxy_status_row.subtitle = _("Connected via Tor");
+                    proxy_status_row.add_css_class("success");
+                    proxy_status_row.remove_css_class("error");
+                } else if (conn_state == ConnectionManager.ConnectionState.CONNECTING) {
+                    proxy_status_row.subtitle = _("Connecting via Tor...");
+                    proxy_status_row.remove_css_class("success");
+                    proxy_status_row.remove_css_class("error");
+                } else {
+                    proxy_status_row.subtitle = _("Tor proxy (not connected)");
+                    proxy_status_row.remove_css_class("success");
+                    proxy_status_row.remove_css_class("error");
+                }
+            } else {
+                if (field_host == "" || field_port <= 0) {
+                    proxy_status_row.subtitle = _("Disabled");
+                } else {
+                    proxy_status_row.subtitle = _("Disabled (configured)");
+                }
+                proxy_status_row.remove_css_class("success");
+                proxy_status_row.remove_css_class("error");
+            }
             return;
         }
 
-        proxy_type_row.subtitle = _("Checking status...");
-        
+        // Switch on but no host/port
+        if (field_host == "" || field_port <= 0) {
+            proxy_status_row.subtitle = _("Not configured");
+            proxy_status_row.remove_css_class("success");
+            proxy_status_row.add_css_class("error");
+            return;
+        }
+
+        proxy_status_row.subtitle = _("Checking...");
+        proxy_status_row.remove_css_class("success");
+        proxy_status_row.remove_css_class("error");
+
+        // Check XMPP connection state FIRST — if already connected through
+        // the proxy, show Active immediately without TCP check
+        var conn_state = model.stream_interactor.connection_manager.get_state(account);
+        if (conn_state == ConnectionManager.ConnectionState.CONNECTED) {
+            proxy_status_row.subtitle = _("Active");
+            proxy_status_row.add_css_class("success");
+            proxy_status_row.remove_css_class("error");
+            return;
+        } else if (conn_state == ConnectionManager.ConnectionState.CONNECTING) {
+            proxy_status_row.subtitle = _("Connecting...");
+            proxy_status_row.remove_css_class("success");
+            proxy_status_row.remove_css_class("error");
+            return;
+        }
+
+        // XMPP not connected — do TCP reachability check
+        bool reachable = false;
         try {
             SocketClient client = new SocketClient();
-            client.timeout = 2; // 2 seconds timeout
-            yield client.connect_to_host_async(host, (uint16)port);
-            
-            proxy_type_row.subtitle = _("Service is running and reachable");
-            proxy_type_row.add_css_class("success");
-            proxy_type_row.remove_css_class("error");
+            client.timeout = 2;
+            SocketConnection conn = yield client.connect_to_host_async(field_host, (uint16)field_port, cancel);
+            if (cancel.is_cancelled()) return;
+            reachable = true;
+            conn.close(null);
+        } catch (IOError.CANCELLED e) {
+            return;
         } catch (Error e) {
-            proxy_type_row.subtitle = _("Proxy unreachable");
-            proxy_type_row.add_css_class("error");
-            proxy_type_row.remove_css_class("success");
+            if (cancel.is_cancelled()) return;
         }
+
+        // Re-check connection state after TCP check (XMPP may have connected in the meantime)
+        conn_state = model.stream_interactor.connection_manager.get_state(account);
+        if (conn_state == ConnectionManager.ConnectionState.CONNECTED) {
+            proxy_status_row.subtitle = _("Active");
+            proxy_status_row.add_css_class("success");
+            proxy_status_row.remove_css_class("error");
+            return;
+        } else if (conn_state == ConnectionManager.ConnectionState.CONNECTING) {
+            proxy_status_row.subtitle = _("Connecting...");
+            proxy_status_row.remove_css_class("success");
+            proxy_status_row.remove_css_class("error");
+            return;
+        }
+
+        if (!reachable) {
+            proxy_status_row.subtitle = _("Connection failed");
+            proxy_status_row.add_css_class("error");
+            proxy_status_row.remove_css_class("success");
+            return;
+        }
+
+        proxy_status_row.subtitle = _("Reachable (not connected)");
+        proxy_status_row.add_css_class("success");
+        proxy_status_row.remove_css_class("error");
     }
 
     private void update_connection_error_ui() {
@@ -422,15 +625,24 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
             unpin_certificate_button.visible = true;
         } else {
             // Not connected and no pinned cert
-            if (cm.get_state(account) == ConnectionManager.ConnectionState.DISCONNECTED) {
-                cert_group.visible = false;
-            } else {
+            var conn_state = cm.get_state(account);
+            if (conn_state == ConnectionManager.ConnectionState.CONNECTING) {
+                // During reconnect: keep cert_group visible to avoid UI jumping
                 cert_group.visible = true;
                 cert_status_row.subtitle = _("Connecting…");
                 cert_issuer_row.visible = false;
                 cert_validity_row.visible = false;
                 cert_fingerprint_row.visible = false;
                 unpin_certificate_button.visible = false;
+            } else if (conn_state == ConnectionManager.ConnectionState.DISCONNECTED && cert_group.visible) {
+                // Transitional disconnect (e.g. reconnect in progress): keep visible briefly
+                cert_status_row.subtitle = _("Reconnecting…");
+                cert_issuer_row.visible = false;
+                cert_validity_row.visible = false;
+                cert_fingerprint_row.visible = false;
+                unpin_certificate_button.visible = false;
+            } else {
+                cert_group.visible = false;
             }
         }
     }
@@ -760,6 +972,11 @@ public class Dino.Ui.AccountPreferencesSubpage : Adw.NavigationPage {
 
         switch (error.source) {
             case ConnectionManager.ConnectionError.Source.SASL:
+                if (error.identifier == "channel-binding-required") {
+                    string jid = model.selected_account.bare_jid;
+                    string domain = jid.contains("@") ? jid.split("@", 2)[1] : jid;
+                    return _("%s does not support SCRAM channel binding (MITM protection)").printf(domain);
+                }
                 return _("Wrong password");
             case ConnectionManager.ConnectionError.Source.TLS:
                 return _("Invalid TLS certificate");

@@ -29,6 +29,8 @@ public class Register : StreamInteractionModule, Object{
         list.add(new Iq.Module());
         list.add(new Sasl.Module(account.bare_jid.to_string(), account.password));
 
+        uint16 custom_port = (account.custom_port > 0 && account.custom_port <= 65535) ? (uint16) account.custom_port : 0;
+        uint16 proxy_port = (account.proxy_port > 0 && account.proxy_port <= 65535) ? (uint16) account.proxy_port : 0;
         XmppStreamResult stream_result = yield Xmpp.establish_stream(account.bare_jid.domain_jid, list, Application.print_xmpp,
                 (peer_cert, errors) => {
                     // Check pinned certificates in database
@@ -41,7 +43,10 @@ public class Register : StreamInteractionModule, Object{
                         }
                     }
                     return ConnectionManager.on_invalid_certificate(account.domainpart, peer_cert, errors);
-                }
+                },
+                account.custom_host, custom_port,
+                account.proxy_type, account.proxy_host, proxy_port,
+                account.proxy_user, account.proxy_pass
         );
 
         if (stream_result.stream == null) {

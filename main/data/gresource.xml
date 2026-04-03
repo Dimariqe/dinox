@@ -28,6 +28,7 @@
     <file>icons/scalable/actions/dino-emoticon-add-symbolic.svg</file>
     <file>icons/scalable/actions/dino-qr-code-symbolic.svg</file>
     <file>icons/scalable/actions/small-x-symbolic.svg</file>
+    <file>icons/scalable/actions/sync-synchronizing-symbolic.svg</file>
     <file>icons/scalable/devices/dino-device-desktop-symbolic.svg</file>
     <file>icons/scalable/devices/dino-device-phone-symbolic.svg</file>
     <file>icons/scalable/devices/dino-phone-hangup-symbolic.svg</file>
@@ -56,6 +57,8 @@
     <file>icons/scalable/status/dino-tick-symbolic.svg</file>
     <file>icons/scalable/status/dino-video-off-symbolic.svg</file>
     <file>icons/scalable/status/dino-video-symbolic.svg</file>
+    <file>icons/scalable/status/face-robot-symbolic.svg</file>
+    <file>icons/scalable/status/notification-symbolic.svg</file>
     <!-- App icon SVG removed from GResource: GTK4/librsvg renders the SVG-wrapped
          base64 PNG with a light background in About dialog and header bar.
          Using installed hicolor PNGs directly ensures the dark icon is shown. -->
@@ -64,6 +67,7 @@
     <file>preferences_window/add_account_dialog.ui</file>
     <file>preferences_window/change_password_dialog.ui</file>
     <file>preferences_window/general_preferences_page.ui</file>
+    <file>preferences_window/audio_video_preferences_page.ui</file>
     <file>preferences_window/preferences_dialog.ui</file>
 
     <file>join_room_dialog.ui</file>
@@ -81,7 +85,10 @@
     <file>occupant_list_item.ui</file>
     <file>quote.ui</file>
     <file>search_autocomplete.ui</file>
-    <file>style-dark.css</file>
+    <file>sounds/message.wav</file>
+    <file>sounds/incoming-call.wav</file>
+    <file>sounds/outgoing-ringback.wav</file>
+    <file>sounds/alert.wav</file>
     <file>style.css</file>
   </gresource>
 </gresources>

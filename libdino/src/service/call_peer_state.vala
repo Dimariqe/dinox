@@ -102,6 +102,9 @@ public class Dino.PeerState : Object {
 
         sid = Xmpp.random_uuid();
 
+        debug("initiate_call: do_jmi=%s we_should_send_video=%s counterpart=%s",
+              do_jmi.to_string(), we_should_send_video.to_string(), counterpart.to_string());
+
         if (do_jmi) {
             XmppStream? stream = stream_interactor.get_stream(call.account);
 
@@ -131,6 +134,8 @@ public class Dino.PeerState : Object {
 
         if (sid == null) sid = Xmpp.random_uuid();
 
+        debug("call_resource: we_should_send_video=%s peer=%s", we_should_send_video.to_string(), full_jid.to_string());
+
         Xep.Jingle.Session session;
         try {
             session = yield stream.get_module<Xep.JingleRtp.Module>(Xep.JingleRtp.Module.IDENTITY).start_call(stream, full_jid, we_should_send_video, sid, group_call != null ? group_call.muc_jid : null);
@@ -155,10 +160,14 @@ public class Dino.PeerState : Object {
             return;
         }
 
+        debug("accept: we_should_send_video=%s session=%s", we_should_send_video.to_string(), session != null ? "set" : "null");
+
         if (session != null) {
             foreach (Xep.Jingle.Content content in session.contents) {
                 Xep.JingleRtp.Parameters? rtp_content_parameter = content.content_params as Xep.JingleRtp.Parameters;
                 if (rtp_content_parameter != null && rtp_content_parameter.media == "video") {
+                    debug("accept: video content '%s' senders=%s we_initiated=%s",
+                          content.content_name, content.senders.to_string(), session.we_initiated.to_string());
                     // We didn't accept video but our peer wants to negotiate that content
                     if (!we_should_send_video && session.senders_include_us(content.senders)) {
                         if (session.senders_include_counterpart(content.senders)) {
@@ -509,22 +518,28 @@ public class Dino.PeerState : Object {
             return;
         }
 
-        // Our peer shouldn't tell us to start sending, that's for us to initiate
-        if (session.senders_include_us(content.senders)) {
-            if (session.senders_include_counterpart(content.senders)) {
-                // If our peer wants to send, let them
+        // If this is a video content-add and we should be sending video, accept with both senders
+        bool dominated_by_us = session.senders_include_us(content.senders);
+        bool includes_peer = session.senders_include_counterpart(content.senders);
+        if (dominated_by_us && !we_should_send_video) {
+            if (includes_peer) {
+                // Peer wants to send too — let them, but exclude us
                 content.modify(session.we_initiated ? Xep.Jingle.Senders.RESPONDER : Xep.Jingle.Senders.INITIATOR);
             } else {
-                // If only we're supposed to send, reject
+                // Only we're supposed to send but we don't want to — reject
                 content.reject();
+                return;
             }
         }
+        // If we_should_send_video, keep senders as-is (both)
 
         connect_content_signals(content, rtp_content_parameter);
         content.accept();
     }
 
     private void on_stream_created(string media, Xep.JingleRtp.Stream stream) {
+        debug("RECV-VIDEO-SIGNAL: on_stream_created media=%s sending=%s receiving=%s",
+                media, stream.sending.to_string(), stream.receiving.to_string());
         if (media == "video" && stream.receiving) {
             counterpart_sends_video = true;
             // Guard against duplicate on_stream_created() calls (e.g. ICE restart)
@@ -533,11 +548,14 @@ public class Dino.PeerState : Object {
                 video_content_parameter.disconnect(video_connection_ready_extra_handler_id);
             }
             video_connection_ready_extra_handler_id = video_content_parameter.connection_ready.connect((status) => {
+                debug("RECV-VIDEO-SIGNAL: video connection_ready fired, emitting counterpart_sends_video_updated(false)");
                 Idle.add(() => {
                     counterpart_sends_video_updated(false);
                     return false;
                 });
             });
+        } else if (media == "video" && !stream.receiving) {
+            debug("RECV-VIDEO-SIGNAL: video stream NOT receiving! counterpart won't send video");
         }
 
         // Outgoing audio/video might have been muted in the meanwhile.

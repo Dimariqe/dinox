@@ -158,13 +158,19 @@ namespace Dino {
         private void on_incoming_call(Account account, Xep.Jingle.Session session) {
             Jid? muji_room = session.muji_room;
             bool counterpart_wants_video = false;
+            debug("on_incoming_call: sid=%s from=%s contents=%d", session.sid, session.peer_full_jid.to_string(), session.contents.size);
             foreach (Xep.Jingle.Content content in session.contents) {
                 Xep.JingleRtp.Parameters? rtp_content_parameter = content.content_params as Xep.JingleRtp.Parameters;
+                debug("  content '%s' senders=%s rtp=%s media=%s", content.content_name,
+                      content.senders.to_string(),
+                      (rtp_content_parameter != null).to_string(),
+                      rtp_content_parameter != null ? rtp_content_parameter.media : "n/a");
                 if (rtp_content_parameter == null) continue;
                 if (rtp_content_parameter.media == "video" && session.senders_include_us(content.senders)) {
                     counterpart_wants_video = true;
                 }
             }
+            debug("on_incoming_call: counterpart_wants_video=%s", counterpart_wants_video.to_string());
 
             // Check if this comes from a MUJI MUC => accept
             if (muji_room != null) {
@@ -198,6 +204,14 @@ namespace Dino {
             // PeerState.accept() checks if the call was accepted and ensures that we don't accidentally send video
             PeerState? peer_state = get_peer_by_sid(account, session.sid, session.peer_full_jid);
             if (peer_state != null) {
+                debug("on_incoming_call: JMI peer found, we_should_send_video=%s counterpart_wants_video=%s",
+                      call_states[peer_state.call].we_should_send_video.to_string(), counterpart_wants_video.to_string());
+                // Update video flag if the actual session has video but JMI didn't indicate it
+                if (counterpart_wants_video && !call_states[peer_state.call].we_should_send_video) {
+                    debug("on_incoming_call: upgrading we_should_send_video to true (session has video content)");
+                    call_states[peer_state.call].we_should_send_video = true;
+                    peer_state.we_should_send_video = true;
+                }
                 jmi_request_peer[peer_state.call].set_session(session);
                 jmi_request_peer[peer_state.call].accept();
                 jmi_request_peer.unset(peer_state.call);
@@ -238,9 +252,9 @@ namespace Dino {
 
             var call_state = new CallState(call, stream_interactor);
             connect_call_state_signals(call_state);
-            PeerState peer_state = call_state.set_first_peer(call.counterpart);
             call_state.we_should_send_video = video_requested;
             call_state.we_should_send_audio = true;
+            PeerState peer_state = call_state.set_first_peer(call.counterpart);
 
             return peer_state;
         }
@@ -371,8 +385,13 @@ namespace Dino {
 
                 if (stream_interactor.get_module<MucManager>(MucManager.IDENTITY).might_be_groupchat(from.bare_jid, account)) return;
 
+                debug("JMI session_proposed: from=%s sid=%s descriptions=%d", from.to_string(), sid, descriptions.size);
+                foreach (StanzaNode desc in descriptions) {
+                    debug("  JMI desc: ns=%s media=%s", desc.ns_uri ?? "null", desc.get_attribute("media") ?? "null");
+                }
                 bool audio_requested = descriptions.any_match((description) => description.ns_uri == Xep.JingleRtp.NS_URI && description.get_attribute("media") == "audio");
                 bool video_requested = descriptions.any_match((description) => description.ns_uri == Xep.JingleRtp.NS_URI && description.get_attribute("media") == "video");
+                debug("JMI: audio_requested=%s video_requested=%s", audio_requested.to_string(), video_requested.to_string());
                 if (!audio_requested && !video_requested) return;
 
                 PeerState peer_state = create_received_call(account, from, to, video_requested);

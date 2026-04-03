@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/rallep71/dinox)](https://github.com/rallep71/dinox/releases)
 [![Translation status](https://hosted.weblate.org/widget/dinox/translations/svg-badge.svg)](https://hosted.weblate.org/engage/dinox/)
 
-**The Most Secure XMPP Messenger for Linux & Windows**
+**The First XMPP Messenger with Extensible REST API, AI Support, MQTT & Advanced Security Features**
 
 Built for ultimate privacy with OMEMO 1 + 2, integrated OpenPGP Key Manager, integrated Tor & Obfs4proxy and full local database encryption.
 WebRTC Audio/Video Calls, decentralized MUJI Group Video Calls (hardware accelerated), voice messages, video messages, message retraction and advanced MUC moderation — all in a modern GTK4/libadwaita interface with System Tray support.
@@ -67,8 +67,13 @@ DTMF Support (RFC 4733) with Dialpad UI for XMPP SIP Provider telephony.
 
 Download the latest Windows build from [GitHub Releases](https://github.com/rallep71/dinox/releases/latest). Extract the ZIP archive and run `dinox.exe`.
 
-> **⚠ Important:** The DinoX Windows executable is currently undergoing the official Microsoft code signing process for Windows 10/11. Once completed, DinoX will launch without any SmartScreen warnings. Until then, Windows SmartScreen may show a warning — click **"More info"** → **"Run anyway"** to proceed. You can verify the download integrity using the `.sha256` checksum file.
+To build DinoX from source on Windows, see the build instructions: [Deutsch](docs/internal/WINDOWS_BUILD.md) | [English](docs/internal/WINDOWS_BUILD_EN.md)
 
+The first time you start it up after unpacking may take a little while; just skip the Windows warning.
+GStreamer and the necessary databases are being set up in the background; on the second start, Windows Defender will run a scan again, which also causes a slight delay, but after that Dinox will start up normally.
+The same applies if you build it yourself from the package repositories.
+
+Geolocation for locations is not available on Windows.
 ### Flatpak
 
 Download from [GitHub Releases](https://github.com/rallep71/dinox/releases/latest)
@@ -117,73 +122,7 @@ paru -S dinox
 
 ### Build from Source
 
-```bash
-git clone https://github.com/rallep71/dinox.git
-cd dinox
-meson setup build
-ninja -C build
-./build/main/dinox
-```
-
-**Dependencies (Debian/Ubuntu):**
-```bash
-sudo apt install build-essential meson ninja-build valac \
-  libgtk-4-dev libadwaita-1-dev libglib2.0-dev libgee-0.8-dev \
-  libsqlcipher-dev libsecret-1-dev libicu-dev libdbusmenu-glib-dev libgcrypt20-dev \
-  libgpgme-dev libjson-glib-dev libqrencode-dev libsoup-3.0-dev libgstreamer1.0-dev \
-  libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev \
-  libnice-dev libgnutls28-dev libsrtp2-dev libcjson-dev \
-  libgeoclue-2-dev \
-  gstreamer1.0-plugins-good gstreamer1.0-pipewire cmake wget
-```
-
-**Required custom dependencies** (not available in distro packages or too old):
-
-DinoX requires **SQLCipher with FTS5** (for optimal search), **webrtc-audio-processing >= 2.1**, **libnice >= 0.1.23**, **protobuf-c >= 1.5.2** (fixes memory corruption), **mosquitto >= 2.1.2**, and **libomemo-c** which are not available (or too old) in Ubuntu 24.04 repos. Build them all at once:
-
-```bash
-# Build script does all six automatically:
-./scripts/ci-build-deps.sh
-
-# Verify FTS5 support:
-sqlcipher :memory: "PRAGMA compile_options;" 2>/dev/null | grep FTS5
-```
-
-Or manually:
-```bash
-# webrtc-audio-processing v2.1 (echo cancellation, noise suppression)
-wget -O webrtc-v2.1.tar.gz "https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/archive/v2.1/webrtc-audio-processing-v2.1.tar.gz"
-tar xf webrtc-v2.1.tar.gz && cd webrtc-audio-processing-v2.1
-meson setup build --prefix=/usr && ninja -C build && sudo ninja -C build install && sudo ldconfig
-cd ..
-
-# libnice 0.1.23 (ICE for audio/video calls)
-wget -O libnice-0.1.23.tar.gz "https://gitlab.freedesktop.org/libnice/libnice/-/archive/0.1.23/libnice-0.1.23.tar.gz"
-tar xf libnice-0.1.23.tar.gz && cd libnice-0.1.23
-meson setup build --prefix=/usr -Dtests=disabled -Dgtk_doc=disabled && ninja -C build && sudo ninja -C build install && sudo ldconfig
-cd ..
-
-# protobuf-c 1.5.2 (runtime library — fixes memory corruption in 1.4.x)
-wget -O protobuf-c-1.5.2.tar.gz "https://github.com/protobuf-c/protobuf-c/releases/download/v1.5.2/protobuf-c-1.5.2.tar.gz"
-tar xf protobuf-c-1.5.2.tar.gz && cd protobuf-c-1.5.2
-./configure --prefix=/usr --disable-protoc && make -j$(nproc) && sudo make install && sudo ldconfig
-cd ..
-
-# libomemo-c (OMEMO encryption)
-git clone https://github.com/rallep71/libomemo-c.git && cd libomemo-c
-mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
-make -j$(nproc) && sudo make install && sudo ldconfig
-cd ../..
-
-# mosquitto 2.1.2 (MQTT client library)
-wget -O mosquitto-2.1.2.tar.gz "https://mosquitto.org/files/source/mosquitto-2.1.2.tar.gz"
-tar xf mosquitto-2.1.2.tar.gz && cd mosquitto-2.1.2
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DWITH_BROKER=OFF -DWITH_CLIENTS=OFF -DWITH_APPS=OFF -DWITH_PLUGINS=OFF -DWITH_TESTS=OFF -DWITH_DOCS=OFF .
-make -j$(nproc) && sudo make install && sudo ldconfig
-cd ..
-```
-
-For a complete, up-to-date build guide (including Fedora/Arch and call stack notes), see [BUILD.md](docs/internal/BUILD.md).
+DinoX uses Meson/Ninja and requires several custom dependencies (SQLCipher with FTS5, webrtc-audio-processing 2.1, libnice 0.1.23, etc.). For complete build instructions including all dependencies, distro-specific notes (Debian/Ubuntu, Fedora, Arch), and the automated build script, see **[BUILD.md](docs/internal/BUILD.md)**.
 
 ## Local data encryption
 

@@ -209,8 +209,10 @@ public class ConnectionManager : Object {
     public async void disconnect_account(Account account) {
         if (connections.has_key(account)) {
             make_offline(account);
-            connections[account].disconnect_account.begin();
+            yield connections[account].disconnect_account();
             connections.unset(account);
+            connection_ongoing.unset(account);
+            connection_directly_retry.unset(account);
         }
     }
 
@@ -218,12 +220,45 @@ public class ConnectionManager : Object {
      * Close all XMPP connections without removing account state.
      * Used during application shutdown to cleanly close sockets without
      * triggering account_removed (which would wipe OMEMO identity data).
+     * Waits synchronously (up to 3 s) for all streams to send
+     * </stream:stream> and close their sockets.
      */
     public void disconnect_all() {
-        foreach (Account account in connections.keys) {
+        var accounts_list = new ArrayList<Account>();
+        accounts_list.add_all(connections.keys);
+
+        foreach (Account account in accounts_list) {
             make_offline(account);
-            connections[account].disconnect_account.begin();
         }
+
+        if (accounts_list.size == 0) {
+            connections.clear();
+            return;
+        }
+
+        int pending = accounts_list.size;
+        var loop = new MainLoop(MainContext.@default(), false);
+
+        foreach (Account account in accounts_list) {
+            if (!connections.has_key(account)) {
+                pending--;
+                continue;
+            }
+            connections[account].disconnect_account.begin((obj, res) => {
+                pending--;
+                if (pending <= 0 && loop.is_running()) loop.quit();
+            });
+        }
+
+        if (pending > 0) {
+            Timeout.add(3000, () => {
+                debug("disconnect_all: timeout reached, proceeding with shutdown");
+                if (loop.is_running()) loop.quit();
+                return Source.REMOVE;
+            });
+            loop.run();
+        }
+
         connections.clear();
     }
 
@@ -249,17 +284,22 @@ public class ConnectionManager : Object {
 
             change_connection_state(account, ConnectionState.CONNECTING);
             
+            // Save reference to detect if connection was replaced while we yield
+            var my_conn = connections[account];
+
             // Pass custom host/port if configured
             uint16 custom_port = (account.custom_port > 0 && account.custom_port <= 65535) ? (uint16) account.custom_port : 0;
             uint16 proxy_port = (account.proxy_port > 0 && account.proxy_port <= 65535) ? (uint16) account.proxy_port : 0;
             stream_result = yield Xmpp.establish_stream(account.bare_jid, module_manager.get_modules(account), log_options,
                     (peer_cert, errors) => { return on_invalid_certificate_for_account(account, peer_cert, errors); },
                     account.custom_host, custom_port,
-                    account.proxy_type, account.proxy_host, proxy_port
+                    account.proxy_type, account.proxy_host, proxy_port,
+                    account.proxy_user, account.proxy_pass
             );
 
-            if (!connections.has_key(account) || connections[account] == null) {
-                debug("[%s] Connection object gone while connecting, discarding stream", account.bare_jid.to_string());
+            // Check if our connection was replaced (e.g. Tor disabled → reconnect)
+            if (!connections.has_key(account) || connections[account] != my_conn) {
+                debug("[%s] Connection was replaced while connecting, discarding stale stream", account.bare_jid.to_string());
                 if (stream_result.stream != null) stream_result.stream.disconnect.begin();
                 connection_ongoing[account] = false;
                 return;
@@ -304,6 +344,9 @@ public class ConnectionManager : Object {
         });
         stream.get_module<Sasl.Module>(Sasl.Module.IDENTITY).received_auth_failure.connect((stream, node) => {
             set_connection_error(account, new ConnectionError(ConnectionError.Source.SASL, null));
+        });
+        stream.get_module<Sasl.Module>(Sasl.Module.IDENTITY).channel_binding_failed.connect((stream) => {
+            set_connection_error(account, new ConnectionError(ConnectionError.Source.SASL, "channel-binding-required"));
         });
 
         string connection_uuid = connections[account].uuid;

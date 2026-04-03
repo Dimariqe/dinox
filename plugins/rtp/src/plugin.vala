@@ -47,10 +47,11 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
 
     private int pause_count = 0;
     public void pause() {
-//        if (pause_count == 0) {
-//            debug("Pausing pipe for modifications");
-//            pipe.set_state(Gst.State.PAUSED);
-//        }
+        // Live pipeline must NOT be paused globally — live sources
+        // (camera/mic) stop producing data and downstream elements
+        // time out with "Internal data stream error".
+        // Safety is handled via pad probes at the specific modification
+        // points (codec_util.update_rescale_caps, video_widget attach/detach).
         pause_count++;
     }
     public void unpause() {
@@ -64,10 +65,29 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
 
     private void handle_existing_devices(Gst.DeviceMonitor device_monitor) {
         var new_devices = new ArrayList<Device>();
+        debug("=== Device enumeration start ===");
         foreach (Gst.Device device in device_monitor.get_devices()) {
-            if (device.properties == null) continue;
-            if (device.properties.has_name("pipewire-proplist") && device.has_classes("Audio")) continue;
-            if (device.properties.get_string("device.class") == "monitor") continue;
+            if (device.properties == null) {
+                debug("  SKIP (no properties): %s classes=%s", device.display_name, device.device_class);
+                continue;
+            }
+            // Log ALL devices before filtering so we see what Windows provides
+            string? dev_class = device.properties.get_string("device.class");
+            bool is_def = false;
+            device.properties.get_boolean("is-default", out is_def);
+            debug("  DEVICE: name='%s' class='%s' dev_class='%s' proplist='%s' is-default=%s caps=%s",
+                  device.display_name, device.device_class,
+                  dev_class ?? "null", device.properties.get_name(),
+                  is_def.to_string(),
+                  device.caps != null ? device.caps.to_string() : "none");
+            if (device.properties.has_name("pipewire-proplist") && device.has_classes("Audio")) {
+                debug("  → SKIP (pipewire audio)");
+                continue;
+            }
+            if (dev_class == "monitor") {
+                debug("  → SKIP (monitor)");
+                continue;
+            }
             var pre_device = devices.first_match((it) => it.matches(device));
             if (pre_device != null) {
                 // Update the Gst.Device ref so the wrapper points at
@@ -116,6 +136,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
 
     public void init_call_pipe() {
         if (pipe != null) return;
+        tearing_down = false;
         debug("Creating call pipe.");
         start_device_monitor();
         pipe = new Gst.Pipeline(null);
@@ -128,7 +149,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
             return;
         }
         rtpbin.pad_added.connect(on_rtp_pad_added);
-        rtpbin.@set("latency", 200);
+        rtpbin.@set("latency", 150);
         rtpbin.@set("do-lost", true);
 //        rtpbin.@set("do-sync-event", true);
         rtpbin.@set("drop-on-latency", false);
@@ -170,6 +191,9 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
             Source.remove(pipe_watch_id);
             pipe_watch_id = 0;
         }
+        // Flush any pending bus messages so they don't fire after the
+        // watch is removed but before the pipeline reaches NULL.
+        pipe.bus.set_flushing(true);
         pipe.set_state(Gst.State.NULL);
         // All device elements are children of this pipe — null their
         // references so create() re-builds them on the next call.
@@ -239,6 +263,10 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                     // Find the payload type that matches
                     foreach (var payload_type in content_params.payload_types) {
                         if (payload_type.id == pt) {
+                            if (payload_type.name == null) {
+                                warning("request-pt-map: payload_type id=%u has null name, skipping", pt);
+                                continue;
+                            }
                             string caps_str;
                             if (content_params.media == "audio") {
                                 // Audio caps
@@ -257,7 +285,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                         }
                     }
                     // Also check agreed_payload_type
-                    if (content_params.agreed_payload_type != null && content_params.agreed_payload_type.id == pt) {
+                    if (content_params.agreed_payload_type != null && content_params.agreed_payload_type.id == pt && content_params.agreed_payload_type.name != null) {
                         var payload_type = content_params.agreed_payload_type;
                         string caps_str;
                         if (content_params.media == "audio") {
@@ -306,25 +334,33 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
         if (pad.name.has_prefix("recv_rtp_src_")) {
             string[] split = pad.name.split("_");
             uint8 rtpid = (uint8)int.parse(split[3]);
+            debug("RECV-RTP-SRC pad %s created for stream %hhu (streams=%d)", pad.name, rtpid, streams.size);
+            bool found = false;
             foreach (Stream stream in streams) {
                 if (stream.rtpid == rtpid) {
                     stream.on_ssrc_pad_added((uint32) uint64.parse(split[4]), pad);
+                    found = true;
                 }
             }
+            if (!found) warning("RECV-RTP-SRC: no matching stream for rtpid %hhu!", rtpid);
         }
         if (pad.name.has_prefix("send_rtp_src_")) {
             string[] split = pad.name.split("_");
             uint8 rtpid = (uint8)int.parse(split[3]);
-            debug("pad %s for stream %hhu", pad.name, rtpid);
+            debug("SEND-RTP-SRC pad %s created for stream %hhu (streams=%d)", pad.name, rtpid, streams.size);
+            bool found = false;
             foreach (Stream stream in streams) {
                 if (stream.rtpid == rtpid) {
                     stream.on_send_rtp_src_added(pad);
+                    found = true;
                 }
             }
+            if (!found) warning("SEND-RTP-SRC: no matching stream for rtpid %hhu!", rtpid);
         }
     }
 
     private void on_pipe_bus_message(Gst.Message message) {
+        if (tearing_down) return;
         switch (message.type) {
             case Gst.MessageType.ERROR:
                 Error error;
@@ -341,6 +377,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
                 debug(str);
                 break;
             case Gst.MessageType.CLOCK_LOST:
+                if (tearing_down) break;
                 debug("Clock lost. Restarting");
                 pipe.set_state(Gst.State.READY);
                 pipe.set_state(Gst.State.PLAYING);
@@ -414,7 +451,7 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
             default:
                 break;
         }
-        if (device != null) {
+        if (device != null && device.media != null) {
             devices_changed(device.media, device.is_sink);
         }
         return Source.CONTINUE;
@@ -462,14 +499,19 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
     }
 
     public void close_stream(Stream stream) {
+        tearing_down = true;
         streams.remove(stream);
         stream.destroy();
         destroy_call_pipe_if_unused();
+        // If pipe survives (other streams still active), allow bus
+        // message handling again.
+        if (pipe != null) tearing_down = false;
     }
 
     public void dispose_pipeline() {
         // Force-close all remaining streams and destroy the pipeline.
         // Safety net for zombie sessions that survived normal teardown.
+        tearing_down = true;
         debug("dispose_pipeline() called, %d streams remaining", streams.size);
         var remaining = new Gee.ArrayList<Stream>();
         remaining.add_all(streams);
@@ -550,7 +592,26 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
         }
 
         // If we have any pulseaudio devices, present only those. Don't want duplicated devices from pipewire and pulseaudio.
-        return pulse_devices.size > 0 ? pulse_devices : other_devices;
+        var result = pulse_devices.size > 0 ? pulse_devices : other_devices;
+
+        // Deduplicate by display_name: multiple GStreamer providers (e.g.
+        // wasapi + wasapi2 on Windows) can enumerate the same physical device.
+        var seen = new HashSet<string>();
+        var deduped = new ArrayList<MediaDevice>();
+        foreach (MediaDevice dev in result) {
+            if (!seen.contains(dev.display_name)) {
+                seen.add(dev.display_name);
+                deduped.add(dev);
+            }
+        }
+        debug("get_audio_devices(%s): total=%d devices, pulse=%d, other=%d → result=%d",
+              incoming ? "incoming/sink" : "outgoing/source",
+              devices.size, pulse_devices.size, other_devices.size, deduped.size);
+        foreach (MediaDevice dev in deduped) {
+            debug("  → %s [%s] default=%s", dev.display_name, dev.id,
+                  (dev is Device) ? ((Device)dev).is_default.to_string() : "?");
+        }
+        return deduped;
     }
 
     public Gee.List<MediaDevice> get_video_sources() {
@@ -587,7 +648,19 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
         }
 
         // If we have any pipewire devices, present only those. Don't want duplicated devices from pipewire and video for linux.
-        return pipewire_devices.size > 0 ? pipewire_devices : other_devices;
+        var result = pipewire_devices.size > 0 ? pipewire_devices : other_devices;
+
+        // Deduplicate by display_name: multiple GStreamer providers can
+        // enumerate the same physical device.
+        var seen = new HashSet<string>();
+        var deduped = new ArrayList<MediaDevice>();
+        foreach (MediaDevice dev in result) {
+            if (!seen.contains(dev.display_name)) {
+                seen.add(dev.display_name);
+                deduped.add(dev);
+            }
+        }
+        return deduped;
     }
 
     private int get_max_fps(Device device) {
@@ -685,10 +758,19 @@ public class Dino.Plugins.Rtp.Plugin : RootInterface, VideoCallPlugin, Object {
     public void set_device(Xmpp.Xep.JingleRtp.Stream? stream, MediaDevice? device) {
         Device? real_device = device as Device?;
         Stream? plugin_stream = stream as Stream?;
-        if (real_device == null || plugin_stream == null) return;
+        if (real_device == null || plugin_stream == null) {
+            warning("RtpPlugin.set_device: device=%s stream=%s — cannot assign",
+                    device != null ? device.display_name : "NULL",
+                    stream != null ? "ok" : "NULL");
+            return;
+        }
         if (real_device.is_source) {
+            debug("RtpPlugin.set_device: assigning input %s to %s stream",
+                  real_device.display_name, plugin_stream.media);
             plugin_stream.input_device = real_device;
         } else if (real_device.is_sink) {
+            debug("RtpPlugin.set_device: assigning output %s to %s stream",
+                  real_device.display_name, plugin_stream.media);
             plugin_stream.output_device = real_device;
         }
     }

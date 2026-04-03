@@ -304,7 +304,11 @@ public class Dino.Ui.CompatAvatarDrawer {
     public ViewModel.AvatarPictureModel? model { get; set; }
     public int height_request { get; set; default = 35; }
     public int width_request { get; set; default = 35; }
+#if WINDOWS
+    public string font_family { get; set; default = "Segoe UI"; }
+#else
     public string font_family { get; set; default = "Sans"; }
+#endif
 
     public Cairo.ImageSurface draw_image_surface() {
         Cairo.ImageSurface surface = new Cairo.ImageSurface(Cairo.Format.ARGB32, width_request, height_request);

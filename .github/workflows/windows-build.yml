@@ -16,6 +16,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -64,9 +67,9 @@ jobs:
             mingw-w64-x86_64-gst-plugins-base
             mingw-w64-x86_64-gst-plugins-good
             mingw-w64-x86_64-gst-plugins-bad
+            mingw-w64-x86_64-gst-plugins-ugly
             mingw-w64-x86_64-gst-libav
             mingw-w64-x86_64-libnice
-            mingw-w64-x86_64-webrtc-audio-processing-1
             mingw-w64-x86_64-opus
             mingw-w64-x86_64-openh264
             mingw-w64-x86_64-libvpx
@@ -76,6 +79,10 @@ jobs:
             mingw-w64-x86_64-mosquitto
             mingw-w64-x86_64-tor
             mingw-w64-x86_64-go
+            mingw-w64-x86_64-glib-networking
+            mingw-w64-x86_64-hicolor-icon-theme
+            mingw-w64-x86_64-adwaita-icon-theme
+            mingw-w64-x86_64-cantarell-fonts
 
       # lyrebird (Tor pluggable transport: obfs4 + WebTunnel) — not in MSYS2
       - name: Build lyrebird
@@ -84,13 +91,72 @@ jobs:
           cd /tmp
           LYREBIRD_VER=0.8.1
           LYREBIRD_TAG="lyrebird-${LYREBIRD_VER}"
-          curl -sL -o "lyrebird-${LYREBIRD_VER}.tar.gz" \
-            "https://gitlab.torproject.org/api/v4/projects/417/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
-          tar xf "lyrebird-${LYREBIRD_VER}.tar.gz"
+          LYREBIRD_URL="https://gitlab.torproject.org/api/v4/projects/417/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
+          LYREBIRD_FILE="lyrebird-${LYREBIRD_VER}.tar.gz"
+
+          for attempt in 1 2 3; do
+            echo "Download attempt ${attempt}/3 ..."
+            curl -fSL --retry 3 --retry-delay 5 -o "${LYREBIRD_FILE}" "${LYREBIRD_URL}"
+            if file "${LYREBIRD_FILE}" | grep -qi 'gzip'; then
+              echo "✓ Valid gzip archive"
+              break
+            fi
+            echo "⚠ Downloaded file is not a valid gzip archive (attempt ${attempt})"
+            rm -f "${LYREBIRD_FILE}"
+            if [[ ${attempt} -eq 3 ]]; then
+              echo "✗ All download attempts failed"
+              exit 1
+            fi
+            sleep 10
+          done
+
+          tar xf "${LYREBIRD_FILE}"
           cd lyrebird-${LYREBIRD_TAG}-*
           CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird.exe ./cmd/lyrebird
           cp lyrebird.exe /mingw64/bin/
           echo "✓ lyrebird installed"
+
+      # webrtc-audio-processing v2.1 — MSYS2 only has v1.x, build v2.1 from source
+      - name: Build webrtc-audio-processing v2.1
+        run: |
+          echo "=== Building webrtc-audio-processing v2.1 ==="
+          cd /tmp
+          WEBRTC_VER=2.1
+          curl -fSL --retry 3 -o "webrtc-audio-processing-${WEBRTC_VER}.tar.gz" \
+            "https://github.com/rallep71/dinox/releases/download/vendor-deps/webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
+          tar xf "webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
+          cd "webrtc-audio-processing-${WEBRTC_VER}"
+          # Fix for GCC 13+: some headers use uint8_t/int64_t without including <cstdint>
+          for f in webrtc/rtc_base/trace_event.h \
+                   webrtc/modules/audio_processing/aec3/multi_channel_content_detector.h; do
+              if ! grep -q '#include <cstdint>' "$f" 2>/dev/null; then
+                  echo "Patching $f: adding #include <cstdint> for GCC 13+ compatibility..."
+                  sed -i '1s|^|#include <cstdint>\n|' "$f"
+              fi
+          done
+          # Fix for abseil-cpp >= 20250814: removed deprecated Nullability template aliases
+          ABSEIL_VER=$(pkg-config --modversion absl_base 2>/dev/null || echo "0")
+          if [[ "$ABSEIL_VER" > "20250813" ]] && [ -f "${GITHUB_WORKSPACE}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch" ]; then
+              echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
+              patch -p1 < "${GITHUB_WORKSPACE}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
+          fi
+          # Suppress harmless winsock2.h warning (WIN32_LEAN_AND_MEAN doesn't help on MinGW)
+          python3 << 'PYEOF'
+          import re
+          text = open('meson.build').read()
+          text = re.sub(r"\nadd_global_arguments[^\n]*Wno-cpp[^\n]*\n", '\n', text)
+          m = re.search(r"^\)", text, re.MULTILINE)
+          if m:
+              pos = m.end()
+              text = text[:pos] + "\nadd_global_arguments('-Wno-cpp', language: ['c', 'cpp'])" + text[pos:]
+          open('meson.build', 'w').write(text)
+          PYEOF
+          grep 'Wno-cpp' meson.build
+          meson setup build --wipe --prefix=/mingw64
+          ninja -C build
+          ninja -C build install
+          echo "✓ webrtc-audio-processing v2.1 installed"
+          pkg-config --modversion webrtc-audio-processing-2
 
       # libomemo-c is not in MSYS2 repos — build from source
       - name: Build libomemo-c
@@ -120,19 +186,22 @@ jobs:
           echo "::add-matcher::.github/matchers/vala-problem-matcher.json"
           echo "::add-matcher::.github/matchers/meson-problem-matcher.json"
 
-      - name: Generate Windows icon (.ico)
+      - name: Verify Windows icon (.ico)
         run: |
-          echo "=== Generating dinox.ico from PNGs ==="
-          # ImageMagick's convert is available in MSYS2
-          pacman -S --noconfirm --needed mingw-w64-x86_64-imagemagick 2>/dev/null || true
-          magick \
-            main/data/icons/hicolor/16x16/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/32x32/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/48x48/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/128x128/apps/im.github.rallep71.DinoX.png \
-            main/data/icons/hicolor/256x256/apps/im.github.rallep71.DinoX.png \
-            main/data/dinox.ico
-          echo "✓ dinox.ico created ($(wc -c < main/data/dinox.ico) bytes)"
+          if [[ -f main/data/dinox.ico ]]; then
+            echo "✓ dinox.ico found in repo ($(wc -c < main/data/dinox.ico) bytes)"
+          else
+            echo "dinox.ico missing — regenerating from PNGs"
+            pacman -S --noconfirm --needed mingw-w64-x86_64-imagemagick 2>/dev/null || true
+            magick \
+              main/data/icons/hicolor/16x16/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/32x32/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/48x48/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/128x128/apps/im.github.rallep71.DinoX.png \
+              main/data/icons/hicolor/256x256/apps/im.github.rallep71.DinoX.png \
+              main/data/dinox.ico
+            echo "✓ dinox.ico created ($(wc -c < main/data/dinox.ico) bytes)"
+          fi
 
       - name: Configure (meson setup)
         run: |
@@ -141,7 +210,8 @@ jobs:
             -Dplugin-rtp=enabled \
             -Dplugin-openpgp=enabled \
             -Dplugin-ice=enabled \
-            -Dplugin-http-files=enabled
+            -Dplugin-http-files=enabled \
+            -Dplugin-mqtt=enabled
           echo ""
           echo "=== Configuration Summary ==="
           grep -A 20 "Dino 0" build/meson-logs/meson-log.txt | head -25 || true
@@ -166,7 +236,7 @@ jobs:
           echo "=== Verifying distribution ==="
           # Check critical files exist
           MISSING=0
-          for f in dist/dinox.exe dist/dinox.bat dist/libdino-0.dll dist/libxmpp-vala-0.dll; do
+          for f in dist/dinox.exe dist/libdino-0.dll dist/libxmpp-vala-0.dll; do
             if [ ! -f "$f" ]; then
               echo "MISSING: $f"
               MISSING=1

@@ -5,6 +5,383 @@ All notable changes to DinoX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8.0] - 2026-03-26
+
+### Fixed — Windows Database Reset
+- **Race condition in database reset**: On Windows, two separate batch files (delete DBs + restart dinox.exe) ran in parallel with the same ~2s delay — dinox.exe often restarted *before* files were deleted, making the reset appear to do nothing (all old OMEMO keys and messages still present)
+- **Fix**: Delete + restart combined into a single sequential batch file: wait for process exit → delete all DB files → then restart dinox.exe
+- **Factory reset fixed too**: Same race condition pattern fixed for factory reset on Windows
+
+### Fixed — Build & CI
+- **AppImage build fix**: Removed `--no-net` flag from appimagetool — the "continuous" release (commit 5735cc5, 2023-03-08) does not support this option, causing both x86_64 and aarch64 CI builds to fail with `Option parsing failed: Unknown option --no-net`
+
+### Stats
+- 2 commits, 2 files changed
+- Critical Windows bug fix: database/factory reset now works reliably
+- CI fix: AppImage builds restored
+
+## [1.1.7.9] - 2026-03-26
+
+### Added — Windows Sound Notifications
+- **Cross-platform sound notifications**: Windows now uses GStreamer playbin with bundled WAV files (GResource); Linux libcanberra path completely unchanged
+- **4 notification sounds**: message.wav, incoming-call.wav, outgoing-ringback.wav, alert.wav — embedded as GResource, played via `resource://` URIs
+- **3 independent playbin channels**: Message, ringtone, and ringback can play concurrently without interrupting each other
+- **MQTT CRITICAL alert sound**: Alert playbin in MQTT plugin plays alert.wav on CRITICAL priority messages
+- **Toast audio silenced**: Windows Toast notifications now use `silent="true"` — sound comes from GStreamer plugin instead of broken `ms-winsoundevent`
+
+### Performance — Windows Video Message Recording
+- **GStreamer MF warm-up thread**: Background thread at startup pre-loads Media Foundation DLLs (mfvideosrc, mfh264enc, wasapi2src, avenc_aac, mp4mux) — first video recording starts in ~2s instead of ~8s
+- **Faster video message thumbnails**: Improved thumbnail display speed
+
+### Fixed — Windows Distribution
+- **Missing GStreamer `gio` plugin**: Added to `update_dist.sh` — required for `resource://` URI playback of bundled sounds
+- **Video bitrate optimized**: 1500→800 kbps for mobile-friendly video messages, receive REMB 256→800
+
+### Fixed — Build & CI
+- **AppImage build**: Added `--no-net` to appimagetool — decouples AppImage build from website availability
+- **README images**: Restored appdata screenshots in docs/
+
+### Cleanup
+- **Debug warnings removed**: All TIMING warnings from video_recorder.vala (18 warnings) and voice_processor_native.cpp `g_warning`→`g_debug`
+- **Diagnostic warnings→debug()**: All remaining diagnostic `warning()` calls converted to `debug()` across RTP and video recording
+
+### Stats
+- 7 commits, ~15 files changed
+- Major new feature: Windows sound notifications via GStreamer
+- Major performance improvement: MF DLL pre-warming (~6s faster first video recording)
+- Windows distribution fix: gio plugin for resource:// URI support
+
+## [1.1.7.8] - 2026-03-25
+
+### Added — Audio/Video Device Settings
+- **Preferences page for audio/video devices**: New "Audio & Video" tab in Preferences with persistent device selection for microphone, speaker, and camera — survives app restarts
+- **Device deduplication**: Filters duplicate audio/video devices on Windows where WASAPI2 and legacy APIs expose the same hardware under different names
+- **DINOX_LOG_FILE environment variable**: Set this on Windows to redirect all debug logging to a file without modifying shell environment
+
+### Fixed — Audio/Video Calls (Windows)
+- **Audio send broken**: Decoupling queue added in `create()` prevents audio pipeline stall; device element leak in `destroy()` fixed
+- **WASAPI2 S16LE capsfilter**: Audio capsfilter must specify `format=S16LE` explicitly for WASAPI2 compatibility on Windows
+- **audioresample in all playback paths**: Added `audioresample` to voice message and call playback pipelines — fixes sample rate mismatch with WASAPI2
+- **VoiceProcessor skipped on Windows**: WASAPI2 already handles AEC/NS/AGC — running DinoX VoiceProcessor on top caused double-processing artifacts
+- **Audio crackling reduced**: rtpbin latency 100→150ms, Opus bitrate 24→48kbps, FEC status logging
+- **Video send bitrate**: Initial 256→1500 kbps, floor 128→256 kbps — fixes REMB chicken-and-egg problem where receiver never sends REMB until it gets video
+- **mfh264enc NV12 format**: Windows Media Foundation H.264 encoder now receives correct pixel format
+- **CRT invalid-parameter-handler crash**: Suppressed MSVC CRT dialog at startup via IAT-patch of GLib's `MessageBoxW`
+- **Explicit WASAPI2/MF sources**: Voice/video messages use `wasapi2src`/`mfh264enc` directly on Windows instead of auto-detection
+
+### Fixed — Audio/Video Calls (Linux)
+- **TOCTOU race in deep_copy_buffer_probe**: DMA-BUF memory pinned during copy to prevent PipeWire SIGSEGV from recycled shared memory
+- **pipewiresrc EINVAL (-22)**: Source-side capsfilter with device-negotiated caps fixes PipeWire rejection of range-based caps
+- **Video buffer deep copy**: C pad probe replaces invalid `copy-buffers` queue property — prevents SIGSEGV from recycled PipeWire shared memory
+- **Video recorder fixed caps**: Uses 640×480@30fps instead of ranges to prevent backwards caps propagation to pipewiresrc
+
+### Fixed — Audio/Video Calls (Both Platforms)
+- **Video call stability**: Multiple SIGSEGV fixes in call state sync, Jingle correctness, senders negotiation, teardown race
+- **Video message stop recording**: EOS via blocking pad probes — `stop_recording` now ~70ms instead of 3–20s timeout
+- **H.264 encoder caching**: Probe timeout reduced from 2s→500ms, encoder element cached for reuse
+- **Video message quality**: Reduced to 640×480@24fps with `add-borders` to prevent stretching
+- **Voice message click eliminated**: Smooth ramp-up for recording start
+- **Comprehensive null-dereference guards**: RTP pipeline guards for device changes during active calls
+- **Diagnostic timers removed**: Timer callbacks causing SIGSEGV on pipeline teardown eliminated
+
+### Performance — GStreamer Pipeline Linking
+- **TEMPLATE_CAPS**: Skip expensive CAPS queries during pipeline linking
+- **NO_RECONFIGURE link flags**: Prevent post-link caps cascade
+- **PadLinkCheck.NOTHING**: Explicit pad names bypass all caps queries — Windows pipeline setup significantly faster
+
+### Fixed — SOCKS5 Proxy / Tor
+- **SOCKS5 proxy overhaul**: Tor/SOCKS5 coexistence fixed, HTTP proxy bypass corrected
+
+### Fixed — OMEMO
+- **Partial MUC delivery**: Allow OMEMO message delivery when some MUC participants are unreachable instead of failing the entire send
+
+### Fixed — Windows Stability
+- **Panic wipe / DB reset**: Batch launch broken on Windows portable — fixed
+- **GStreamer plugin list**: Clean plugin dir before copy, remove deprecated directsound, add missing plugins (videotestsrc, audiotestsrc, audiomixer, videoflip, audiorate, level, wavenc)
+- **Shell pipe/redirect preserved**: Console attach no longer breaks pipe and redirect operators
+- **devices_changed null guard**: Prevent crash when monitor reports null media device
+
+### Changed — Windows CI
+- **gst-plugins-ugly**: Added to CI packages (x264, voaac codecs)
+- **cantarell-fonts**: Added to CI packages (Adwaita font fallback)
+
+### Stats
+- 62 commits, 43 files changed across RTP/calls, GStreamer, Windows platform, OMEMO, proxy
+- Major new feature: Audio/Video device preferences with persistent selection
+- Major performance improvement: GStreamer pipeline linking (TEMPLATE_CAPS, NO_RECONFIGURE)
+- 20+ crash fixes (SIGSEGV, null dereference, race conditions)
+
+## [1.1.7.7] - 2026-03-18
+
+### Fixed — Audio/Video Calls (Linux + Windows)
+- **CRITICAL: Echo probe null dereference** (`voice_processor.vala`): `echo_probe.delay` called when `echo_probe == null` in `start()` → SIGSEGV. Now uses safe conditional: `int initial_delay = echo_probe != null ? echo_probe.delay : 200;`
+- **CRITICAL: SRTP crypto_session destroy race** (`stream.vala`): `crypto_session = null` was set BEFORE `recv_rtp.end_of_stream()`, causing incoming packets to hit null SRTP decryptor. Moved nulling AFTER EOS.
+- **CRITICAL: on_send_rtp_eos/on_send_rtcp_eos null crash** (`stream.vala`): EOS callbacks could fire after `send_rtp`/`send_rtcp` was already nulled. Added null guards.
+- **HIGH: Video caps.get_size() crash** (`video_widget.vala`): `input_caps_changed()` called `caps.get_size()` without checking for 0 → out-of-bounds access. Added size check.
+- **HIGH: EOS timeout too short** (`audio_recorder.vala`): 500ms EOS timeout was insufficient for MP4 faststart file rewrite on slow storage → truncated voice messages. Increased to 3000ms.
+- **Windows: Missing H.264 encoder** (`video_recorder.vala`): Windows Media Foundation `mfh264enc` added as first H.264 encoder in fallback chain (before VAAPI/VA/x264/avenc/openh264).
+- **GStreamer pipeline stability** (`plugin.vala`, `codec_util.vala`): `pause()` kept as safe no-op; pad probe added in `update_rescale_caps()` to prevent capsfilter race.
+
+### Fixed — SOCKS5 Proxy / Tor (Linux + Windows)
+- **CRITICAL: Tor DNS anonymity leak** (`stream_connect.vala`): SRV DNS lookups were performed locally BEFORE connecting through Tor proxy — ISP DNS sees which XMPP server user contacts. Fix: skip SRV lookups when `proxy_type == "tor"`, connect directly to `domain:5222`/`domain:443` through the Tor circuit.
+- **CRITICAL: is_transitioning permanent deadlock** (`tor_manager.vala`): If `start_tor()`/`stop_tor()` threw an exception, `is_transitioning` flag was never reset → Tor could never be toggled again. Fixed with try-finally in `set_enabled()`, `set_bridges()`, `update_use_bridges()`, `update_firewall_ports()`.
+- **HIGH: lyrebird.exe zombie processes** (`tor_controller.vala`): Windows only — `lyrebird.exe` (pluggable transport bridge) was not killed on Tor restart, accumulating zombie processes holding ports. Added `taskkill /F /IM lyrebird.exe` to the zombie killer in `start()`.
+
+### Changed — Logging
+- **Quieter startup**: Demoted 39× `message()` calls to `debug()` in `main.vala`, `application.vala`, `muc_manager.vala` — reduces noise in normal operation while keeping full diagnostics at debug level.
+
+### Fixed — URL Display
+- **Body-only URLs**: Incoming messages containing only a URL in the body were displayed as broken file transfer offers instead of clickable text links.
+
+### Changed — Documentation
+- README updates: startup instructions, SmartScreen removal, geolocation limitation, PipeWire migration plan
+
+### Stats
+- 11 files changed across 4 subsystems (RTP/calls, Tor/proxy, XMPP core, UI)
+- 6 AV bugs fixed (3 CRITICAL, 2 HIGH, 1 Windows-specific)
+- 3 proxy bugs fixed (2 CRITICAL, 1 HIGH)
+- Major security fix: Tor DNS leak prevention
+
+## [1.1.7.6] - 2026-03-17
+
+### Fixed — Windows: Font Rendering
+- **gtk-font-name**: Was never set → GTK4 default `"Sans 10"` → fontconfig without alias rules resolved to random fonts (Microsoft Sans Serif). Now explicitly set to `"Segoe UI 10"` in `Gtk.Settings` and `settings.ini`.
+- **gtk-hint-font-metrics**: Enabled (was false by default) → forces pixel-aligned glyph positioning for sharper text rendering.
+- **fontconfig fonts.conf**: Generated in `update_dist.sh` with proper alias mappings: Sans→Segoe UI, monospace→Consolas, serif→Times New Roman, system-ui→Segoe UI. Plus font rendering defaults (antialias, hinting, hintslight, rgb, lcddefault).
+- **Avatar letters**: Used generic `"Sans"` font family which resolved badly on Windows. Now uses `"Segoe UI"` on Windows via `#if WINDOWS` conditional.
+
+### Fixed — Windows: GDK Surface Assertions
+- **`gdk_surface_get_device_position: assertion 'GDK_IS_SURFACE (surface)' failed`**: Added `get_realized()` guards at 6 critical code paths where motion events fired on widgets whose GDK surface was already destroyed (conversation switch, window close):
+  - `conversation_view.vala`: `update_highlight()` → `pick()` (primary crash source), `on_leave_notify_event()`
+  - `chat_text_view.vala`: `queue_resize_if_needed()` timeout
+  - `chat_input/view.vala`: `highlight_state_description()` timeout
+  - `file_image_widget.vala`: motion leave handler
+  - `video_player_widget.vala`: motion leave handler
+
+### Fixed — Windows: Systray Context Menu
+- **Owner-drawn GDI painting removed**: The right-click menu used `MF_OWNERDRAW` with raw Win32 GDI calls (`Ellipse()`, `DEFAULT_GUI_FONT`, `GetSysColor()`) — looked like Windows 98.
+- **Native MF_STRING rendering**: Now uses plain `MF_STRING` menu items that Windows 10/11 renders natively with Segoe UI, ClearType, DPI scaling, and theme-aware colors (light/dark mode support).
+- **Colored emoji indicators**: Status circles provided by Unicode emoji (🟢🟠🔴⚪) already embedded in labels by `systray_windows.vala` — no more custom GDI circle painting.
+
+### Fixed — Windows: Portable ZIP / CI Build
+- **GDK-Pixbuf loaders**: Copied to wrong path (`dist/lib/` instead of `dist/lib/gdk-pixbuf-2.0/`) — image loading broken in portable builds.
+- **loaders.cache**: Had MSYS2 absolute paths (`/mingw64/lib/...`) — regenerated with `gdk-pixbuf-query-loaders` for portable relative paths.
+- **Missing CI packages**: `glib-networking` (GIO TLS backend!), `hicolor-icon-theme`, `adwaita-icon-theme` were only transitively installed — now explicitly listed in `windows-build.yml`.
+- **MQTT plugin**: Added `-Dplugin-mqtt=enabled` to CI meson setup and all build documentation.
+
+### Fixed — Windows: Window Buttons + Prior Font Pass
+- **CSD window buttons**: Positioned on the left side (Windows convention) via `headerbar-close-button-position` setting.
+- **Xft font settings**: Initial hinting/antialiasing settings in `settings.ini` (later superseded by the comprehensive font fix above).
+
+### Fixed — Windows: Icon Discovery
+- **hicolor index.theme**: System `hicolor-icon-theme` `index.theme` was being overwritten by our sparse icon directory listing. Now preserves the system file so GTK4 icon discovery works correctly.
+
+### Fixed — MUC Reactions After Restart
+- **Broken reactions in group chats**: After app restart or reconnect, reactions (XEP-0444) on MUC messages were silently dropped because the occupant→JID mapping was lost. Fixed the stanza-id lookup path.
+
+### Fixed — Encryption/Mark Icons After Avatar Refactor
+- **Missing icons**: Encryption lock and delivery mark icons disappeared after the avatar defer refactor. Fixed icon loading path.
+
+### Fixed — Build Warnings
+- **abseil-cpp >= 20250814**: New `absl::Nullable`/`absl::Nonnull` annotations broke webrtc-audio-processing v2.1 build. CI now patches them out.
+- **Various**: Unused variable, const annotations, critical build warnings resolved across platforms.
+
+### Changed — Documentation
+- **WINDOWS_BUILD.md / WINDOWS_BUILD_EN.md**: Added `-Dplugin-mqtt=enabled` to all meson setup commands, mandatory clean rebuild instructions.
+- **Obsolete files**: Removed `windowsbuild.txt` (superseded by comprehensive docs).
+
+### Stats
+- 80+ commits, 50+ files changed
+- Major areas: font rendering (8 files), systray modernization (1 file, -136 lines), CI hardening (2 files), GDK stability (5 files), icon fixes (3 files), MUC reactions (2 files)
+
+## [1.1.7.5] - 2026-03-15
+
+### Fixed — Windows: App Still Exits After Unlock (GitHub #18 — continued)
+- **hold()/release() safety net**: v1.1.7.4 reordered activate-before-close but the app STILL exits silently on Windows. Added `this.hold()` at the start and `this.release()` at the end of the entire `finish_post_unlock()` transition — this guarantees GApplication use_count never reaches 0, regardless of Win32 message pump re-entry or window lifecycle timing.
+- **Strategic debug messages**: Added `message()` calls throughout `finish_post_unlock()` and the `activate` handler so Windows users can provide exact diagnostic output showing where execution stops.
+
+## [1.1.7.4] - 2026-03-14
+
+### Fixed — Windows: App Exits After Unlock (GitHub #18)
+- **GApplication lifecycle race**: The v1.1.7.2 fix (`hold()`/`release()` around close→activate) was insufficient — on GDK-Win32, `unlock_parent.close()` synchronously destroys the window and re-enters the Win32 message pump, terminating the main loop before `activate()` can create the MainWindow. Fix: call `activate()` FIRST (creates MainWindow while unlock_parent is still alive), THEN `unlock_parent.close()`. Removed `hold()`/`release()` entirely — GApplication always has ≥1 window, no use_count=0 gap.
+- **libevent DLL naming**: MSYS2 renamed `libevent-2-1-7.dll` → `libevent-7.dll` in newer versions. `update_dist.sh` now lists both naming variants (`libevent-7.dll`, `libevent_core-7.dll`, `libevent_extra-7.dll`).
+
+### Fixed — Build (All Distros with GCC 13+)
+- **webrtc-audio-processing v2.1**: `trace_event.h` uses `uint8_t`/`uintptr_t` without `#include <cstdint>` — fails on GCC 13+ (openSUSE Tumbleweed, Fedora 39+, Ubuntu 24.04+, Arch). `ci-build-deps.sh` now auto-patches the header before building.
+
+### Fixed — Documentation (openSUSE)
+- **BUILD.md**: Added `libomemo-c-devel` to `zypper install` list
+- **BUILD.md**: Updated note — `ci-build-deps.sh` overrides with fixed fork from [rallep71/libomemo-c](https://github.com/rallep71/libomemo-c)
+- **BUILD.md**: Added `libcanberra-devel` install example + build-from-source alternative
+
+## [1.1.7.3] - 2026-03-14
+
+### Fixed — Locale Warning in AppImage (openSUSE)
+- **LC_ALL propagation**: `Gtk.init()` internally calls `setlocale(LC_ALL, "")` which re-reads environment variables — the fallback locale set by `setlocale()` alone was lost. Now sets `LC_ALL` env var to the working locale so GTK picks it up.
+- **LOCPATH removed from AppRun**: Setting `LOCPATH` forced glibc to skip `locale-archive` and look for individual locale directories that don't exist on openSUSE/Fedora. Removed entirely — host glibc finds its own `locale-archive` without help.
+
+### Fixed — Documentation
+- **BUILD.md**: Corrected 3 openSUSE package names (`libicu-devel`, `gstreamer-plugin-pipewire`, `libsrtp2-devel`)
+- **BUILD.md**: Added `ci-build-deps.sh` MUST-run warning for openSUSE (libomemo-c etc. not packaged)
+- **BUILD.md**: Added optional `libcanberra-devel` note for notification sounds on openSUSE
+
+## [1.1.7.2] - 2026-03-14
+
+### Fixed — Windows Startup Crash (GitHub #18)
+- **GApplication race condition**: `unlock_parent.close()` dropped `use_count` to 0 before `activate()` created the MainWindow. On Windows, the Win32 message pump re-enters and terminates the main loop during this gap. Fix: `this.hold()` before close, `this.release()` after activate.
+- **DBUS_SESSION_BUS_ADDRESS**: Changed from `"nul"` to `""` — `"nul"` could be misinterpreted as a valid bus address on some GLib builds.
+- **libevent DLL**: Added monolithic `libevent-2-1-7.dll` to `update_dist.sh` (some Windows builds ship one monolithic DLL instead of split core/extra libs).
+
+### Fixed — SCRAM Channel Binding Error Message
+- **Wrong "Wrong password"**: When MITM protection (channel binding) was enabled but the server didn't support SCRAM-*-PLUS mechanisms, DinoX showed "Wrong password" instead of explaining the real problem.
+- **New signal**: `channel_binding_failed` in SASL module (distinct from `received_auth_failure`).
+- **New error identifier**: `"channel-binding-required"` propagated through `ConnectionManager`.
+- **UI**: Preferences, freedesktop notifications, and GNotifications now show "*server* does not support SCRAM channel binding (MITM protection)" with the actual domain name.
+- **"Enter password" button hidden**: No longer shown for channel-binding errors (password is not the problem).
+
+### Fixed — Linux Locale & IM Module Warnings
+- **Locale fallback**: Graceful fallback chain before `Gtk.init()` — tries base language `.UTF-8`, falls back to `C.UTF-8`. Suppresses "Locale not supported by C library" warning on openSUSE/custom locales.
+- **GTK_IM_MODULE handling**: Only unsets `GTK_IM_MODULE` for known GTK3-only modules (`cedilla`, `xim`). Leaves `ibus`, `fcitx5`, etc. alone — GTK4 supports them natively.
+
+### Fixed — AppImage on openSUSE/Fedora
+- **LOCPATH**: AppRun now exports `LOCPATH` pointing to system locale data, fixing locale warnings inside AppImage.
+- **IM module fix**: AppRun uses same conservative approach — only clears GTK3-only modules via `case` statement.
+
+### Changed — Documentation
+- **BUILD.md**: Added openSUSE Tumbleweed/Leap section with `zypper install` package list and CA cert note.
+
+## [1.1.7.1] - 2026-03-14
+
+### Fixed — Native Linux SSL/TLS
+- **CRITICAL**: System CA certificate probe was accidentally inside `#if WINDOWS` preprocessor block — never ran on native Linux. Moved probe outside the block so it runs on ALL platforms. AppImage (AppRun) and MQTT client were not affected.
+- **Documentation**: Added CA certificate sections to BUILD.md and DEBUG.md
+
+## [1.1.7.0] - 2026-03-14
+
+### Added — In-App Language Selector
+- **Language selector**: Settings → General → Appearance — 48 languages selectable via AdwComboRow
+- **Early startup override**: Reads `~/.local/share/dinox/language` before gettext initialization, sets `LANGUAGE` + `LANG` env vars
+- **Dual persistence**: Language choice stored in DB (Settings entity) + plain-text file for pre-DB startup
+- **Restart hint**: Subtitle shows "Restart DinoX to apply" when language changed during runtime
+- **Signal safety**: `language_updating` guard prevents ping-pong between model↔UI language handlers
+
+### Added — Translations (DE/FR/ES 100%)
+- **German**: 31 new translations — full coverage across main, OMEMO, OpenPGP
+- **French**: 58 new translations (56 single-line + 2 multiline MQTT/ejabberd strings)
+- **Spanish**: 51 new translations (49 single-line + 2 multiline)
+- **Language selector strings**: 3 new entries per language (_Language, override subtitle, restart hint)
+
+### Fixed — Translation File Integrity
+- **7 fatal msgfmt errors fixed**: zh_CN format specifier order (`%s`/`%d` swapped → positional `%1$d`/`%2$s`), omemo de/es/fr duplicate msgstr lines, omemo en/hi missing Plural-Forms header, omemo th missing `%d` in plural translation
+- **46 silent duplicate msgstr entries removed**: Batch translation scripts appended second translation variants as continuation lines — syntactically valid but semantically wrong. Affected 14 .po files across main (de: 18, es: 3, fr: 13), omemo (et, hu), openpgp (de, eo, es, fr, gl, ia, lb, oc, vi)
+- **Validated**: 133/133 .po files pass `msgfmt -c` with zero errors
+
+### Fixed — AppImage SSL on openSUSE/Fedora/Alpine
+- **Multi-distro CA cert probing**: GnuTLS compiled on Ubuntu defaults to `/etc/ssl/certs/ca-certificates.crt` which doesn't exist on openSUSE (`/etc/ssl/ca-bundle.pem`), Fedora (`/etc/pki/tls/certs/ca-bundle.crt`), or Alpine (`/etc/ssl/cert.pem`)
+- **3 layers of defense**: AppRun shell script probes 6 paths before launch, `main.vala` probes at startup setting `GTLS_SYSTEM_CA_FILE`, MQTT client probes independently for Mosquitto TLS
+- **Paths probed**: Debian/Ubuntu/Arch, Fedora/RHEL, openSUSE, openSUSE alternative, Fedora p11-kit, Alpine/macOS
+
+## [1.1.6.9] - 2026-03-14
+
+### Fixed — Build
+- **Windows systray LoadIconW**: Use `MAKEINTRESOURCEW(32512)` instead of `IDI_APPLICATION` for fallback icon — MSYS2 MINGW64 UNICODE build resolved `IDI_APPLICATION` as `CHAR *` causing `-Wincompatible-pointer-types` error
+
+## [1.1.6.8] - 2026-03-14
+
+### Fixed — Build
+- **Windows CI build**: Define `cc = meson.get_compiler('c')` in `main/meson.build` before Windows-specific `cc.find_library()` calls — fresh CI builds failed with `Unknown variable "cc"` because cached local builds masked the missing definition
+
+## [1.1.6.7] - 2026-03-14
+
+### Fixed — Audio/Video Call Hardening
+- **Video SIGSEGV (exit code 139)**: Reordered `detach()` teardown — `set_state(NULL)` now runs BEFORE `remove_output`/`unlink`, preventing race condition where videoconvert memcpy runs on freed buffer
+- **Video pipeline queue**: Added `queue max-size-buffers=2 leaky=downstream` before videoconvert in both `display_stream` and `display_device` paths
+- **Video error path leaks**: `display_stream`/`display_device` now properly call `pipe.remove(sink)` + `plugin.unpause()` on parse failure
+- **Video unlink target**: Fixed `connected_device_element.unlink(sink)` → `unlink(prepare)` — was unlinking wrong element
+- **7 null-pointer guards**: `has_key()` checks before HashMap access in `call_window_controller.vala` (4) and `call_window.vala` (4)
+- **call_state NULL CRITICAL**: 5 null guards in signal handlers (`microphone_selected`, `speaker_selected`, `microphone_volume_changed`, `speaker_volume_changed`, `update_current_audio_device`)
+- **Handler ID corruption**: `invite_handler_ids[id] += connect()` → `= connect()` — `+=` was adding to previous handler ID
+- **Audio settings popover hidden**: Removed `size==1` early-return that hid volume sliders and WebRTC gain controls when only one audio device present
+- **Dead code removal**: Empty `row_selected` handler in `audio_settings_popover.vala`
+
+### Fixed — Audio Pipeline (Anti-Crackling)
+- **audiomixer latency**: Set to 20ms (was 0 default) — gives mixer time to collect samples before output
+- **output_queue**: Time-based buffering `max-size-time=50ms` with `max-size-buffers=0` and `max-size-bytes=0`
+- **drop-on-latency**: Changed from `false` to `true` on rtpbin — drops late packets instead of accumulating
+- **audiorate tolerance**: Set to 40ms (`uint64` cast for GstClockTime) + `skip-to-first=true` — prevents silence insertion on small timestamp gaps
+
+### Fixed — WebRTC Audio Processing (AGC Tuning)
+- **AGC mode consistency**: Both init and `set_compression_gain_db` now use `kFixedDigital` — previously `set_compression_gain_db` switched to `kAdaptiveDigital` which caused word chopping/pumping
+- **Compression gain**: 6dB → 9dB (compromise between too quiet and too aggressive)
+- **Target level**: -3dBFS → -6dBFS (more headroom)
+- **Noise suppression**: `kModerate` → `kLow` (less aggressive, preserves speech)
+- **EchoProbe default delay**: 150ms → 200ms (accounts for audiomixer 20ms + output_queue 50ms + acoustic path)
+- **EchoProbe minimum threshold**: 150ms → 80ms (allows lower-latency setups)
+
+### Fixed — Dialpad Performance
+- **Pipeline pre-warm**: GStreamer pipeline created via `Idle.add` on popover show instead of lazily on first tone
+- **Pipeline persistence**: Pipeline no longer destroyed on popover close — reused across opens
+- **Debounce**: 300ms → 80ms for more responsive DTMF input
+
+### Added — Windows
+- **Systray (Shell_NotifyIcon)**: Full Win32 tray icon replacing stub — left-click toggle, right-click menu with status (Online/Away/Busy/N/A) + Quit. C helper + VAPI bridge. Closes #18
+- **Missing DLLs**: libnpth-0, libprotobuf-c-1, libcjson-1, libevent_core/extra added to `update_dist.sh`
+
+### Changed — CI/Build
+- **Node.js 24**: `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all 5 GitHub Actions workflows (Node.js 20 deprecation June 2026)
+- **GitHub Pages**: New `pages.yml` workflow replacing auto-generated `pages-build-deployment`
+
+### Stats
+- 4 commits, 22 files changed, 588 insertions, 73 deletions
+- Major areas: call hardening (10 files), Windows systray (6 files), CI (6 files)
+
+## [1.1.6.6] - 2026-03-14
+
+### Fixed — Message Retraction (XEP-0424)
+- **Notification retraction**: Desktop notification now retracted when message is deleted (deferred `Idle.add()` connection to avoid startup crash from module ordering)
+- **Empty retraction ID**: Reject empty/whitespace-only retraction IDs in receive path — previously caused silent failures
+- **Dead null-check**: Removed unreachable null-check in stanza parser (was after prior guard)
+- **Code consolidation**: 6 inline `is_own_message` copies replaced with `ContentItem.is_own()` static helper
+
+### Fixed — Chat Window
+- **O(1) highlight update**: `update_highlight()` replaced O(n) child iteration with `main.pick()` + parent chain walk
+- **Mutex deadlock risk**: Explicit `reloading_mutex.unlock()` on both branches of `load_earlier_messages`/`load_later_messages`
+- **Tile cache LRU**: Map tile cache now bounded at 100 entries with proper LRU eviction (including cache-hit touch)
+- **Truncation text**: Corrected "100,000" → "50,000" to match actual limit
+- **Reactions i18n**: Tooltip separator strings (comma, "and", "reacted with") wrapped in `_()`
+- **Video decrypt helper**: Extracted `decrypt_to_temp()` method — eliminates duplicated decryption logic
+- **Typo fix**: `SubscriptionNotitication` → `SubscriptionNotification`
+
+### Fixed — Audio Player Widget
+- **Playback position reset**: `saved_position = 0` on `stop()` — prevents stale position on replay
+- **Download timeout race**: `timeout_fired` bool pattern prevents use-after-free on slow downloads
+- **Disposed guard**: `_disposed` flag with guards in `bus_callback()` and `update_progress()` — prevents crash on rapid widget destruction
+- **Null duration guard**: `query_duration()` returns early if pipeline is null
+
+### Fixed — Video Player Widget
+- **Preview timeout race**: `timeout_fired` bool pattern for `generate_preview()` timeout
+- **Paintable flicker**: Removed `set_paintable(null)` before setting new texture
+- **Temp file leak**: Track `temp_open_file` and delete in `dispose()`
+- **Seek throttle**: Cancel pending `seek_timeout_id` before creating new one
+
+### Fixed — CI / Build
+- **Lyrebird download retry** (windows-build.yml): 3-attempt loop with `curl -fSL --retry 3`, gzip validation via `file` command, 10s backoff between attempts
+- **Lyrebird download retry** (ci-build-deps.sh): Same retry+validation pattern for Linux builds (build.yml, build-appimage.yml)
+
+### Changed — i18n / Translations
+- **Chinese (Simplified)**: Weblate translation update
+- **Kabyle**: Weblate translation update
+
+### Changed
+- **README**: Revised project description for clarity and features
+- **Version**: 1.1.6.5 → 1.1.6.6
+
+### Stats
+- 15 files changed, 293 insertions, 257 deletions
+- Major areas: retraction (4 fixes), chat window (7 fixes), audio widget (4 fixes), video widget (4 fixes), CI (2 fixes), i18n (2 translations)
+
+---
+
 ## [1.1.6.5] - 2026-03-13
 
 ### Added — Location Sharing (XEP-0080)

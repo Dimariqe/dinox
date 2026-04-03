@@ -250,7 +250,7 @@ msgstr "กุญแจเข้ารหัสสำหรับสมาชิ
 #, c-format
 msgid "%d device"
 msgid_plural "%d devices"
-msgstr[0] "อุปกรณ์ใหม่"
+msgstr[0] "%d อุปกรณ์"
 
 #: plugins/omemo/src/ui/contact_details_provider.vala:138
 msgid "Trusted"

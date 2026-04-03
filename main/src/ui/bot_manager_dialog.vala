@@ -617,16 +617,13 @@ public class BotManagerDialog : Adw.Dialog {
         ejabberd_test_button.sensitive = true;
     }
 
-    // Reliable clipboard copy that works from Adw.Dialog on X11
+    // Cross-platform clipboard copy using GTK4 API
     private void copy_to_clipboard(string text) {
-        try {
-            int stdin_fd;
-            string[] argv = { "xclip", "-selection", "clipboard" };
-            Process.spawn_async_with_pipes(null, argv, null, SpawnFlags.SEARCH_PATH, null, null, out stdin_fd, null, null);
-            Posix.write(stdin_fd, text, text.length);
-            Posix.close(stdin_fd);
-        } catch (Error e) {
-            warning("Clipboard copy failed: %s", e.message);
+        var display = Gdk.Display.get_default();
+        if (display != null) {
+            display.get_clipboard().set_text(text);
+        } else {
+            warning("Clipboard copy failed: no display available");
         }
     }
 }

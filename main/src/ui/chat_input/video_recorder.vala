@@ -19,7 +19,6 @@ public class VideoRecorder : GLib.Object {
     private Element video_rate;
     private Element video_capsfilter;
     private Element video_encoder;
-    private Element? video_profile_caps;  // capsfilter: force constrained-baseline for mobile compatibility
     private Element? video_parser;
     private Element video_queue;
     private Element audio_source;
@@ -51,11 +50,61 @@ public class VideoRecorder : GLib.Object {
     // GdkPixbuf sink element for live preview in the popover
     public Element? gtk_sink { get; private set; }
 
+    // Static encoder cache: probed once per app session, reused for all recordings.
+    // Avoids 2s+ per-encoder probe on every recording (4 encoders × 2s = 8s+ on Windows).
+    private static string? cached_h264_factory = null;
+    private static bool encoder_cache_probed = false;
+
     public signal void duration_changed(string text);
     public signal void max_duration_reached();
     public signal void recording_error(string message);
+    public signal void recording_stopped(string? output_path);
 
     public VideoRecorder() {
+    }
+
+    /**
+     * Detect the Linux distribution from /etc/os-release and return
+     * a distro-specific install hint for GStreamer H.264 encoder packages.
+     */
+    private static string get_h264_install_hint() {
+#if WINDOWS
+        return "MSYS2/MINGW64: pacman -S mingw-w64-x86_64-gst-plugins-ugly "
+             + "mingw-w64-x86_64-gst-libav\n"
+             + "Then re-run: bash scripts/update_dist.sh";
+#else
+        string? os_id = null;
+        try {
+            string contents;
+            FileUtils.get_contents("/etc/os-release", out contents);
+            foreach (string line in contents.split("\n")) {
+                // Match ID= or ID_LIKE= to detect derivative distros too
+                if (line.has_prefix("ID=")) {
+                    os_id = line.substring(3).replace("\"", "").down();
+                    break;
+                }
+            }
+        } catch (FileError e) {
+            // /etc/os-release not found
+        }
+
+        if (os_id != null) {
+            if (os_id.contains("opensuse") || os_id.contains("suse")) {
+                return "openSUSE: sudo zypper install gstreamer-plugins-ugly gstreamer-plugins-libav "
+                     + "(Packman-Repo erforderlich: https://ftp.gwdg.de/pub/linux/misc/packman/suse/)";
+            }
+            if (os_id.contains("fedora") || os_id.contains("rhel") || os_id.contains("centos")) {
+                return "Fedora/RHEL: sudo dnf install gstreamer1-plugins-ugly gstreamer1-libav "
+                     + "(RPM Fusion repo may be required: https://rpmfusion.org/)";
+            }
+            if (os_id.contains("arch") || os_id.contains("manjaro") || os_id.contains("endeavouros")) {
+                return "Arch: sudo pacman -S gst-plugins-ugly gst-libav";
+            }
+        }
+        // Debian/Ubuntu default (also fallback for unknown distros)
+        return "Debian/Ubuntu: sudo apt install gstreamer1.0-plugins-ugly gstreamer1.0-libav "
+             + "(or gstreamer1.0-vaapi for Intel/AMD hardware encoding)";
+#endif
     }
 
     ~VideoRecorder() {
@@ -71,6 +120,7 @@ public class VideoRecorder : GLib.Object {
      */
     private bool test_video_encoder(string factory_name) {
         try {
+            int64 t0 = GLib.get_monotonic_time();
             // Use videoconvert before the encoder so hardware encoders (VAAPI, VA)
             // can negotiate their preferred input format instead of raw I420.
             var test_pipe = Gst.parse_launch(
@@ -79,14 +129,19 @@ public class VideoRecorder : GLib.Object {
 
             test_pipe.set_state(State.PLAYING);
             var test_bus = ((Pipeline)test_pipe).get_bus();
-            var msg = test_bus.timed_pop_filtered(5 * Gst.SECOND,
+            // 500ms is plenty for encoding a single 160x120 frame.
+            // Previously 2s (and before that 5s) — caused 8-20s+ startup
+            // delay when multiple unavailable encoders were probed sequentially
+            // (each timeout + NULL state-change cleanup on Windows COM/MF).
+            var msg = test_bus.timed_pop_filtered(500 * Gst.MSECOND,
                 MessageType.ERROR | MessageType.EOS);
             bool works = (msg != null && msg.type == MessageType.EOS);
             test_pipe.set_state(State.NULL);
+            int64 elapsed_ms = (GLib.get_monotonic_time() - t0) / 1000;
             if (!works) {
-                debug("VideoRecorder: encoder test FAILED for %s", factory_name);
+                debug("VideoRecorder: encoder test FAILED for %s (%lldms)", factory_name, elapsed_ms);
             } else {
-                debug("VideoRecorder: encoder test OK for %s", factory_name);
+                debug("VideoRecorder: encoder test OK for %s (%lldms)", factory_name, elapsed_ms);
             }
             return works;
         } catch (Error e) {
@@ -114,17 +169,48 @@ public class VideoRecorder : GLib.Object {
         pipeline = new Pipeline("video-recorder");
 
         // === VIDEO branch ===
-        if (ElementFactory.find("pipewiresrc") != null) {
-            video_source = ElementFactory.make("pipewiresrc", "video-source");
-            // PipeWire auto-detects camera via downstream video caps negotiation
-        } else {
-            video_source = ElementFactory.make("v4l2src", "video-source");
-        }
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        video_source = app.av_device_service.create_video_source(app.settings.msg_video_device);
+        video_source.set("do-timestamp", true);
         video_convert = ElementFactory.make("videoconvert", "video-convert");
         video_scale = ElementFactory.make("videoscale", "video-scale");
+        if (video_scale != null) {
+            video_scale.set("add-borders", true);
+        }
         video_rate = ElementFactory.make("videorate", "video-rate");
         video_capsfilter = ElementFactory.make("capsfilter", "video-caps");
         video_queue = ElementFactory.make("queue", "video-queue");
+
+        // Source-side capsfilter: constrain negotiation to video/x-raw formats
+        // the camera actually supports.  Without this, videoscale/videorate
+        // broaden downstream caps to ranges ([1,MAX]) that propagate back to
+        // pipewiresrc, which PipeWire >= 1.2 rejects with EINVAL (-22).
+        // This mirrors the proven approach from the RTP call pipeline (device.vala).
+        Element? video_src_capsfilter = null;
+        var all_device_caps = app.av_device_service.get_video_device_caps(
+            app.settings.msg_video_device);
+        if (all_device_caps != null) {
+            var raw_only = new Gst.Caps.empty();
+            for (uint i = 0; i < all_device_caps.get_size(); i++) {
+                unowned Gst.Structure s = all_device_caps.get_structure(i);
+                unowned Gst.CapsFeatures? f = all_device_caps.get_features(i);
+                if (!s.has_name("video/x-raw")) continue;
+                if (f != null && f.contains("memory:DMABuf")) continue;
+                if (s.has_field("format")) {
+                    unowned string? fmt = s.get_string("format");
+                    if (fmt == "DMA_DRM") continue;
+                }
+                raw_only.append_structure_full(s.copy(),
+                    f != null ? f.copy() : null);
+            }
+            if (!raw_only.is_empty()) {
+                video_src_capsfilter = ElementFactory.make("capsfilter", "video-src-caps");
+                if (video_src_capsfilter != null) {
+                    video_src_capsfilter.set("caps", raw_only);
+                    debug("VideoRecorder: source-side caps = %s", raw_only.to_string());
+                }
+            }
+        }
 
         // Tee for preview + recording
         tee = ElementFactory.make("tee", "video-tee");
@@ -149,57 +235,93 @@ public class VideoRecorder : GLib.Object {
             debug("gdkpixbufsink not available, using appsink for preview");
         }
 
-        // H.264 encoder - try hardware first, then software fallbacks
-        // Each encoder is validated with a 1-frame test pipeline to catch runtime failures
-        // (e.g. openh264enc factory exists but the Cisco library can't initialize)
-        video_encoder = try_create_encoder("vaapih264enc", "video-encoder");
-        if (video_encoder == null) {
-            video_encoder = try_create_encoder("vah264enc", "video-encoder");
+        // H.264 encoder selection
+#if WINDOWS
+        // Windows portable: we bundle everything, no probing needed.
+        // Just create the encoder directly — zero overhead.
+        video_encoder = ElementFactory.make("mfh264enc", "video-encoder");
+        if (video_encoder != null) {
+            video_encoder.set("bitrate", (uint) 1500); // kbps
+            debug("VideoRecorder: using mfh264enc (Windows MF, no probe)");
         }
         if (video_encoder == null) {
-            video_encoder = try_create_encoder("x264enc", "video-encoder");
+            video_encoder = ElementFactory.make("x264enc", "video-encoder");
             if (video_encoder != null) {
-                // Software encoder: tune for speed and low latency
                 video_encoder.set("speed-preset", 2); // superfast
                 video_encoder.set("tune", 4); // zerolatency
-                video_encoder.set("bitrate", 1500); // kbps (x264enc takes kbps)
+                video_encoder.set("bitrate", 1500); // kbps
                 video_encoder.set("key-int-max", 60);
+                debug("VideoRecorder: using x264enc (no probe)");
             }
         }
         if (video_encoder == null) {
-            // Fallback: avenc_h264 from gst-libav (ffmpeg) - available in Flatpak via ffmpeg-full extension
-            video_encoder = try_create_encoder("avenc_h264", "video-encoder");
+            video_encoder = ElementFactory.make("openh264enc", "video-encoder");
             if (video_encoder != null) {
-                debug("Using avenc_h264 (ffmpeg) as H.264 encoder fallback");
-                video_encoder.set("bitrate", 1500000); // bps (avenc uses bps, not kbps)
-                video_encoder.set("max-threads", 2);
-            }
-        }
-        if (video_encoder == null) {
-            // Fallback: openh264enc from gst-plugins-bad - available in GNOME Platform runtime (Flatpak)
-            video_encoder = try_create_encoder("openh264enc", "video-encoder");
-            if (video_encoder != null) {
-                debug("Using openh264enc as H.264 encoder fallback");
                 video_encoder.set("bitrate", 1500000); // bps
-                video_encoder.set("complexity", 1);     // medium complexity
+                video_encoder.set("complexity", 1);
+                debug("VideoRecorder: using openh264enc (no probe)");
             }
         }
-        if (video_encoder == null) {
-            // No working H.264 encoder found.
-            // We do NOT fall back to VP8/WebM because most mobile XMPP clients
-            // (Monocles, Conversations) cannot play WebM video messages.
-            // H.264/MP4 is the only universally supported format.
-            throw new Error(Quark.from_string("VideoRecorder"), 0,
-                "No working H.264 video encoder found. Install one of: gstreamer1.0-vaapi (Intel/AMD), gstreamer1.0-plugins-ugly (x264), gstreamer1.0-libav (ffmpeg), or libgstreamer-plugins-bad1.0 (openh264)");
+#else
+        // Linux: probe encoders because we don't control what's installed.
+        // Use static cache to avoid re-probing on subsequent recordings.
+        if (encoder_cache_probed && cached_h264_factory != null) {
+            video_encoder = ElementFactory.make(cached_h264_factory, "video-encoder");
+            if (video_encoder != null) {
+                debug("VideoRecorder: using cached encoder '%s'", cached_h264_factory);
+            } else {
+                encoder_cache_probed = false;
+                cached_h264_factory = null;
+            }
         }
+        if (video_encoder == null && !encoder_cache_probed) {
+            encoder_cache_probed = true;
+            // Hardware first
+            video_encoder = try_create_encoder("vaapih264enc", "video-encoder");
+            if (video_encoder != null) cached_h264_factory = "vaapih264enc";
+            if (video_encoder == null) {
+                video_encoder = try_create_encoder("vah264enc", "video-encoder");
+                if (video_encoder != null) cached_h264_factory = "vah264enc";
+            }
+            // Software fallbacks
+            if (video_encoder == null) {
+                video_encoder = try_create_encoder("x264enc", "video-encoder");
+                if (video_encoder != null) cached_h264_factory = "x264enc";
+            }
+            if (video_encoder == null) {
+                video_encoder = try_create_encoder("avenc_h264", "video-encoder");
+                if (video_encoder != null) cached_h264_factory = "avenc_h264";
+            }
+            if (video_encoder == null) {
+                video_encoder = try_create_encoder("openh264enc", "video-encoder");
+                if (video_encoder != null) cached_h264_factory = "openh264enc";
+            }
+        }
+        // Configure encoder-specific properties (Linux path)
+        if (video_encoder != null) {
+            string enc_name = video_encoder.get_factory() != null ? video_encoder.get_factory().get_name() : "";
+            if (enc_name == "x264enc") {
+                video_encoder.set("speed-preset", 2);
+                video_encoder.set("tune", 4);
+                video_encoder.set("bitrate", 1500);
+                video_encoder.set("key-int-max", 60);
+            } else if (enc_name == "avenc_h264") {
+                video_encoder.set("bitrate", 1500000);
+                video_encoder.set("max-threads", 2);
+            } else if (enc_name == "openh264enc") {
+                video_encoder.set("bitrate", 1500000);
+                video_encoder.set("complexity", 1);
+            }
+        }
+#endif
 
-        // Force Constrained Baseline profile for maximum mobile compatibility.
-        // High profile is not supported by many Android media players (Monocles, Conversations).
-        video_profile_caps = ElementFactory.make("capsfilter", "video-profile-caps");
-        if (video_profile_caps != null) {
-            video_profile_caps.set("caps", Caps.from_string(
-                "video/x-h264, profile=(string)constrained-baseline"));
+        if (video_encoder == null) {
+            string hint = get_h264_install_hint();
+            throw new Error(Quark.from_string("VideoRecorder"), 0,
+                "No working H.264 video encoder found.\n\n%s".printf(hint));
         }
+        debug("VideoRecorder: using encoder %s",
+              video_encoder.get_factory() != null ? video_encoder.get_factory().get_name() : "?");
 
         // Parser: h264parse for proper MP4 muxing (optional but recommended)
         video_parser = ElementFactory.make("h264parse", "video-parser");
@@ -208,9 +330,8 @@ public class VideoRecorder : GLib.Object {
         }
 
         // === AUDIO branch ===
-        // Always use autoaudiosrc for audio - it auto-detects PipeWire/PulseAudio/ALSA
-        // (pipewiresrc defaults to video and stream-properties don't reliably force audio)
-        audio_source = ElementFactory.make("autoaudiosrc", "audio-source");
+        // Audio source for the video recording's audio track
+        audio_source = app.av_device_service.create_audio_source(app.settings.msg_audio_input_device);
         audio_convert = ElementFactory.make("audioconvert", "audio-convert");
         audio_resample = ElementFactory.make("audioresample", "audio-resample");
         audio_capsfilter = ElementFactory.make("capsfilter", "audio-caps");
@@ -221,6 +342,10 @@ public class VideoRecorder : GLib.Object {
         audio_encoder = ElementFactory.make("avenc_aac", "audio-encoder");
         if (audio_encoder == null) {
             audio_encoder = ElementFactory.make("voaacenc", "audio-encoder");
+        }
+        if (audio_encoder == null) {
+            // Windows Media Foundation AAC — available on Windows 10+
+            audio_encoder = ElementFactory.make("mfaacenc", "audio-encoder");
         }
         audio_parser = ElementFactory.make("aacparse", "audio-parser");
 
@@ -250,7 +375,7 @@ public class VideoRecorder : GLib.Object {
         if (audio_convert == null) missing += "audioconvert (gst-plugins-base)";
         if (audio_resample == null) missing += "audioresample (gst-plugins-base)";
         if (audio_capsfilter == null) missing += "capsfilter (gstreamer)";
-        if (audio_encoder == null) missing += "AAC encoder (avenc_aac from gst-libav, or voaacenc from gst-plugins-bad)";
+        if (audio_encoder == null) missing += "AAC encoder (avenc_aac, voaacenc, or mfaacenc)";
         if (audio_parser == null) missing += "aacparse (gst-plugins-good)";
         if (audio_queue == null) missing += "queue (gstreamer)";
         if (muxer == null) missing += "mp4mux (gst-plugins-good)";
@@ -261,9 +386,13 @@ public class VideoRecorder : GLib.Object {
                 "Could not create GStreamer elements. Missing: %s. Install: gst-plugins-good, gst-plugins-bad, gst-plugins-ugly, gst-libav".printf(details));
         }
 
-        // Configure video caps: max 720p, max 30fps - accept lower resolutions
+        // Configure video caps: fixed VGA 640x480@24fps — sufficient for
+        // video messages and much lighter on CPU than 720p@30fps.
+        // Range caps like [1,1280] propagate backwards to pipewiresrc which
+        // rejects them with EINVAL (-22) on PipeWire >= 1.2.
+        // videoscale (add-borders=true) preserves aspect ratio.
         video_capsfilter.set("caps", Caps.from_string(
-            "video/x-raw, width=[1,1280], height=[1,720], framerate=[1/1,30/1]"));
+            "video/x-raw, width=640, height=480, framerate=24/1"));
 
         // Configure audio caps: 48kHz mono
         audio_capsfilter.set("caps", Caps.from_string(
@@ -277,6 +406,9 @@ public class VideoRecorder : GLib.Object {
         debug("VideoRecorder: using audio encoder '%s'", audio_enc_name);
         if (audio_enc_name == "avenc_aac" || audio_enc_name == "voaacenc") {
             audio_encoder.set("bitrate", 96000);
+        } else if (audio_enc_name == "mfaacenc") {
+            // mfaacenc uses bitrate in bps
+            audio_encoder.set("bitrate", (uint) 96000);
         } else if (audio_enc_name == "vorbisenc") {
             audio_encoder.set("bitrate", 96000);
         } else if (audio_enc_name == "opusenc") {
@@ -302,8 +434,8 @@ public class VideoRecorder : GLib.Object {
             audio_source, audio_volume, audio_convert, audio_resample, audio_capsfilter,
             audio_queue, audio_convert2, audio_encoder,
             muxer, sink);
-        if (video_profile_caps != null) {
-            pipeline.add(video_profile_caps);
+        if (video_src_capsfilter != null) {
+            pipeline.add(video_src_capsfilter);
         }
         if (video_parser != null) {
             pipeline.add(video_parser);
@@ -311,12 +443,31 @@ public class VideoRecorder : GLib.Object {
         if (audio_parser != null) {
             pipeline.add(audio_parser);
         }
+        // Link video chain — skip ALL link checks and specify explicit pad names.
+        // On Windows, gst_element_link_pads_full with null names calls
+        // gst_element_get_compatible_pad() which triggers caps queries back to
+        // mfvideosrc (Media Foundation device enumeration, ~seconds).
+        // With NOTHING flag + explicit pads, linking is just pointer assignment.
+        // Actual caps negotiation happens at set_state(PLAYING).
+        var FAST = Gst.PadLinkCheck.NOTHING;
 
-        // Link video source chain up to tee
-        // video_source → video_convert → video_scale → video_rate → video_caps → tee
-        if (!video_source.link(video_convert) || !video_convert.link(video_scale) ||
-            !video_scale.link(video_rate) || !video_rate.link(video_capsfilter) ||
-            !video_capsfilter.link(tee)) {
+        // video_source → [src_capsfilter →] video_convert → video_scale → video_rate → video_caps → tee
+        if (video_src_capsfilter != null) {
+            if (!video_source.link_pads("src", video_src_capsfilter, "sink", FAST) ||
+                !video_src_capsfilter.link_pads("src", video_convert, "sink", FAST)) {
+                throw new Error(Quark.from_string("VideoRecorder"), 0,
+                    "Could not link video source → source capsfilter");
+            }
+        } else {
+            if (!video_source.link_pads("src", video_convert, "sink", FAST)) {
+                throw new Error(Quark.from_string("VideoRecorder"), 0,
+                    "Could not link video source → videoconvert");
+            }
+        }
+        if (!video_convert.link_pads("src", video_scale, "sink", FAST) ||
+            !video_scale.link_pads("src", video_rate, "sink", FAST) ||
+            !video_rate.link_pads("src", video_capsfilter, "sink", FAST) ||
+            !video_capsfilter.link_pads("src", tee, "sink", FAST)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video source chain");
         }
@@ -324,11 +475,12 @@ public class VideoRecorder : GLib.Object {
         // Tee → preview branch: preview_queue → preview_convert → preview_sink
         var tee_preview_pad = tee.request_pad_simple("src_%u");
         var preview_queue_pad = preview_queue.get_static_pad("sink");
-        if (tee_preview_pad.link(preview_queue_pad) != PadLinkReturn.OK) {
+        if (tee_preview_pad.link(preview_queue_pad, FAST) != PadLinkReturn.OK) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link tee to preview queue");
         }
-        if (!preview_queue.link(preview_convert) || !preview_convert.link(preview_sink)) {
+        if (!preview_queue.link_pads("src", preview_convert, "sink", FAST) ||
+            !preview_convert.link_pads("src", preview_sink, "sink", FAST)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link preview branch");
         }
@@ -336,36 +488,27 @@ public class VideoRecorder : GLib.Object {
         // Tee → record branch: video_queue → video_encoder → [video_parser →] muxer
         var tee_record_pad = tee.request_pad_simple("src_%u");
         var record_queue_pad = video_queue.get_static_pad("sink");
-        if (tee_record_pad.link(record_queue_pad) != PadLinkReturn.OK) {
+        if (tee_record_pad.link(record_queue_pad, FAST) != PadLinkReturn.OK) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link tee to record queue");
         }
-        if (!video_queue.link(video_encoder)) {
+        if (!video_queue.link_pads("src", video_encoder, "sink", FAST)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video_queue → video_encoder");
         }
-        // Build video encoding chain: encoder → [profile_caps →] [parser →] muxer
-        // profile_caps forces Constrained Baseline for mobile compatibility
         Element last_video = video_encoder;
-        if (video_profile_caps != null) {
-            if (!last_video.link(video_profile_caps)) {
-                throw new Error(Quark.from_string("VideoRecorder"), 0,
-                    "Could not link video_encoder → profile capsfilter");
-            }
-            last_video = video_profile_caps;
-        }
         if (video_parser != null) {
-            if (!last_video.link(video_parser)) {
+            if (!last_video.link_pads("src", video_parser, "sink", FAST)) {
                 throw new Error(Quark.from_string("VideoRecorder"), 0,
                     "Could not link video chain → h264parse");
             }
             last_video = video_parser;
         }
-        if (!last_video.link(muxer)) {
+        // muxer uses request pads: video_%u, audio_%u or sink_%u depending on muxer
+        if (!last_video.link_pads("src", muxer, null, FAST)) {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link video chain → muxer");
         }
-
         // Audio chain: source → volume → convert → resample → caps → queue → convert2 → encoder → parser → muxer
         // No audio processing (noise gate, compressor etc.) — pass-through for cleanest signal
         if (!audio_source.link(audio_volume)) {
@@ -409,7 +552,6 @@ public class VideoRecorder : GLib.Object {
             throw new Error(Quark.from_string("VideoRecorder"), 0,
                 "Could not link muxer to sink");
         }
-
         // Store preview sink reference for the popover to access
         gtk_sink = preview_sink;
 
@@ -522,27 +664,82 @@ public class VideoRecorder : GLib.Object {
         return new Gdk.MemoryTexture(width, height, Gdk.MemoryFormat.R8G8B8A8, bytes, width * 4);
     }
 
+    // Counter for blocking pad probes — when both video + audio sources
+    // have injected EOS, the muxer will finalize and post EOS on the bus.
+    private int eos_pending = 0;
+
     public void stop_recording() {
-        debug("VideoRecorder.stop_recording: called");
         if (timeout_id != 0) {
             Source.remove(timeout_id);
             timeout_id = 0;
         }
-        if (pipeline != null && is_recording) {
-            // 1. Remove bus watch FIRST — prevents error callbacks during teardown
-            if (bus_watch_id != 0) {
-                Source.remove(bus_watch_id);
-                bus_watch_id = 0;
-            }
-            
-            // 2. Send EOS so mp4mux writes the moov atom (critical for valid MP4!)
-            pipeline.send_event(new Event.eos());
-            
-            // 3. Wait for muxer to finalize — 5 seconds for longer videos.
-            //    Without this, mp4mux won't write the moov atom and the file
-            //    will be unplayable on any device.
-            if (bus != null) {
-                var msg = bus.timed_pop_filtered(5 * Gst.SECOND,
+        if (pipeline == null || !is_recording) {
+            recording_stopped(null);
+            return;
+        }
+
+        is_recording = false;
+
+        // Remove the error-handling bus watch — we install our own EOS watch below
+        if (bus_watch_id != 0) {
+            Source.remove(bus_watch_id);
+            bus_watch_id = 0;
+        }
+
+        // === EOS via blocking pad probes ===
+        // Live sources (pipewiresrc, mfvideosrc, wasapi2src) IGNORE
+        // send_event(EOS). The reliable GStreamer pattern is:
+        // 1. Install a blocking probe on each source's src pad
+        // 2. In the probe callback, push EOS downstream programmatically
+        // 3. This injects EOS into the data flow from the correct thread
+        // 4. mp4mux receives EOS on both sink pads → writes moov atom → posts EOS on bus
+        eos_pending = 0;
+
+        Gst.Pad? v_src_pad = (video_source != null) ? video_source.get_static_pad("src") : null;
+        Gst.Pad? a_src_pad = (audio_source != null) ? audio_source.get_static_pad("src") : null;
+
+        if (v_src_pad != null) eos_pending++;
+        if (a_src_pad != null) eos_pending++;
+
+        if (eos_pending == 0) {
+            // No sources? Just kill pipeline.
+            finalize_stop();
+            return;
+        }
+
+        // Watch bus for EOS from the muxer
+        Pipeline pipe = pipeline;
+        Gst.Bus? the_bus = bus;
+        string? path = current_output_path;
+        pipeline = null;
+        bus = null;
+
+        // Install blocking probes. When the probe fires, the source's
+        // streaming thread is blocked — perfect moment to inject EOS.
+        if (v_src_pad != null) {
+            v_src_pad.add_probe(
+                Gst.PadProbeType.BLOCK_DOWNSTREAM,
+                (pad, info) => {
+                    pad.get_peer().send_event(new Event.eos());
+                    debug("VideoRecorder: EOS injected on video source pad");
+                    return Gst.PadProbeReturn.REMOVE;
+                });
+        }
+        if (a_src_pad != null) {
+            a_src_pad.add_probe(
+                Gst.PadProbeType.BLOCK_DOWNSTREAM,
+                (pad, info) => {
+                    pad.get_peer().send_event(new Event.eos());
+                    debug("VideoRecorder: EOS injected on audio source pad");
+                    return Gst.PadProbeReturn.REMOVE;
+                });
+        }
+
+        // Wait for EOS in a background thread so the UI isn't blocked.
+        new Thread<void>("video-stop", () => {
+            // Wait for muxer to finalize (moov atom). 5s is generous.
+            if (the_bus != null) {
+                var msg = the_bus.timed_pop_filtered(5 * Gst.SECOND,
                     Gst.MessageType.EOS | Gst.MessageType.ERROR);
                 if (msg == null) {
                     warning("VideoRecorder: EOS timeout after 5s — MP4 may be incomplete");
@@ -550,20 +747,31 @@ public class VideoRecorder : GLib.Object {
                     Error err;
                     string dbg;
                     msg.parse_error(out err, out dbg);
-                    warning("VideoRecorder: Pipeline error during finalization: %s", err.message);
-                } else {
-                    debug("VideoRecorder: EOS received, MP4 file finalized");
+                    warning("VideoRecorder: error during finalization: %s", err.message);
                 }
-                bus = null;
             }
-            
-            // 4. Kill pipeline — synchronously releases all device connections
+
+            // Kill pipeline
+            pipe.set_state(State.NULL);
+
+            // Signal completion back on the main thread
+            Idle.add(() => {
+                cleanup_elements();
+                recording_stopped(path);
+                return false;
+            });
+        });
+    }
+
+    private void finalize_stop() {
+        if (pipeline != null) {
             pipeline.set_state(State.NULL);
             pipeline = null;
-            is_recording = false;
-            cleanup_elements();
-            debug("VideoRecorder.stop_recording: pipeline closed");
         }
+        bus = null;
+        string? path = current_output_path;
+        cleanup_elements();
+        recording_stopped(path);
     }
 
     public void cancel_recording() {

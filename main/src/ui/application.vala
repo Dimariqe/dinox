@@ -37,6 +37,16 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     public Plugins.Registry plugin_registry { get; set; default = new Plugins.Registry (); }
     public SearchPathGenerator? search_path_generator { get; set; }
 
+    private AudioVideoDeviceService? _av_device_service;
+    public AudioVideoDeviceService av_device_service {
+        get {
+            if (_av_device_service == null) {
+                _av_device_service = new AudioVideoDeviceService();
+            }
+            return _av_device_service;
+        }
+    }
+
     // Plugins are loaded after the encrypted DB has been unlocked.
     public Plugins.Loader? plugin_loader { get; set; }
 
@@ -80,19 +90,22 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 #if WINDOWS
     // Get the directory where dinox.exe is located
     private static string get_executable_dir() {
-        // Method 1: Check if we're in the dist folder structure
-        // Look for openssl.exe in bin/ relative to current working dir
+        // Use DINOX_EXE_DIR set by main.vala (reliable, based on args[0])
+        string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+        if (exe_dir != null) {
+            return exe_dir;
+        }
+
+        // Fallback: probe common locations
         string cwd = Environment.get_current_dir();
         if (FileUtils.test(Path.build_filename(cwd, "bin", "openssl.exe"), FileTest.EXISTS)) {
             return cwd;
         }
 
-        // Method 2: Try common install locations
         string[] possible_dirs = {
             "C:\\Program Files\\DinoX",
             "C:\\Program Files (x86)\\DinoX",
             Path.build_filename(Environment.get_home_dir(), "dino-win", "dist"),
-            "."
         };
 
         foreach (string dir in possible_dirs) {
@@ -101,7 +114,6 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         }
 
-        // Fallback to current dir
         return cwd;
     }
 #endif
@@ -251,8 +263,18 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     }
 
     private void finish_post_unlock () {
+        debug ("finish_post_unlock: starting");
+
+        // Prevent GApplication from quitting during the entire unlock→main
+        // transition.  On GDK-Win32, window destruction can synchronously
+        // re-enter the Win32 message pump — if use_count ever reaches 0
+        // during that re-entry the main loop terminates.  hold() keeps
+        // use_count > 0 until we release() at the very end.
+        this.hold ();
+
         create_ui_actions ();
         core_ready = true;
+        debug ("finish_post_unlock: core_ready=true");
 
         apply_color_scheme (settings.color_scheme);
         settings.notify["color-scheme"].connect (() => {
@@ -260,6 +282,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
 
         NotificationEvents notification_events = stream_interactor.get_module<NotificationEvents> (NotificationEvents.IDENTITY);
+#if WINDOWS
+        notification_events.register_notification_provider.begin(new WindowsNotifier(stream_interactor));
+#else
         get_notifications_dbus.begin ((_, res) => {
             DBusNotifications? dbus_notifications = get_notifications_dbus.end (res);
             if (dbus_notifications != null) {
@@ -269,6 +294,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 notification_events.register_notification_provider.begin (new GNotificationsNotifier (stream_interactor));
             }
         });
+#endif
 
         notification_events.notify_content_item.connect ((content_item, conversation) => {
             var desktop_env = Environment.get_variable ("XDG_CURRENT_DESKTOP");
@@ -280,7 +306,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
         stream_interactor.get_module<FileManager> (FileManager.IDENTITY).add_metadata_provider (new Util.AudioVideoFileMetadataProvider ());
 
+        debug ("finish_post_unlock: creating SystrayManager");
         systray_manager = new SystrayManager (this);
+        debug ("finish_post_unlock: SystrayManager created");
 
         // Sync the DB setting with the actual XDG autostart file on startup.
         // If they diverge (e.g. user manually deleted the file), align to the DB value.
@@ -311,15 +339,41 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             });
         });
 
+        // Create the MainWindow while unlock_parent is still alive.
+        debug ("finish_post_unlock: pending_activate=%s", pending_activate.to_string ());
+        if (pending_activate) {
+            pending_activate = false;
+            debug ("finish_post_unlock: calling activate()");
+            activate ();
+            debug ("finish_post_unlock: activate() returned, window=%s",
+                     (window != null).to_string ());
+        }
+
         if (unlock_parent != null) {
+            debug ("finish_post_unlock: closing unlock_parent");
             unlock_parent.close ();
             unlock_parent = null;
         }
 
-        if (pending_activate) {
-            pending_activate = false;
-            activate ();
+        // Re-present the main window so it ends up on top after the
+        // unlock dialog is gone.  On Windows the modal unlock_parent
+        // keeps z-order focus and the MainWindow can end up behind it.
+        // We use Idle.add so the window manager has time to process
+        // the close before we grab focus, plus a timed fallback.
+        if (window != null) {
+            var win = window;
+            Idle.add (() => {
+                win.present ();
+                return Source.REMOVE;
+            });
+            Timeout.add (300, () => {
+                win.present ();
+                return Source.REMOVE;
+            });
         }
+
+        debug ("finish_post_unlock: done — releasing hold");
+        this.release ();
     }
 
     // Check if a panic wipe happened before this startup.
@@ -413,7 +467,12 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             unlock_parent.default_width = 460;
             unlock_parent.default_height = 260;
             unlock_parent.resizable = false;
+#if !WINDOWS
+            // On Linux, modal prevents interaction with other windows.
+            // On Windows (GDK-Win32), modal without a transient parent
+            // causes the mouse cursor to disappear/become unresponsive.
             unlock_parent.modal = true;
+#endif
 
             // Until the encrypted database is unlocked we don't have access to the user's
             // persisted color scheme preference. Use a consistent dark unlock screen.
@@ -479,6 +538,16 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     private void set_unlock_window_content (Gtk.Widget child) {
         var win = ensure_unlock_window ();
         win.set_content (child);
+    }
+
+    // GDK-Win32 has issues with Adw.Dialog sheet overlays: mouse events
+    // don't reach overlaid widgets reliably. Force floating (separate
+    // window) mode to avoid the cursor-behind-dialog problem.
+    private void present_dialog (Adw.Dialog dialog, Gtk.Widget? parent) {
+#if WINDOWS
+        dialog.presentation_mode = Adw.DialogPresentationMode.FLOATING;
+#endif
+        dialog.present (parent);
     }
 
     private delegate void UnlockFormAction ();
@@ -608,17 +677,73 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             var display = Gdk.Display.get_default();
             if (display != null) {
                 var icon_theme = Gtk.IconTheme.get_for_display(display);
-                string exe_path = Environment.find_program_in_path("dinox.exe") ?? "";
-                string exe_dir = exe_path != "" ? Path.get_dirname(exe_path) : Environment.get_current_dir();
-                // Try to get exe dir from argv[0] or GApplication
-                string? prgname = Environment.get_prgname();
-                if (prgname != null && (prgname.contains("\\") || prgname.contains("/"))) {
-                    exe_dir = Path.get_dirname(prgname);
+
+                // Use the reliable DINOX_EXE_DIR set in main.vala
+                string exe_dir = get_executable_dir();
+                string icon_base = Path.build_filename(exe_dir, "share", "icons");
+
+                // 1) Add the top-level icons dir (contains hicolor/ and Adwaita/)
+                if (FileUtils.test(icon_base, FileTest.IS_DIR)) {
+                    icon_theme.add_search_path(icon_base);
+                    debug("startup: Added icon search path: %s", icon_base);
+                } else {
+                    warning("startup: Icon directory NOT FOUND: %s", icon_base);
                 }
-                string icon_path = Path.build_filename(exe_dir, "share", "icons");
-                if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
-                    icon_theme.add_search_path(icon_path);
-                    debug("startup: Added icon path: %s", icon_path);
+
+                // 2) Explicitly register GResource icon path for custom dino-* icons.
+                // GTK4 should do this automatically via resource_base_path, but on
+                // Windows the auto-discovery can fail (display timing, theme issues).
+                icon_theme.add_resource_path("/im/github/rallep71/DinoX/icons");
+                debug("startup: Added icon resource path: /im/github/rallep71/DinoX/icons");
+
+                // 3) Ensure icon theme is Adwaita — GTK4 on Windows might
+                //    default to a different theme without a desktop environment.
+                if (icon_theme.theme_name != "Adwaita") {
+                    debug("startup: Icon theme was '%s', forcing 'Adwaita'", icon_theme.theme_name);
+                    icon_theme.theme_name = "Adwaita";
+                }
+
+                // 4) Verify: check if our custom AND standard Adwaita icons are discoverable.
+                //    If standard Adwaita icons fail, the theme is not loading at all.
+                string[] test_icons = {
+                    // Custom bundled icons (GResource + hicolor fallback)
+                    "dino-phone-symbolic", "dino-file-image-symbolic",
+                    "dino-status-online", "dino-security-high-symbolic",
+                    "notification-symbolic", "face-robot-symbolic",
+                    "sync-synchronizing-symbolic", "check-plain-symbolic",
+                    // Standard Adwaita icons (must come from Adwaita theme dir)
+                    "document-edit-symbolic", "edit-delete-symbolic",
+                    "go-next-symbolic", "dialog-information-symbolic"
+                };
+                int found_count = 0;
+                foreach (string icon_name in test_icons) {
+                    if (icon_theme.has_icon(icon_name)) {
+                        found_count++;
+                    } else {
+                        warning("startup: Icon '%s' — NOT FOUND (will be invisible in UI!)", icon_name);
+                    }
+                }
+                debug("startup: Icon verification: %d/%d icons found", found_count, test_icons.length);
+
+                // Log icon theme state for debugging
+                debug("startup: Icon theme name: %s", icon_theme.theme_name);
+                string[] search_paths = icon_theme.get_search_path();
+                foreach (string sp in search_paths) {
+                    debug("startup: Icon search path: %s", sp);
+                }
+                string[] resource_paths = icon_theme.get_resource_path();
+                if (resource_paths != null) {
+                    foreach (string rp in resource_paths) {
+                        debug("startup: Icon resource path: %s", rp);
+                    }
+                }
+
+                // Check if Adwaita index.theme exists in the search path
+                foreach (string sp in search_paths) {
+                    string adwaita_index = Path.build_filename(sp, "Adwaita", "index.theme");
+                    if (FileUtils.test(adwaita_index, FileTest.EXISTS)) {
+                        debug("startup: Found Adwaita index.theme: %s", adwaita_index);
+                    }
                 }
             }
 #endif
@@ -636,14 +761,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         });
 
         activate.connect (() => {
+            debug ("activate handler: core_ready=%s, window=%s",
+                     core_ready.to_string (), (window != null).to_string ());
             if (!core_ready) {
                 pending_activate = true;
+                debug ("activate handler: deferred (pending_activate=true)");
                 return;
             }
             if (window == null) {
+                debug ("activate handler: creating MainWindow");
                 controller = new MainWindowController (this, stream_interactor, db);
                 config = new Config (db);
                 window = new MainWindow (this, stream_interactor, db, config);
+                debug ("activate handler: MainWindow created");
                 controller.set_window (window);
                 // Always enable hide_on_close - we'll control quit behavior in close_request handler
                 window.hide_on_close = true;
@@ -1125,7 +1255,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         // Create a batch file that will delete after we exit
         // This is more reliable than inline cmd commands
-        string batch_path = Path.build_filename(Environment.get_tmp_dir(), "dinox_wipe.bat").replace("/", "\\");
+        string batch_path = Path.build_filename(get_native_tmp_dir(), "dinox_wipe.bat").replace("/", "\\");
         string batch_content = "@echo off\r\n";
         batch_content += "ping 127.0.0.1 -n 2 > nul\r\n";  // Wait ~1 second
         batch_content += "rd /s /q \"" + data_dir_win + "\" 2>nul\r\n";
@@ -1138,10 +1268,12 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         try {
             FileUtils.set_contents(batch_path, batch_content);
-            // Start batch file hidden with START /B
-            string wipe_cmd = "cmd.exe /c start /b \"\" \"" + batch_path + "\"";
-            debug("Panic wipe command: %s", wipe_cmd);
-            Process.spawn_command_line_async(wipe_cmd);
+            // Start batch file hidden — each argv element must be separate
+            // so that GLib's CreateProcessW quoting doesn't mangle embedded quotes.
+            // "start /b" prevents a visible CMD window; "" is the window title.
+            string[] wipe_argv = {"cmd.exe", "/c", "start", "/b", "", batch_path};
+            debug("Panic wipe: start /b \"%s\"", batch_path);
+            new Subprocess.newv (wipe_argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
         } catch (Error e) {
             warning("Panic wipe spawn failed: %s", e.message);
         }
@@ -1215,7 +1347,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                     dialog.added.connect ((conversation) => {
                         controller.select_conversation (conversation);
                     });
-                    dialog.present (window);
+                    present_dialog (dialog, window);
                 }
                 break;
             case "pubsub":
@@ -1339,7 +1471,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
             var conversation_details = ConversationDetails.setup_dialog (conversation, stream_interactor);
             conversation_details.stack.visible_child_name = stack_value;
-            conversation_details.present (window);
+            present_dialog (conversation_details, window);
         });
         add_action (open_conversation_details_action);
 
@@ -1355,7 +1487,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         contacts_action.activate.connect (() => {
             AddChatDialog add_chat_dialog = new AddChatDialog (stream_interactor, stream_interactor.get_accounts ());
             add_chat_dialog.added.connect ((conversation) => controller.select_conversation (conversation));
-            add_chat_dialog.present (window);
+            present_dialog (add_chat_dialog, window);
         });
         add_action (contacts_action);
         set_accels_for_action ("app.add_chat", KEY_COMBINATION_ADD_CHAT);
@@ -1363,7 +1495,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         SimpleAction conference_action = new SimpleAction ("add_conference", null);
         conference_action.activate.connect (() => {
             AddConferenceDialog add_conference_dialog = new AddConferenceDialog (stream_interactor);
-            add_conference_dialog.present (window);
+            present_dialog (add_conference_dialog, window);
         });
         add_action (conference_action);
         set_accels_for_action ("app.add_conference", KEY_COMBINATION_ADD_CONFERENCE);
@@ -1465,7 +1597,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void show_preferences_window (string? navigate_to_page = null) {
@@ -1485,7 +1617,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             cached_preferences_dialog.reset_database_requested.connect (() => reset_database ());
             cached_preferences_dialog.factory_reset_requested.connect (() => factory_reset ());
         }
-        cached_preferences_dialog.present (window);
+        present_dialog (cached_preferences_dialog, window);
 
         // Navigate to specific page if requested (e.g. "tor" from the Tor indicator)
         if (navigate_to_page != null) {
@@ -1654,7 +1786,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void show_preferences_account_window (Account account) {
@@ -1721,7 +1853,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         };
         about_dialog.developers = developers;
 
-        about_dialog.present (window);
+        present_dialog (about_dialog, window);
     }
 
     public void restore_from_backup () {
@@ -1798,7 +1930,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void confirm_restore_backup (string backup_path, string? password) {
@@ -1820,7 +1952,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void perform_restore_backup (string backup_path, string? password = null) {
@@ -1840,7 +1972,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         progress_dialog.set_extra_child (spinner);
         progress_dialog.set_close_response ("none"); // Prevent closing
-        progress_dialog.present( window);
+        present_dialog (progress_dialog, window);
 
         // Capture password for use in thread
         string? restore_password = password;
@@ -1916,7 +2048,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                             _("Could not decrypt the backup file.\n\nPlease check if the password is correct.")
 );
                         error_dialog.add_response ("ok", _("OK"));
-                        error_dialog.present (window);
+                        present_dialog (error_dialog, window);
                         return false;
                     });
                     return null;
@@ -1957,16 +2089,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             bool success = false;
 
             try {
-                Process.spawn_sync (
-                    null,
-                    argv,
-                    null,
-                    SpawnFlags.SEARCH_PATH,
-                    null,
-                    null,
-                    out stderr_str,
-                    out exit_status
-);
+                Subprocess proc = new Subprocess.newv (argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_PIPE);
+                proc.communicate_utf8 ("", null, null, out stderr_str);
+                exit_status = proc.get_exit_status ();
                 success = (exit_status == 0);
                 if (!success && stderr_str != null) {
                     error_message = stderr_str;
@@ -2000,16 +2125,8 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 #endif
 
                 try {
-                    Process.spawn_sync (
-                        null,
-                        argv_config,
-                        null,
-                        SpawnFlags.SEARCH_PATH,
-                        null,
-                        null,
-                        null,
-                        null
-);
+                    Subprocess proc_cfg = new Subprocess.newv (argv_config, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+                    proc_cfg.wait (null);
                 } catch (Error err) {
                     // Config extraction might fail if backup doesn't have config, that's ok
                 }
@@ -2066,7 +2183,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                         _("Could not restore the backup file.\n\nError: %s").printf( error_message ?? _("Unknown error"))
 );
                     error_dialog.add_response ("ok", _("OK"));
-                    error_dialog.present (window);
+                    present_dialog (error_dialog, window);
                     return false;
                 });
             }
@@ -2080,7 +2197,11 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         // The backup contains old session data that doesn't match the current
         // server state. We need to clear all sessions to force re-negotiation.
 
-        // Try both possible locations for omemo.db
+#if WINDOWS
+        // On Windows, sqlite3 CLI is not bundled. OMEMO will automatically
+        // re-negotiate stale sessions on next message exchange.
+        debug("Skipping OMEMO session cleanup on Windows (auto-renegotiation)");
+#else
         string[] possible_paths = {
             Path.build_filename (Environment.get_user_data_dir (), "dinox", "omemo.db"),
             Path.build_filename (Environment.get_user_config_dir (), "dinox", "omemo.db")
@@ -2089,30 +2210,19 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         foreach (string omemo_db_path in possible_paths) {
             if (FileUtils.test (omemo_db_path, FileTest.EXISTS)) {
                 try {
-                    // Use sqlite3 command to clear sessions table
                     string[] argv = {
                         "sqlite3",
                         omemo_db_path,
                         "DELETE FROM session;"
                     };
-
-                    Process.spawn_sync (
-                        null,
-                        argv,
-                        null,
-                        SpawnFlags.SEARCH_PATH,
-                        null,
-                        null,
-                        null,
-                        null
-);
-
+                    Process.spawn_sync (null, argv, null, SpawnFlags.SEARCH_PATH, null, null, null, null);
                     debug ("Cleared OMEMO sessions from %s after backup restore", omemo_db_path);
                 } catch (Error err) {
                     warning ("Failed to clear OMEMO sessions: %s", err.message);
                 }
             }
         }
+#endif
     }
 
     private void show_data_location_dialog () {
@@ -2148,7 +2258,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         dialog.body = message;
         dialog.add_response ("close", _("Close"));
         dialog.set_response_appearance ("close", Adw.ResponseAppearance.DEFAULT);
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void clear_cache () {
@@ -2171,7 +2281,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void perform_clear_cache (string cache_dir) {
@@ -2273,12 +2383,11 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void perform_reset_database () {
         string data_dir = Path.build_filename (Environment.get_user_data_dir (), "dinox");
-        string db_path = Path.build_filename (data_dir, "dino.db");
 
         // Close the database before deleting
         // We need to restart the app after this
@@ -2295,7 +2404,53 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
         // Delay the actual reset to let the toast show
         Timeout.add( 2000, () => {
+#if WINDOWS
+            // On Windows, open files can't be deleted while the process runs.
+            // Use a SINGLE batch file that: 1) waits for exit, 2) deletes DBs,
+            // 3) restarts dinox.exe. This avoids the race condition of two
+            // separate batch files (reset + restart) running in parallel.
+            string data_dir_win = data_dir.replace("/", "\\");
+            string batch_path = Path.build_filename(get_native_tmp_dir(), "dinox_reset.bat").replace("/", "\\");
+            string batch_content = "@echo off\r\n";
+            batch_content += "ping 127.0.0.1 -n 3 > nul\r\n";
+            string[] db_files = { "dino.db", "dino.db-shm", "dino.db-wal",
+                                   "pgp.db", "pgp.db-shm", "pgp.db-wal",
+                                   "bot_registry.db", "bot_registry.db-shm", "bot_registry.db-wal",
+                                   "omemo.db", "omemo.db-shm", "omemo.db-wal",
+                                   "mqtt.db", "mqtt.db-shm", "mqtt.db-wal",
+                                   "omemo.key" };
+            foreach (string f in db_files) {
+                batch_content += "del /f /q \"%s\\%s\" 2>nul\r\n".printf(data_dir_win, f);
+            }
+            batch_content += "rd /s /q \"%s\\omemo\" 2>nul\r\n".printf(data_dir_win);
+
+            // Restart dinox.exe AFTER deletion is complete
+            string? exe_path = null;
+            string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+            if (exe_dir != null) {
+                exe_path = Path.build_filename(exe_dir, "dinox.exe");
+            }
+            if (exe_path == null || !FileUtils.test(exe_path, FileTest.EXISTS)) {
+                exe_path = Environment.find_program_in_path("dinox.exe");
+            }
+            if (exe_path != null) {
+                batch_content += "start \"\" \"%s\"\r\n".printf(exe_path.replace("/", "\\"));
+            }
+
+            batch_content += "(goto) 2>nul & del \"%~f0\"\r\n";
+            try {
+                FileUtils.set_contents(batch_path, batch_content);
+                string[] reset_argv = {"cmd.exe", "/c", "start", "/b", "", batch_path};
+                new Subprocess.newv (reset_argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+            } catch (Error e) {
+                warning("Database reset batch failed: %s", e.message);
+            }
+            // Exit directly — the batch file handles restart after deletion
+            Process.exit(0);
+            return false;
+#else
             // Delete the main database file
+            string db_path = Path.build_filename (data_dir, "dino.db");
             FileUtils.unlink( db_path);
             FileUtils.unlink (db_path + "-shm");
             FileUtils.unlink (db_path + "-wal");
@@ -2320,6 +2475,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             } catch (Error err) {
                 // Ignore if doesn't exist
             }
+#endif
 
             // Restart the application
             restart_application( );
@@ -2351,7 +2507,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void confirm_factory_reset () {
@@ -2384,7 +2540,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void perform_factory_reset () {
@@ -2405,6 +2561,43 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 db.close();
             }
 
+#if WINDOWS
+            // On Windows, open files can't be deleted while the process runs.
+            // Use a single batch file: wait for exit → delete everything → restart.
+            string data_dir_win = data_dir.replace("/", "\\");
+            string config_dir_win = config_dir.replace("/", "\\");
+            string cache_dir_win = cache_dir.replace("/", "\\");
+            string batch_path = Path.build_filename(get_native_tmp_dir(), "dinox_factory_reset.bat").replace("/", "\\");
+            string batch_content = "@echo off\r\n";
+            batch_content += "ping 127.0.0.1 -n 3 > nul\r\n";
+            batch_content += "rd /s /q \"%s\" 2>nul\r\n".printf(data_dir_win);
+            batch_content += "rd /s /q \"%s\" 2>nul\r\n".printf(config_dir_win);
+            batch_content += "rd /s /q \"%s\" 2>nul\r\n".printf(cache_dir_win);
+
+            // Restart dinox.exe AFTER deletion is complete
+            string? exe_path = null;
+            string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+            if (exe_dir != null) {
+                exe_path = Path.build_filename(exe_dir, "dinox.exe");
+            }
+            if (exe_path == null || !FileUtils.test(exe_path, FileTest.EXISTS)) {
+                exe_path = Environment.find_program_in_path("dinox.exe");
+            }
+            if (exe_path != null) {
+                batch_content += "start \"\" \"%s\"\r\n".printf(exe_path.replace("/", "\\"));
+            }
+
+            batch_content += "(goto) 2>nul & del \"%~f0\"\r\n";
+            try {
+                FileUtils.set_contents(batch_path, batch_content);
+                string[] reset_argv = {"cmd.exe", "/c", "start", "/b", "", batch_path};
+                new Subprocess.newv (reset_argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+            } catch (Error e) {
+                warning("Factory reset batch failed: %s", e.message);
+            }
+            Process.exit(0);
+            return false;
+#else
             // Delete everything
             try {
                 delete_directory_contents (data_dir);
@@ -2426,6 +2619,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             } catch (Error err) {
                 warning ("Failed to delete cache dir: %s", err.message);
             }
+#endif
 
             // Restart the application
             restart_application( );
@@ -2436,18 +2630,35 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
     private void restart_application () {
         // Get the executable path
         string? exe_path = null;
+#if WINDOWS
+        // On Windows, use DINOX_EXE_DIR (set by main.vala) to find dinox.exe
+        string? exe_dir = Environment.get_variable("DINOX_EXE_DIR");
+        if (exe_dir != null) {
+            exe_path = Path.build_filename(exe_dir, "dinox.exe");
+        }
+        if (exe_path == null || !FileUtils.test(exe_path, FileTest.EXISTS)) {
+            exe_path = Environment.find_program_in_path("dinox.exe");
+        }
+
+        if (exe_path != null) {
+            try {
+                // Use cmd.exe /c start to launch new instance after a short delay
+                string exe_win = exe_path.replace("/", "\\");
+                string[] restart_argv = {"cmd.exe", "/c", "ping 127.0.0.1 -n 2 >nul & start \"\" \"%s\"".printf(exe_win)};
+                new Subprocess.newv (restart_argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
+            } catch (Error err) {
+                warning("Failed to restart: %s", err.message);
+            }
+        }
+#else
         try {
             exe_path = FileUtils.read_link ("/proc/self/exe");
         } catch (Error err) {
-            // Fallback to argv[0]
             warning( "Could not read /proc/self/exe: %s", err.message);
         }
 
-        // First quit the current instance completely, then spawn new one
-        // We use a small delay script to ensure the old process is gone
         if (exe_path != null) {
             try {
-                // Use bash to delay the restart slightly to ensure clean shutdown
                 string restart_cmd = "sleep 0.5 && %s &".printf( Shell.quote( exe_path));
                 string[] spawn_args = { "bash", "-c", restart_cmd };
                 Process.spawn_async (null, spawn_args, null, SpawnFlags.SEARCH_PATH, null, null);
@@ -2455,6 +2666,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
                 warning ("Failed to restart: %s", err.message);
             }
         }
+#endif
 
         // Hard exit to prevent any cleanup that might overwrite restored data
         // This is intentional after backup restore to preserve the restored database
@@ -2553,7 +2765,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             }
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void show_backup_file_chooser (string data_dir, string? password) {
@@ -2616,7 +2828,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
         // No close button during backup
         progress_dialog.set_close_response( "");
 
-        progress_dialog.present (window);
+        present_dialog (progress_dialog, window);
 
         // Capture password for use in thread
         string? backup_password = password;
@@ -2686,16 +2898,9 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
 
             warning("Backup: Starting tar process...");
             try {
-                Process.spawn_sync (
-                    null,
-                    argv,
-                    null,
-                    SpawnFlags.SEARCH_PATH,
-                    null,
-                    out stdout_str,
-                    out stderr_str,
-                    out exit_status
-);
+                Subprocess proc = new Subprocess.newv (argv, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
+                proc.communicate_utf8 ("", null, out stdout_str, out stderr_str);
+                exit_status = proc.get_exit_status ();
                 success = (exit_status == 0);
                 warning("Backup: tar finished with exit code %d", exit_status);
             } catch (Error err) {
@@ -2858,7 +3063,7 @@ public class Dino.Ui.Application : Adw.Application, Dino.Application {
             dialog.close ();
         });
 
-        dialog.present (window);
+        present_dialog (dialog, window);
     }
 
     private void apply_color_scheme (string scheme) {

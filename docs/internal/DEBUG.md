@@ -133,6 +133,39 @@ G_MESSAGES_DEBUG="libdino,xmpp-vala" DINO_LOG_LEVEL=debug ./build/main/dinox 2>&
 - Network monitor online/offline state changes
 - Suspend/resume handling
 
+### CA Certificate Path Resolution
+
+If DinoX fails to connect with TLS errors like "certificate verify failed" or "unknown CA", the CA trust store path is likely wrong. DinoX probes 6 well-known paths at startup and sets `GTLS_SYSTEM_CA_FILE`. To debug:
+
+```bash
+# See which CA path DinoX selected at startup
+G_MESSAGES_DEBUG="dino" DINO_LOG_LEVEL=debug ./build/main/dinox 2>&1 | grep -i "GTLS_SYSTEM_CA_FILE\|system CA"
+```
+
+**Expected output (one of):**
+```
+Set GTLS_SYSTEM_CA_FILE to /etc/ssl/certs/ca-certificates.crt (system CA)
+Set GTLS_SYSTEM_CA_FILE to /etc/ssl/ca-bundle.pem (system CA)
+```
+
+If NO line appears, DinoX found none of the 6 standard paths. Check which path your distro uses:
+```bash
+# Find your CA bundle
+ls -la /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt \
+       /etc/ssl/ca-bundle.pem /var/lib/ca-certificates/ca-bundle.pem \
+       /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/ssl/cert.pem 2>/dev/null
+```
+
+**Manual override:** Force a specific CA bundle:
+```bash
+GTLS_SYSTEM_CA_FILE=/path/to/your/ca-bundle.pem DINO_LOG_LEVEL=debug ./build/main/dinox
+```
+
+**MQTT plugin:** The MQTT plugin (`plugins/mqtt/src/mqtt_client.vala`) performs its own CA probing independently. If XMPP works but MQTT TLS fails, check the MQTT log domain:
+```bash
+G_MESSAGES_DEBUG="mqtt" DINO_LOG_LEVEL=debug ./build/main/dinox 2>&1 | grep -iE "cert|tls|ssl|CA"
+```
+
 ### SASL / SCRAM Authentication
 
 Debug SCRAM mechanism negotiation, channel binding, and downgrade protection:

@@ -23,6 +23,9 @@ docs/internal/KAIDAN_OMEMO_FIX.md
 # Icon backup (personal backup, not project-relevant)
 icon_backup/
 
+# Archived website (offline)
+docs/archive/
+
 # Internal docs (not for public release)
 docs/internal/ejabberd.yaml
 docs/internal/CODING_STANDARDS.md
@@ -40,12 +43,17 @@ docs/internal/TOR_IMPLEMENTATION.md
 docs/internal/DEVELOPMENT_PLAN_BOTFATHER.md
 docs/internal/SIP_DTMF_ANALYSIS.md
 docs/internal/Audit.md
+docs/internal/chatwindow-audit-2026-03-14.md
+docs/internal/AV_BUG_REVIEW_2026-03-18.md
+docs/internal/SOCKS5_TOR_BUG_REVIEW_2026-03-18.md
 docs/internal/GIT_WORKFLOW.md
 docs/internal/TESTING_GAPS.md
 docs/internal/MUJI_GROUP_CALLS_PLAN.md
 docs/internal/MQTT_UI_PLAN.md
 docs/internal/DOMAIN_MIGRATION.md
 docs/internal/VIDEO_PLAYER_IMPLEMENTATION.md
+docs/internal/VIDEO_STOP_BUTTON_BUG.md
+docs/internal/PIPEWIRE_MIGRATION_PLAN.md
 docs/accessibility-pruefprotokoll.md
 
 # Text/log files (except build-system configs)
@@ -96,3 +104,8 @@ RAM_ANALYSE.md
 .venv/
 __pycache__/
 **/__pycache__/
+debug_instructions.md
+MQTT/Node Red Examples/kaputt.png
+AUDIO_VIDEO_SETTINGS_PLAN.md
+SOUND_NOTIFICATION_PLAN.md
+main/data/gresource.gresource

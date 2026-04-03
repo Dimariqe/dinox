@@ -23,9 +23,6 @@ msgid ""
 "device if they are encrypted to its key. Messages are only encrypted to "
 "accepted devices."
 msgstr "Igal seadmel on oma OMEMO võti. Sõnumeid saab seade dekrüpteerida ainult siis, kui need on krüpteeritud selle võtmega. Sõnumid krüpteeritakse ainult aktsepteeritud seadmetele."
-"Igal seadmel on oma OMEMO-võti. Sõnumeid on võimalik dekrüptida vaid "
-"konkreetse sihtvõtme jaoks. Sõnumeid on võimalik krüptida vaid seadmete "
-"jaoks, millega oled nõustunud."
 
 #: plugins/omemo/src/ui/manage_key_dialog.vala:36
 msgid "Manage Key"

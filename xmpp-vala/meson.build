@@ -3,6 +3,7 @@ dependencies = [
     dep_gio,
     dep_glib,
     dep_icu_uc,
+    dep_libgcrypt_core,
     dep_m,
 ]
 sources = files(
@@ -149,6 +150,7 @@ c_args = [
 ]
 vala_args = [
     '--vapidir', meson.current_source_dir() / 'vapi',
+    '--vapidir', meson.project_source_root() / 'crypto-vala' / 'vapi',
 ]
 if meson.get_compiler('vala').version().version_compare('=0.56.11')
     vala_args += ['-D', 'VALA_0_56_11']

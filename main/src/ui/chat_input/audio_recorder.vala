@@ -42,6 +42,7 @@ public class AudioRecorder : GLib.Object {
     public signal void level_changed(double peak);
     public signal void duration_changed(string text);
     public signal void max_duration_reached();
+    public signal void recording_error(string message);
 
     public AudioRecorder() {
     }
@@ -59,8 +60,8 @@ public class AudioRecorder : GLib.Object {
         current_output_path = output_path;
 
         pipeline = new Pipeline("audio-recorder");
-        // Always use autoaudiosrc - auto-detects PipeWire/PulseAudio/ALSA
-        source = ElementFactory.make("autoaudiosrc", "source");
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        source = app.av_device_service.create_audio_source(app.settings.msg_audio_input_device);
         volume = ElementFactory.make("volume", "volume");
         level = ElementFactory.make("level", "level");
         convert = ElementFactory.make("audioconvert", "convert");
@@ -70,12 +71,28 @@ public class AudioRecorder : GLib.Object {
         if (encoder == null) {
             encoder = ElementFactory.make("voaacenc", "encoder");
         }
+        if (encoder == null) {
+            // Windows Media Foundation AAC — available on Windows 10+
+            encoder = ElementFactory.make("mfaacenc", "encoder");
+        }
         parser = ElementFactory.make("aacparse", "parser");
         muxer = ElementFactory.make("mp4mux", "muxer");
         sink = ElementFactory.make("filesink", "sink");
 
         if (source == null || volume == null || level == null || convert == null || resample == null || capsfilter == null || encoder == null || parser == null || muxer == null || sink == null) {
-            throw new Error(Quark.from_string("AudioRecorder"), 0, "Could not create GStreamer elements. Missing plugins? (good/bad/ugly/libav)");
+            string[] missing = {};
+            if (source == null) missing += "audio source";
+            if (volume == null) missing += "volume (gstreamer)";
+            if (level == null) missing += "level (gst-plugins-good)";
+            if (convert == null) missing += "audioconvert (gst-plugins-base)";
+            if (resample == null) missing += "audioresample (gst-plugins-base)";
+            if (capsfilter == null) missing += "capsfilter (gstreamer)";
+            if (encoder == null) missing += "AAC encoder (avenc_aac/voaacenc/mfaacenc)";
+            if (parser == null) missing += "aacparse (gst-plugins-good)";
+            if (muxer == null) missing += "mp4mux (gst-plugins-good)";
+            if (sink == null) missing += "filesink (gstreamer)";
+            throw new Error(Quark.from_string("AudioRecorder"), 0,
+                "Could not create GStreamer elements. Missing: %s".printf(string.joinv(", ", missing)));
         }
 
         // 48kHz mono S16LE -- matches PipeWire native rate, avoids resampling artifacts
@@ -85,9 +102,13 @@ public class AudioRecorder : GLib.Object {
         // Second audioconvert: S16LE (after NS+compressor) → F32LE (for avenc_aac)
         convert2 = ElementFactory.make("audioconvert", "convert2");
 
-        if (encoder.get_factory().get_name() == "avenc_aac" || encoder.get_factory().get_name() == "voaacenc") {
+        string encoder_name = encoder.get_factory().get_name();
+        if (encoder_name == "avenc_aac" || encoder_name == "voaacenc") {
             // 64kbps is decent for mono AAC-LC
             encoder.set("bitrate", 64000);
+        } else if (encoder_name == "mfaacenc") {
+            // mfaacenc: bitrate in bps
+            encoder.set("bitrate", (uint) 64000);
         }
 
         // Start muted - unmute after 400ms to suppress PipeWire transient crackling
@@ -115,6 +136,18 @@ public class AudioRecorder : GLib.Object {
 
         bus = pipeline.get_bus();
         bus_watch_id = bus.add_watch(0, (b, msg) => {
+            if (msg.type == MessageType.ERROR) {
+                Error err;
+                string debug_info;
+                msg.parse_error(out err, out debug_info);
+                warning("AudioRecorder: Pipeline error: %s (%s)", err.message, debug_info ?? "(none)");
+                Idle.add(() => {
+                    cancel_recording();
+                    recording_error(err.message);
+                    return false;
+                });
+                return false;
+            }
             if (msg.type == MessageType.ELEMENT && level != null && msg.src == level) {
                 unowned Gst.Structure structure = msg.get_structure();
                 if (structure != null && structure.has_field("peak")) {
@@ -149,12 +182,18 @@ public class AudioRecorder : GLib.Object {
         is_recording = true;
         start_time = GLib.get_monotonic_time();
 
-        // Unmute after PipeWire transient has passed (400ms)
-        // Volume 1.0 = no software amplification → cleanest signal, system mic gain handles level
+        // Smooth ramp-up after PipeWire/WASAPI2 transient has passed (400ms)
+        // 20 steps × 10ms = 200ms fade-in from 0→1.0 to avoid click/knack
         Timeout.add(400, () => {
-            if (volume != null && is_recording) {
-                volume.set("volume", 1.0);
-            }
+            if (volume == null || !is_recording) return false;
+            int ramp_step = 0;
+            Timeout.add(10, () => {
+                if (volume == null || !is_recording) return false;
+                ramp_step++;
+                double vol = (double) ramp_step / 20.0;
+                volume.set("volume", double.min(vol, 1.0));
+                return ramp_step < 20;
+            });
             return false;
         });
 
@@ -213,10 +252,18 @@ public class AudioRecorder : GLib.Object {
             // 2. Send EOS so mp4mux writes the moov atom
             pipeline.send_event(new Event.eos());
             
-            // 3. Wait for muxer to finalize (max 500ms)
+            // 3. Wait for muxer to finalize (10s — faststart rewrites the entire file)
             if (bus != null) {
-                bus.timed_pop_filtered((Gst.ClockTime)(500 * Gst.MSECOND),
+                var msg = bus.timed_pop_filtered(10 * Gst.SECOND,
                     Gst.MessageType.EOS | Gst.MessageType.ERROR);
+                if (msg == null) {
+                    warning("AudioRecorder: EOS timeout after 10s — MP4 may be incomplete");
+                } else if (msg.type == Gst.MessageType.ERROR) {
+                    Error err;
+                    string dbg;
+                    msg.parse_error(out err, out dbg);
+                    warning("AudioRecorder: Pipeline error during finalization: %s", err.message);
+                }
                 bus = null;
             }
             

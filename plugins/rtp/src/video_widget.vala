@@ -1,6 +1,7 @@
 private static extern unowned Gst.Video.Info gst_video_frame_get_video_info(Gst.Video.Frame frame);
 [CCode (array_length_type = "size_t", type = "void*")]
 private static extern unowned uint8[] gst_video_frame_get_data(Gst.Video.Frame frame);
+private static extern Gst.PadProbeReturn rtp_deep_copy_buffer_probe(Gst.Pad pad, Gst.PadProbeInfo info);
 
 public class Dino.Plugins.Rtp.Paintable : Gdk.Paintable, Object {
     private Gdk.Paintable image;
@@ -38,10 +39,7 @@ public class Dino.Plugins.Rtp.Paintable : Gdk.Paintable, Object {
 
     public void release_texture() {
         frozen = true;
-        if (image != null) {
-            image.dispose();
-            image = null;
-        }
+        image = null;
     }
 
     public void unfreeze() {
@@ -66,7 +64,6 @@ public class Dino.Plugins.Rtp.Paintable : Gdk.Paintable, Object {
                 image.get_intrinsic_height() != paintable.get_intrinsic_height() ||
                 image.get_intrinsic_aspect_ratio() != paintable.get_intrinsic_aspect_ratio();
 
-        if (image != null) this.image.dispose();
         this.image = paintable;
         this.pixel_aspect_ratio = pixel_aspect_ratio;
 
@@ -152,10 +149,19 @@ public class Dino.Plugins.Rtp.Sink : Gst.Video.Sink {
 
         if (frame.map(info, buffer, Gst.MapFlags.READ)) {
             unowned Gst.Video.Info info = gst_video_frame_get_video_info(frame);
-            Bytes bytes = new Bytes.take(gst_video_frame_get_data(frame));
-            texture = new Gdk.MemoryTexture(info.width, info.height, memory_format_from_video(info.finfo.format), bytes, info.stride[0]);
-            pixel_aspect_ratio = ((double) info.par_n) / ((double) info.par_d);
-            frame.unmap();
+            // Copy the data — the pointer belongs to GStreamer's mapped buffer
+            // and must not be passed to Bytes.take() which would g_free() it.
+            unowned uint8[] data = gst_video_frame_get_data(frame);
+            if (data == null || data.length == 0) {
+                // Buffer data is NULL (pipeline shutting down) — skip frame.
+                frame.unmap();
+                texture = null;
+            } else {
+                Bytes bytes = new Bytes(data);
+                texture = new Gdk.MemoryTexture(info.width, info.height, memory_format_from_video(info.finfo.format), bytes, info.stride[0]);
+                pixel_aspect_ratio = ((double) info.par_n) / ((double) info.par_d);
+                frame.unmap();
+            }
         } else {
             texture = null;
         }
@@ -214,7 +220,10 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         this.layout_manager = new Gtk.BinLayout();
 
         id = last_id++;
-        sink = new Sink() { async = false, sync = true };
+        // sync=false: render frames immediately without waiting for
+        // pipeline clock, matching the audio sink behavior (also sync=false)
+        // to avoid A/V desync caused by different processing chain lengths.
+        sink = new Sink() { async = false, sync = false };
         widget = new Gtk.Picture.for_paintable(sink.paintable);
         widget.insert_after(this, null);
         active_widgets++;
@@ -224,7 +233,7 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
 
     public void input_caps_changed(GLib.Object pad, ParamSpec spec) {
         Gst.Caps? caps = ((Gst.Pad)pad).caps;
-        if (caps == null) {
+        if (caps == null || caps.get_size() == 0) {
             debug("Input: No caps");
             return;
         }
@@ -262,17 +271,32 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         plugin.pause();
         pipe.add(sink);
         try {
-            prepare = Gst.parse_bin_from_description(@"videoconvert name=video_widget_$(id)_convert ! capsfilter name=video_widget_$(id)_caps caps=video/x-raw(memory:SystemMemory),format=BGRA", true);
+            prepare = Gst.parse_bin_from_description(@"queue max-size-buffers=2 leaky=downstream name=video_widget_$(id)_queue ! videoconvert name=video_widget_$(id)_convert ! capsfilter name=video_widget_$(id)_caps caps=video/x-raw(memory:SystemMemory),format=BGRA", true);
         } catch (GLib.Error e) {
             warning("Failed to parse video widget prepare bin: %s", e.message);
+            pipe.remove(sink);
+            plugin.unpause();
             return;
         }
         prepare.name = @"video_widget_$(id)_prepare";
+        var queue_elem = ((Gst.Bin) prepare).get_by_name(@"video_widget_$(id)_queue");
+        if (queue_elem != null) {
+            // Deep-copy on the sink (input) pad so DMA-BUF buffers are
+            // converted to system memory immediately on arrival.  Previously
+            // the probe was on the src (output) pad, which left DMA-BUF
+            // buffers sitting in the queue where PipeWire could recycle their
+            // backing memory before the copy → SIGSEGV.
+            queue_elem.get_static_pad("sink").add_probe(Gst.PadProbeType.BUFFER, rtp_deep_copy_buffer_probe);
+        }
         prepare.get_static_pad("sink").notify["caps"].connect(input_caps_changed);
+        prepare.set_locked_state(true);
         pipe.add(prepare);
-        connected_stream.add_output(prepare);
         prepare.link(sink);
+        connected_stream.add_output(prepare);
+        prepare.set_locked_state(false);
+        prepare.sync_state_with_parent();
         sink.set_locked_state(false);
+        sink.sync_state_with_parent();
         plugin.unpause();
         attached = true;
     }
@@ -287,29 +311,31 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         pipe.add(sink);
         try {
 #if GST_1_20
-            prepare = Gst.parse_bin_from_description(@"videoflip video-direction=auto name=video_widget_$(id)_orientation ! videoflip method=horizontal-flip name=video_widget_$(id)_flip ! videoconvert name=video_widget_$(id)_convert ! capsfilter name=video_widget_$(id)_caps caps=video/x-raw(memory:SystemMemory),format=BGRA", true);
+            prepare = Gst.parse_bin_from_description(@"queue max-size-buffers=2 leaky=downstream name=video_widget_$(id)_queue ! videoconvert name=video_widget_$(id)_preconvert ! videoflip video-direction=auto name=video_widget_$(id)_orientation ! videoflip method=horizontal-flip name=video_widget_$(id)_flip ! videoconvert name=video_widget_$(id)_convert ! capsfilter name=video_widget_$(id)_caps caps=video/x-raw(memory:SystemMemory),format=BGRA", true);
 #else
-            prepare = Gst.parse_bin_from_description(@"videoflip method=horizontal-flip name=video_widget_$(id)_flip ! videoconvert name=video_widget_$(id)_convert ! capsfilter name=video_widget_$(id)_caps caps=video/x-raw(memory:SystemMemory),format=BGRA", true);
+            prepare = Gst.parse_bin_from_description(@"queue max-size-buffers=2 leaky=downstream name=video_widget_$(id)_queue ! videoconvert name=video_widget_$(id)_preconvert ! videoflip method=horizontal-flip name=video_widget_$(id)_flip ! videoconvert name=video_widget_$(id)_convert ! capsfilter name=video_widget_$(id)_caps caps=video/x-raw(memory:SystemMemory),format=BGRA", true);
 #endif
         } catch (GLib.Error e) {
             warning("Failed to parse video widget device prepare bin: %s", e.message);
+            pipe.remove(sink);
+            plugin.unpause();
             return;
         }
         prepare.name = @"video_widget_$(id)_prepare";
-#if GST_1_20
-        if (prepare is Gst.Bin) {
-            ((Gst.Bin) prepare).get_by_name(@"video_widget_$(id)_flip").get_static_pad("sink").notify["caps"].connect(input_caps_changed);
-        } else {
-#endif
-            prepare.get_static_pad("sink").notify["caps"].connect(input_caps_changed);
-#if GST_1_20
+        var dev_queue_elem = ((Gst.Bin) prepare).get_by_name(@"video_widget_$(id)_queue");
+        if (dev_queue_elem != null) {
+            dev_queue_elem.get_static_pad("sink").add_probe(Gst.PadProbeType.BUFFER, rtp_deep_copy_buffer_probe);
         }
-#endif
+        prepare.get_static_pad("sink").notify["caps"].connect(input_caps_changed);
+        prepare.set_locked_state(true);
         pipe.add(prepare);
+        prepare.link(sink);
         connected_device_element = connected_device.link_source();
         connected_device_element.link(prepare);
-        prepare.link(sink);
+        prepare.set_locked_state(false);
+        prepare.sync_state_with_parent();
         sink.set_locked_state(false);
+        sink.sync_state_with_parent();
         plugin.unpause();
         attached = true;
     }
@@ -318,13 +344,26 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
         if (sink == null) return;
         if (attached) {
             debug("Detaching");
+            // Freeze the paintable FIRST so no more textures are queued
+            // from the streaming thread.  This prevents a race where a
+            // late texture arrives after the pipeline elements below are
+            // destroyed, leaving a stale reference in GTK's render tree.
+            sink.paintable.release_texture();
+            // THEN: stop the prepare bin so videoconvert finishes its
+            // current frame.  This must happen BEFORE we unlink from the
+            // stream/device, otherwise remove_output flushes the upstream
+            // queue while videoconvert is still doing memcpy → SIGSEGV.
+            if (prepare != null) {
+                prepare.set_locked_state(true);
+                prepare.set_state(Gst.State.NULL);
+            }
             if (connected_stream != null) {
                 connected_stream.remove_output(prepare);
                 connected_stream = null;
             }
             if (connected_device != null) {
                 if (connected_device_element != null) {
-                    connected_device_element.unlink(sink);
+                    connected_device_element.unlink(prepare);
                 }
                 connected_device_element = null;
                 // Only unlink device if pipe still exists; if pipe was
@@ -335,8 +374,6 @@ public class Dino.Plugins.Rtp.VideoWidget : Gtk.Widget, Dino.Plugins.VideoCallWi
                 connected_device = null;
             }
             if (prepare != null) {
-                prepare.set_locked_state(true);
-                prepare.set_state(Gst.State.NULL);
                 if (pipe != null) pipe.remove(prepare);
                 prepare = null;
             }

@@ -48,6 +48,7 @@ public class AudioPlayerWidget : Box {
     private double playback_rate = 1.0;
     private File? temp_play_file = null;
     private int64 saved_position = 0; // saved position for resume after pause
+    private bool _disposed = false;
 
     // Waveform data
     private double[] waveform_bars = {};
@@ -460,6 +461,7 @@ public class AudioPlayerWidget : Box {
             pipeline = null;
         }
         is_playing = false;
+        saved_position = 0;
         play_button.icon_name = "media-playback-start-symbolic";
         playback_progress = 0.0;
         waveform_area.queue_draw();
@@ -548,7 +550,9 @@ public class AudioPlayerWidget : Box {
                 });
 
                 // Safety timeout 30s
+                bool timeout_fired = false;
                 uint timeout_id = Timeout.add(30000, () => {
+                    timeout_fired = true;
                     if (!resolved) {
                         resolved = true;
                         cb();
@@ -558,7 +562,7 @@ public class AudioPlayerWidget : Box {
 
                 yield;
 
-                Source.remove(timeout_id);
+                if (!timeout_fired) Source.remove(timeout_id);
                 if (file_transfer == null) return;
                 file_transfer.disconnect(notify_path_id);
                 file_transfer.disconnect(notify_state_id);
@@ -592,9 +596,11 @@ public class AudioPlayerWidget : Box {
         var play_pipe = new Gst.Pipeline("audio-playback");
         var play_src = ElementFactory.make("uridecodebin", "play-src");
         var play_conv = ElementFactory.make("audioconvert", "play-conv");
-        var play_sink = ElementFactory.make("autoaudiosink", "play-sink");
+        var play_resample = ElementFactory.make("audioresample", "play-resample");
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        var play_sink = app.av_device_service.create_audio_sink(app.settings.msg_audio_output_device);
 
-        if (play_src == null || play_conv == null || play_sink == null) {
+        if (play_src == null || play_conv == null || play_resample == null || play_sink == null) {
             warning("Could not create audio playback pipeline");
             return;
         }
@@ -603,8 +609,9 @@ public class AudioPlayerWidget : Box {
         play_src.set("caps", Caps.from_string("audio/x-raw"));
         play_src.set("uri", file_to_play.get_uri());
 
-        play_pipe.add_many(play_src, play_conv, play_sink);
-        play_conv.link(play_sink);
+        play_pipe.add_many(play_src, play_conv, play_resample, play_sink);
+        play_conv.link(play_resample);
+        play_resample.link(play_sink);
 
         // Dynamic pad linking from uridecodebin
         play_src.pad_added.connect((pad) => {
@@ -630,6 +637,7 @@ public class AudioPlayerWidget : Box {
     }
     
     private bool bus_callback(Gst.Bus bus, Gst.Message msg) {
+        if (_disposed) return false;
         switch (msg.type) {
             case Gst.MessageType.EOS:
                 stop();
@@ -652,10 +660,11 @@ public class AudioPlayerWidget : Box {
     }
     
     private void query_duration() {
-        pipeline.query_duration(Format.TIME, out duration);
+        if (pipeline != null) pipeline.query_duration(Format.TIME, out duration);
     }
     
     private bool update_progress() {
+        if (_disposed) { update_id = 0; return false; }
         if (pipeline != null) {
             int64 position;
             if (pipeline.query_position(Format.TIME, out position)) {
@@ -691,6 +700,7 @@ public class AudioPlayerWidget : Box {
     }
     
     public override void dispose() {
+        _disposed = true;
         stop();
         cleanup_scan();
         file_transfer = null;

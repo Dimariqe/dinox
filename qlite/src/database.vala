@@ -87,6 +87,9 @@ public class Database {
         }
 
         // S4: Restrict file permissions to owner-only (0600) — after potential migration which replaces the file
+        // On Windows, Posix.chmod() is a no-op (MinGW stub). DB files inherit
+        // user-only ACLs from %APPDATA% parent directory, which is sufficient.
+#if !WINDOWS
         Posix.chmod(file_name, Posix.S_IRUSR | Posix.S_IWUSR);
         // Also chmod WAL and SHM files if they exist
         if (FileUtils.test(file_name + "-wal", FileTest.EXISTS)) {
@@ -95,6 +98,7 @@ public class Database {
         if (FileUtils.test(file_name + "-shm", FileTest.EXISTS)) {
             Posix.chmod(file_name + "-shm", Posix.S_IRUSR | Posix.S_IWUSR);
         }
+#endif
 
         this.tables = tables;
         if (debug) db.trace((message) => GLib.debug(@"Qlite trace: $message"));
@@ -175,14 +179,34 @@ public class Database {
         // In Vala, clearing the reference drops the underlying handle.
         db = null;
 
+        // Also remove WAL/SHM files that may hold locks
+        FileUtils.remove(file_name + "-wal");
+        FileUtils.remove(file_name + "-shm");
+
         if (FileUtils.test(file_name, FileTest.EXISTS)) {
             // Rename original away, then move tmp into place.
-            if (FileUtils.rename(file_name, backup_path) != 0) {
-                // Couldn't move original aside.
+            // On Windows, SQLite may briefly hold file locks after handle close.
+            bool renamed = false;
+            for (int retry = 0; retry < 5; retry++) {
+                if (FileUtils.rename(file_name, backup_path) == 0) {
+                    renamed = true;
+                    break;
+                }
+                Thread.usleep(100000);  // 100ms
+            }
+            if (!renamed) {
                 return false;
             }
         }
-        if (FileUtils.rename(tmp_path, file_name) != 0) {
+        bool replaced = false;
+        for (int retry = 0; retry < 5; retry++) {
+            if (FileUtils.rename(tmp_path, file_name) == 0) {
+                replaced = true;
+                break;
+            }
+            Thread.usleep(100000);
+        }
+        if (!replaced) {
             // Restore backup.
             FileUtils.rename(backup_path, file_name);
             return false;

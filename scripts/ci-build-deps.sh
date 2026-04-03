@@ -11,10 +11,11 @@ set -e
 # TODO: Check periodically for newer versions!
 # Current versions (last checked/verified: 2026-03-13):
 #   SQLCipher              4.6.1   https://github.com/sqlcipher/sqlcipher/releases
-#   webrtc-audio-processing v2.1   https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/tags
-#   libnice                0.1.23  https://gitlab.freedesktop.org/libnice/libnice/-/tags
+#   webrtc-audio-processing v2.1   https://github.com/rallep71/dinox/releases/download/vendor-deps/
+#   libnice                0.1.23  https://github.com/rallep71/dinox/releases/download/vendor-deps/
 #   protobuf-c             1.5.2   https://github.com/protobuf-c/protobuf-c/releases
 #   libomemo-c             (fork)  https://github.com/rallep71/libomemo-c
+#   cJSON                  1.7.18  https://github.com/DaveGamble/cJSON/releases
 #   mosquitto              2.1.2   https://mosquitto.org/download/
 #   lyrebird               0.8.1   https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird
 #
@@ -134,8 +135,8 @@ echo "SQLCipher $(sqlcipher :memory: 'select sqlite_version();' 2>/dev/null) wit
 
 # 2. webrtc-audio-processing
 echo "Building webrtc-audio-processing..."
-WEBRTC_VER=master
-wget -O "webrtc-audio-processing-${WEBRTC_VER}.tar.gz" "https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/archive/${WEBRTC_VER}/webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
+WEBRTC_VER=2.1
+wget -O "webrtc-audio-processing-${WEBRTC_VER}.tar.gz" "https://github.com/rallep71/dinox/releases/download/vendor-deps/webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
 tar xf "webrtc-audio-processing-${WEBRTC_VER}.tar.gz"
 cd "webrtc-audio-processing-${WEBRTC_VER}"
 # Fix for abseil-cpp >= 20250814: removed deprecated Nullability template aliases.
@@ -145,6 +146,13 @@ if [[ "$ABSEIL_VER" > "20250813" ]]; then
     echo "Detected abseil-cpp $ABSEIL_VER >= 20250814, applying nullability patch..."
     patch -p1 < "${OLDPWD}/scripts/patches/webrtc-audio-processing-v2.1-remove-abseil-nullability.patch"
 fi
+# Fix for GCC 13+: missing #include <cstdint> in two headers
+for hdr in webrtc/rtc_base/trace_event.h webrtc/modules/audio_processing/aec3/multi_channel_content_detector.h; do
+    if [ -f "$hdr" ] && ! grep -q '#include <cstdint>' "$hdr"; then
+        echo "Patching $hdr: adding #include <cstdint> for GCC 13+ compatibility..."
+        sed -i '1s|^|#include <cstdint>\n|' "$hdr"
+    fi
+done
 meson setup build --prefix=/usr $MESON_OPTS
 ninja -C build $NINJA_ARGS
 $SUDO ninja -C build install
@@ -155,7 +163,7 @@ rm -rf "webrtc-audio-processing-${WEBRTC_VER}" "webrtc-audio-processing-${WEBRTC
 # 3. libnice
 echo "Building libnice..."
 LIBNICE_VER=0.1.23
-wget -O "libnice-${LIBNICE_VER}.tar.gz" "https://gitlab.freedesktop.org/libnice/libnice/-/archive/${LIBNICE_VER}/libnice-${LIBNICE_VER}.tar.gz"
+wget -O "libnice-${LIBNICE_VER}.tar.gz" "https://github.com/rallep71/dinox/releases/download/vendor-deps/libnice-${LIBNICE_VER}.tar.gz"
 tar xf "libnice-${LIBNICE_VER}.tar.gz"
 cd "libnice-${LIBNICE_VER}"
 meson setup build --prefix=/usr -Dtests=disabled -Dgtk_doc=disabled $MESON_OPTS
@@ -189,14 +197,34 @@ cd libomemo-c
 sed -i 's/cmake_minimum_required(VERSION [0-9.]*)/cmake_minimum_required(VERSION 3.5)/' CMakeLists.txt
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
 make $MAKE_ARGS
 $SUDO make install
 $SUDO ldconfig
 cd ../..
 rm -rf libomemo-c
 
-# 6. mosquitto (client library only — no broker, no CLI tools)
+# 6. cJSON (needed by mosquitto's libcommon even with -DWITH_BROKER=OFF)
+echo "Building cJSON..."
+CJSON_VER=1.7.18
+wget -q -O "cJSON-${CJSON_VER}.tar.gz" "https://github.com/DaveGamble/cJSON/archive/v${CJSON_VER}.tar.gz"
+tar xf "cJSON-${CJSON_VER}.tar.gz"
+cd "cJSON-${CJSON_VER}"
+cmake -DCMAKE_INSTALL_PREFIX=/usr \
+      -DENABLE_CJSON_TEST=OFF \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_INSTALL_LIBDIR=lib \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      .
+make $MAKE_ARGS
+$SUDO make install
+$SUDO ldconfig
+cd ..
+rm -rf "cJSON-${CJSON_VER}" "cJSON-${CJSON_VER}.tar.gz"
+echo "cJSON ${CJSON_VER} installed."
+
+# 7. mosquitto (client library only — no broker, no CLI tools)
 # Ubuntu 24.04 ships 2.0.18; build 2.1.2 for latest security & protocol fixes.
 echo "Building mosquitto..."
 MOSQUITTO_VER=2.1.2
@@ -211,6 +239,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr \
       -DWITH_TESTS=OFF \
       -DWITH_DOCS=OFF \
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
       .
 make $MAKE_ARGS
 $SUDO make install
@@ -219,7 +248,7 @@ cd ..
 rm -rf "mosquitto-${MOSQUITTO_VER}" "mosquitto-${MOSQUITTO_VER}.tar.gz"
 echo "mosquitto $(pkg-config --modversion libmosquitto 2>/dev/null || echo '?') installed."
 
-# 7. lyrebird (pluggable transport for Tor: obfs4 + WebTunnel)
+# 8. lyrebird (pluggable transport for Tor: obfs4 + WebTunnel)
 # Replaces obfs4proxy. Requires Go >= 1.22.
 if ! command -v go &>/dev/null; then
     echo "ERROR: 'go' not found. Install golang-go >= 1.22 for lyrebird build."
@@ -229,14 +258,31 @@ echo "Building lyrebird..."
 LYREBIRD_VER=0.8.1
 LYREBIRD_TAG="lyrebird-${LYREBIRD_VER}"
 LYREBIRD_PROJECT_ID=417
-wget -q -O "lyrebird-${LYREBIRD_VER}.tar.gz" \
-    "https://gitlab.torproject.org/api/v4/projects/${LYREBIRD_PROJECT_ID}/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
-tar xf "lyrebird-${LYREBIRD_VER}.tar.gz"
+LYREBIRD_URL="https://gitlab.torproject.org/api/v4/projects/${LYREBIRD_PROJECT_ID}/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
+LYREBIRD_FILE="lyrebird-${LYREBIRD_VER}.tar.gz"
+
+for attempt in 1 2 3; do
+    echo "Download attempt ${attempt}/3 ..."
+    wget -q --tries=3 --waitretry=5 -O "${LYREBIRD_FILE}" "${LYREBIRD_URL}"
+    if file "${LYREBIRD_FILE}" | grep -qi 'gzip'; then
+        echo "✓ Valid gzip archive"
+        break
+    fi
+    echo "⚠ Downloaded file is not a valid gzip archive (attempt ${attempt})"
+    rm -f "${LYREBIRD_FILE}"
+    if [[ ${attempt} -eq 3 ]]; then
+        echo "✗ All download attempts failed"
+        exit 1
+    fi
+    sleep 10
+done
+
+tar xf "${LYREBIRD_FILE}"
 cd lyrebird-${LYREBIRD_TAG}-*
 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird ./cmd/lyrebird
 $SUDO install -m 755 lyrebird /usr/local/bin/lyrebird
 cd ..
-rm -rf lyrebird-${LYREBIRD_TAG}-* "lyrebird-${LYREBIRD_VER}.tar.gz"
+rm -rf lyrebird-${LYREBIRD_TAG}-* "${LYREBIRD_FILE}"
 echo "lyrebird $(lyrebird --version 2>&1 | head -1) installed."
 
 echo "Dependencies built and installed."

@@ -35,6 +35,17 @@ public class HttpFileSender : FileSender, Object {
         session.abort();
     }
 
+    private void apply_account_proxy(Account account) {
+        string? uri = Dino.build_socks5_proxy_uri(account);
+        if (uri != null) {
+            session.proxy_resolver = new SimpleProxyResolver(uri, null);
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "http-upload: proxy set to %s for account %s", uri, account.bare_jid.to_string());
+        } else {
+            session.proxy_resolver = ProxyResolver.get_default();
+            GLib.log("dino-proxy", GLib.LogLevelFlags.LEVEL_DEBUG, "http-upload: direct connection for account %s", account.bare_jid.to_string());
+        }
+    }
+
     private async void ensure_soup_context() {
         // `get_thread_default()` may be null even while running on the default main
         // context. `MainContext.invoke()` may execute callbacks immediately in some
@@ -208,7 +219,7 @@ public class HttpFileSender : FileSender, Object {
                         
                         var fm = file_transfer.file_metadata;
                         debug("http-files: SFS metadata for ESFS: name=%s size=%lld mime=%s hashes=%d width=%d height=%d",
-                              fm.name ?? "(null)", (long) fm.size, fm.mime_type ?? "(null)",
+                              fm.name ?? "(null)", (int64) fm.size, fm.mime_type ?? "(null)",
                               fm.hashes.size, fm.width, fm.height);
                         foreach (var h in fm.hashes) {
                             debug("http-files: SFS hash algo=%s val=%s", h.algo, h.val);
@@ -286,6 +297,7 @@ public class HttpFileSender : FileSender, Object {
         if (stream == null) return;
 
         yield ensure_soup_context();
+        apply_account_proxy(file_transfer.account);
 
         /* Validate upload URL before passing to libsoup — Soup.Message()
          * returns null for unparseable URIs, causing a crash. */
@@ -342,7 +354,7 @@ public class HttpFileSender : FileSender, Object {
             put_message.request_headers.append(entry.key, entry.value);
         }
         try {
-            debug("http-files: uploading via PUT %s (%lld bytes)", sanitize_url_for_log(file_send_data.url_up), (long) upload_size);
+            debug("http-files: uploading via PUT %s (%lld bytes)", sanitize_url_for_log(file_send_data.url_up), (int64) upload_size);
 #if SOUP_3_0
             yield session.send_async(put_message, GLib.Priority.LOW, file_transfer.cancellable);
 #else

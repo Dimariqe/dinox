@@ -1,4 +1,4 @@
-project('Dino', 'c', 'cpp', 'vala', version: '1.1.4.7', license: 'GPL-3.0', meson_version: '>=1.3.0')
+project('Dino', 'c', 'cpp', 'vala', version: '1.1.7.6', license: 'GPL-3.0', meson_version: '>=1.3.0')
 
 # Security Hardening Flags
 add_project_arguments(
@@ -6,6 +6,11 @@ add_project_arguments(
   '-D_FORTIFY_SOURCE=2',
   '-Wformat',
   '-Werror=format-security',
+  # Suppress harmless warnings from Vala-generated C code
+  '-Wno-unused-variable',
+  '-Wno-unused-but-set-variable',
+  '-Wno-address',
+  '-Wno-discarded-qualifiers',
   language: 'c'
 )
 add_project_arguments(
@@ -75,6 +80,7 @@ else
     dep_libcanberra = dependency('libcanberra', disabler: true, required: get_option('plugin-notification-sound'))
 endif
 dep_libgcrypt = dependency('libgcrypt', disabler: true, required: plugin_crypto)
+dep_libgcrypt_core = dependency('libgcrypt')  # Non-disabling: CSPRNG is always required
 dep_libqrencode = dependency('libqrencode', disabler: true, required: get_option('plugin-omemo'))
 dep_libsrtp2 = dependency('libsrtp2', disabler: true, required: plugin_crypto)
 dep_libomemo_c = dependency('libomemo-c', disabler: true, required: get_option('plugin-omemo'))

@@ -7,9 +7,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-12 08:28+0100\n"
+"POT-Creation-Date: 2026-03-19 03:29+0100\n"
 "PO-Revision-Date: 2025-03-25 14:09+0000\n"
-"Language-Team: French <https://hosted.weblate.org/projects/dino/translations/fr/>\n"
+"Language-Team: French <https://hosted.weblate.org/projects/dino/translations/"
+"fr/>\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -30,8 +31,9 @@ msgid "Use account:"
 msgstr "Utiliser le compte :"
 
 #: main/data/add_conversation/select_jid_fragment.ui:38
-msgid "Search or enter channel address..."
-msgstr "Rechercher ou entrer l'adresse du canal..."
+#, fuzzy
+msgid "Search or enter group address..."
+msgstr "Rechercher ou entrer l'adresse du contact..."
 
 #: main/data/add_conversation/select_jid_fragment.ui:85
 #: main/src/ui/add_conversation/select_jid_fragment.vala:276
@@ -42,22 +44,22 @@ msgstr "Ajouter un groupe"
 msgid "Delete Group"
 msgstr "Supprimer le groupe"
 
-#: main/data/call_widget.ui:73 main/src/ui/notifier_freedesktop.vala:125
-#: main/src/ui/notifier_freedesktop.vala:232
+#: main/data/call_widget.ui:73 main/src/ui/notifier_freedesktop.vala:132
+#: main/src/ui/notifier_freedesktop.vala:243
 #: main/src/ui/notifier_gnotifications.vala:82
 msgid "Reject"
 msgstr "Rejeter"
 
 #: main/data/call_widget.ui:81
 #: main/src/ui/conversation_content_view/subscription_notification.vala:80
-#: main/src/ui/notifier_freedesktop.vala:125
-#: main/src/ui/notifier_freedesktop.vala:166
-#: main/src/ui/notifier_freedesktop.vala:232
-#: main/src/ui/notifier_freedesktop.vala:266
+#: main/src/ui/notifier_freedesktop.vala:132
+#: main/src/ui/notifier_freedesktop.vala:173
+#: main/src/ui/notifier_freedesktop.vala:243
+#: main/src/ui/notifier_freedesktop.vala:277
 #: main/src/ui/notifier_gnotifications.vala:83
 #: main/src/ui/notifier_gnotifications.vala:101
-#: main/src/ui/notifier_gnotifications.vala:141
-#: main/src/ui/notifier_gnotifications.vala:159
+#: main/src/ui/notifier_gnotifications.vala:145
+#: main/src/ui/notifier_gnotifications.vala:163
 msgid "Accept"
 msgstr "Accepter"
 
@@ -65,7 +67,7 @@ msgstr "Accepter"
 msgid "Send File…"
 msgstr "Envoyer un fichier…"
 
-#: main/data/chat_input.ui:25
+#: main/data/chat_input.ui:25 main/src/ui/conversation_view_controller.vala:441
 msgid "Send Location"
 msgstr "Envoyer la position"
 
@@ -84,7 +86,7 @@ msgid "Send message"
 msgstr "Envoyer le message"
 
 #: main/data/conversation_details.ui:176
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:671
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:680
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:182
 msgid "Remove Contact"
 msgstr "Supprimer le contact"
@@ -125,9 +127,10 @@ msgstr "Commencer une discussion"
 #: main/data/gtk/help-overlay.ui:20 main/data/main_window.ui:52
 #: main/data/menu_add.ui:11
 #: main/src/ui/add_conversation/add_conference_dialog.vala:25
-#: main/src/ui/application.vala:2464 main/src/ui/main_window.vala:175
-msgid "Join Channel"
-msgstr "Rejoindre un salon"
+#: main/src/ui/application.vala:2552 main/src/ui/main_window.vala:175
+#, fuzzy
+msgid "Join Group"
+msgstr "3. Rejoindre un salon de groupe"
 
 #: main/data/gtk/help-overlay.ui:26
 msgid "Show preferences"
@@ -137,32 +140,36 @@ msgstr "Afficher les préférences"
 msgid "Keyboard shortcuts"
 msgstr "Raccourcis clavier"
 
-#: main/data/gtk/help-overlay.ui:39
+#: main/data/gtk/help-overlay.ui:38 main/data/menu_app.ui:19
+msgid "Panic Wipe"
+msgstr "Effacement d'urgence"
+
+#: main/data/gtk/help-overlay.ui:45
 msgid "Conversation"
 msgstr "Discussion"
 
-#: main/data/gtk/help-overlay.ui:43
+#: main/data/gtk/help-overlay.ui:49
 #: main/src/ui/conversation_titlebar/search_entry.vala:12
 msgid "Search messages"
 msgstr "Rechercher dans les messages"
 
-#: main/data/gtk/help-overlay.ui:49 main/src/ui/chat_input/view.vala:72
+#: main/data/gtk/help-overlay.ui:55 main/src/ui/chat_input/view.vala:78
 msgid "Send a file"
 msgstr "Envoyer un fichier"
 
-#: main/data/gtk/help-overlay.ui:55
+#: main/data/gtk/help-overlay.ui:61
 msgid "Close conversation"
 msgstr "Fermer la conversation"
 
-#: main/data/gtk/help-overlay.ui:62
+#: main/data/gtk/help-overlay.ui:68
 msgid "Navigation"
 msgstr "Navigation"
 
-#: main/data/gtk/help-overlay.ui:66
+#: main/data/gtk/help-overlay.ui:72
 msgid "Jump to next conversation"
 msgstr "Aller à la discussion suivante"
 
-#: main/data/gtk/help-overlay.ui:72
+#: main/data/gtk/help-overlay.ui:78
 msgid "Jump to previous conversation"
 msgstr "Revenir à la discussion précédente"
 
@@ -182,21 +189,17 @@ msgstr "Préférences"
 msgid "Keyboard Shortcuts"
 msgstr "Raccourcis clavier"
 
-#: main/data/menu_app.ui:15 main/src/ui/application.vala:1315
+#: main/data/menu_app.ui:15 main/src/ui/application.vala:1387
 msgid "About DinoX"
 msgstr "À propos de DinoX"
-
-#: main/data/menu_app.ui:19
-msgid "Panic Wipe"
-msgstr "Effacement d'urgence"
 
 #: main/data/menu_conversation.ui:7
 msgid "Contact Details"
 msgstr "Informations du contact"
 
 #: main/data/menu_conversation.ui:13
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:594
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:668
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:603
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:677
 #: main/src/ui/conversation_titlebar/menu_entry.vala:66
 msgid "Delete Conversation History"
 msgstr "Supprimer l'historique des conversations"
@@ -205,36 +208,37 @@ msgstr "Supprimer l'historique des conversations"
 #: main/data/preferences_window/change_password_dialog.ui:18
 #: main/src/ui/add_conversation/add_conference_dialog.vala:44
 #: main/src/ui/add_conversation/select_contact_dialog.vala:43
-#: main/src/ui/application.vala:1162 main/src/ui/application.vala:1245
-#: main/src/ui/application.vala:1416 main/src/ui/application.vala:1444
-#: main/src/ui/application.vala:1795 main/src/ui/application.vala:1897
-#: main/src/ui/application.vala:1970 main/src/ui/application.vala:2002
-#: main/src/ui/application.vala:2144 main/src/ui/application.vala:2475
+#: main/src/ui/application.vala:1234 main/src/ui/application.vala:1317
+#: main/src/ui/application.vala:1488 main/src/ui/application.vala:1516
+#: main/src/ui/application.vala:1845 main/src/ui/application.vala:1947
+#: main/src/ui/application.vala:2047 main/src/ui/application.vala:2079
+#: main/src/ui/application.vala:2239 main/src/ui/application.vala:2563
 #: main/src/ui/conversation_content_view/file_default_widget.vala:94
-#: main/src/ui/conversation_content_view/item_actions.vala:165
-#: main/src/ui/conversation_content_view/item_actions.vala:168
+#: main/src/ui/conversation_content_view/item_actions.vala:148
+#: main/src/ui/conversation_content_view/item_actions.vala:151
 #: main/src/ui/conversation_details.vala:339
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:761
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:788
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:807
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:832
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:851
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:872
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:921
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:770
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:797
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:816
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:841
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:860
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:881
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:930
 #: main/src/ui/conversation_titlebar/call_entry.vala:95
-#: main/src/ui/util/helper.vala:520
+#: main/src/ui/conversation_view_controller.vala:423
+#: main/src/ui/conversation_view_controller.vala:473
+#: main/src/ui/util/helper.vala:534
 #: main/src/windows/conversation_details.vala:62
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:120
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:135
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:484
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:126
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:141
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:569
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:212
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:232
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:256
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:276
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:298
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:339
-#: plugins/tor-manager/src/settings_page.vala:288
-#: plugins/tor-manager/src/settings_page.vala:370
+#: plugins/tor-manager/src/settings_page.vala:301
 msgid "Cancel"
 msgstr "Annuler"
 
@@ -252,8 +256,8 @@ msgid "Local alias"
 msgstr "Alias local"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:82
-#: main/src/ui/application.vala:497 main/src/ui/application.vala:634
-#: main/src/ui/application.vala:1410 main/src/ui/application.vala:2119
+#: main/src/ui/application.vala:678 main/src/ui/application.vala:760
+#: main/src/ui/application.vala:1482 main/src/ui/application.vala:2214
 #: main/src/ui/util/data_forms.vala:63 plugins/mqtt/src/settings_page.vala:206
 msgid "Password"
 msgstr "Mot de passe"
@@ -358,7 +362,6 @@ msgid "Other"
 msgstr "Autre"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:215
-#: main/data/preferences_window/account_preferences_subpage.ui:327
 #: main/src/ui/chat_input/sticker_chooser.vala:401
 #: main/src/ui/chat_input/sticker_chooser.vala:461
 #: main/src/ui/chat_input/sticker_chooser.vala:466
@@ -381,7 +384,7 @@ msgstr "Adresse"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:231
 msgid "Street"
-msgstr ""
+msgstr "Rue"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:236
 msgid "Postal Code"
@@ -389,16 +392,15 @@ msgstr "Code postal"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:241
 msgid "City"
-msgstr ""
+msgstr "Ville"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:246
-#, fuzzy
 msgid "Region"
-msgstr "S’inscrire sur %s"
+msgstr "Région"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:251
 msgid "Country"
-msgstr ""
+msgstr "Pays"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:258
 #: main/src/ui/conversation_details.vala:638
@@ -460,32 +462,16 @@ msgid "Server Hostname"
 msgstr "Nom d'hôte du serveur"
 
 #: main/data/preferences_window/account_preferences_subpage.ui:323
-msgid "Proxy Type"
-msgstr "Type de proxy"
-
-#: main/data/preferences_window/account_preferences_subpage.ui:328
-msgid "SOCKS5"
-msgstr "SOCKS5"
-
-#: main/data/preferences_window/account_preferences_subpage.ui:336
-msgid "Proxy Hostname"
-msgstr "Nom d'hôte du proxy"
-
-#: main/data/preferences_window/account_preferences_subpage.ui:342
-msgid "Proxy Port"
-msgstr "Port du proxy"
-
-#: main/data/preferences_window/account_preferences_subpage.ui:347
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:333
 #: plugins/mqtt/src/settings_page.vala:159
 msgid "Port"
 msgstr "Port"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:352
+#: main/data/preferences_window/account_preferences_subpage.ui:328
 msgid "MITM Protection"
 msgstr "Protection MITM"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:353
+#: main/data/preferences_window/account_preferences_subpage.ui:329
 msgid ""
 "Require channel binding (SCRAM-*-PLUS). Rejects login if server does not "
 "support it."
@@ -493,28 +479,64 @@ msgstr ""
 "Exiger le channel binding (SCRAM-*-PLUS). Refuse la connexion si le serveur "
 "ne le supporte pas."
 
-#: main/data/preferences_window/account_preferences_subpage.ui:360
-#: main/data/preferences_window/general_preferences_page.ui:86
+#: main/data/preferences_window/account_preferences_subpage.ui:336
+#, fuzzy
+msgid "SOCKS5 Proxy"
+msgstr "SOCKS5"
+
+#: main/data/preferences_window/account_preferences_subpage.ui:339
+msgid "Enable SOCKS5 Proxy"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:344
+msgid "Proxy Hostname"
+msgstr "Nom d'hôte du proxy"
+
+#: main/data/preferences_window/account_preferences_subpage.ui:349
+msgid "Proxy Port"
+msgstr "Port du proxy"
+
+#: main/data/preferences_window/account_preferences_subpage.ui:354
+msgid "Proxy Username (optional)"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:359
+msgid "Proxy Password (optional)"
+msgstr ""
+
+#: main/data/preferences_window/account_preferences_subpage.ui:364
+#, fuzzy
+msgid "Proxy Status"
+msgstr "Statut"
+
+#: main/data/preferences_window/account_preferences_subpage.ui:365
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:347
+#, fuzzy
+msgid "Not configured"
+msgstr "(Pas encore configuré)"
+
+#: main/data/preferences_window/account_preferences_subpage.ui:372
+#: main/data/preferences_window/general_preferences_page.ui:93
 msgid "Botmother"
 msgstr "Botmother"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:363
+#: main/data/preferences_window/account_preferences_subpage.ui:375
 msgid "Manage Botmothers"
 msgstr "Gérer les Botmothers"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:364
+#: main/data/preferences_window/account_preferences_subpage.ui:376
 msgid "Create, configure and delete Botmothers for this account"
 msgstr "Créer, configurer et supprimer des Botmothers pour ce compte"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:377
+#: main/data/preferences_window/account_preferences_subpage.ui:389
 msgid "MQTT Bot (Account)"
 msgstr "Bot MQTT (Compte)"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:380
+#: main/data/preferences_window/account_preferences_subpage.ui:392
 msgid "Manage Account MQTT Bot"
 msgstr "Gérer le bot MQTT du compte"
 
-#: main/data/preferences_window/account_preferences_subpage.ui:381
+#: main/data/preferences_window/account_preferences_subpage.ui:393
 msgid ""
 "Topics, Publish Presets, Alerts and Bridges for this account's MQTT "
 "connection (separate from Standalone MQTT)"
@@ -582,152 +604,158 @@ msgstr "_Thème de couleur"
 msgid "Choose between light and dark appearance"
 msgstr "Choisir entre l'apparence claire et sombre"
 
-#: main/data/preferences_window/general_preferences_page.ui:62
+#: main/data/preferences_window/general_preferences_page.ui:58
+msgid "_Language"
+msgstr "Langue"
+
+#: main/data/preferences_window/general_preferences_page.ui:59
+#: main/src/windows/preferences_window/general_preferences_page.vala:296
+msgid "Override the system language for the DinoX interface"
+msgstr "Remplacer la langue du système pour l'interface DinoX"
+
+#: main/data/preferences_window/general_preferences_page.ui:69
 msgid "_Convert Smileys to Emoji"
 msgstr "_Convertir les smileys en emoji"
 
-#: main/data/preferences_window/general_preferences_page.ui:70
+#: main/data/preferences_window/general_preferences_page.ui:77
 #: main/src/ui/chat_input/view.vala:57
 msgid "Stickers"
 msgstr "Autocollants"
 
-#: main/data/preferences_window/general_preferences_page.ui:73
+#: main/data/preferences_window/general_preferences_page.ui:80
 msgid "Enable Stickers"
 msgstr "Activer les autocollants"
 
-#: main/data/preferences_window/general_preferences_page.ui:78
+#: main/data/preferences_window/general_preferences_page.ui:85
 msgid "Enable Sticker Animations"
 msgstr "Activer les animations d'autocollants"
 
-#: main/data/preferences_window/general_preferences_page.ui:79
+#: main/data/preferences_window/general_preferences_page.ui:86
 msgid "Disable to reduce flashing/flickering"
 msgstr "Désactiver pour réduire le clignotement"
 
-#: main/data/preferences_window/general_preferences_page.ui:89
+#: main/data/preferences_window/general_preferences_page.ui:96
 msgid "Enable Botmother"
 msgstr "Activer Botmother"
 
-#: main/data/preferences_window/general_preferences_page.ui:90
+#: main/data/preferences_window/general_preferences_page.ui:97
 msgid "Start the local Botmother API server for managing XMPP bots"
 msgstr "Démarrer le serveur API Botmother local pour gérer les bots XMPP"
 
-#: main/data/preferences_window/general_preferences_page.ui:95
+#: main/data/preferences_window/general_preferences_page.ui:102
 msgid "API Server Mode"
 msgstr "Mode du serveur API"
 
-#: main/data/preferences_window/general_preferences_page.ui:96
+#: main/data/preferences_window/general_preferences_page.ui:103
 msgid "Local: localhost only. Network: all interfaces with TLS (HTTPS)"
 msgstr ""
-"Local : localhost uniquement. Réseau : toutes les interfaces avec TLS "
-"(HTTPS)"
+"Local : localhost uniquement. Réseau : toutes les interfaces avec TLS (HTTPS)"
 
-#: main/data/preferences_window/general_preferences_page.ui:101
+#: main/data/preferences_window/general_preferences_page.ui:108
 msgid "API Port"
 msgstr "Port API"
 
-#: main/data/preferences_window/general_preferences_page.ui:102
+#: main/data/preferences_window/general_preferences_page.ui:109
 msgid "Port for the HTTP(S) API server"
 msgstr "Port du serveur API HTTP(S)"
 
-#: main/data/preferences_window/general_preferences_page.ui:115
+#: main/data/preferences_window/general_preferences_page.ui:122
 msgid "TLS Certificate (PEM)"
 msgstr "Certificat TLS (PEM)"
 
-#: main/data/preferences_window/general_preferences_page.ui:121
+#: main/data/preferences_window/general_preferences_page.ui:128
 msgid "TLS Private Key (PEM)"
 msgstr "Clé privée TLS (PEM)"
 
-#: main/data/preferences_window/general_preferences_page.ui:127
+#: main/data/preferences_window/general_preferences_page.ui:134
 msgid "Renew Self-Signed Certificate"
 msgstr "Renouveler le certificat auto-signé"
 
-#: main/data/preferences_window/general_preferences_page.ui:128
+#: main/data/preferences_window/general_preferences_page.ui:135
 msgid "Delete current certificate. A new one will be generated on next start."
 msgstr ""
-"Supprimer le certificat actuel. Un nouveau sera généré au prochain "
-"démarrage."
+"Supprimer le certificat actuel. Un nouveau sera généré au prochain démarrage."
 
-#: main/data/preferences_window/general_preferences_page.ui:139
+#: main/data/preferences_window/general_preferences_page.ui:146
 msgid "Delete Certificate"
 msgstr "Supprimer le certificat"
 
-#: main/data/preferences_window/general_preferences_page.ui:140
+#: main/data/preferences_window/general_preferences_page.ui:147
 msgid "Remove the self-signed certificate and private key"
 msgstr "Supprimer le certificat auto-signé et la clé privée"
 
-#: main/data/preferences_window/general_preferences_page.ui:156
+#: main/data/preferences_window/general_preferences_page.ui:163
 msgid "User Data"
 msgstr "Données utilisateur"
 
-#: main/data/preferences_window/general_preferences_page.ui:159
+#: main/data/preferences_window/general_preferences_page.ui:166
 msgid "Backup User Data"
 msgstr "Sauvegarder les données"
 
-#: main/data/preferences_window/general_preferences_page.ui:160
+#: main/data/preferences_window/general_preferences_page.ui:167
 msgid "Create a backup of your accounts, messages and settings"
 msgstr "Créer une sauvegarde de vos comptes, messages et paramètres"
 
-#: main/data/preferences_window/general_preferences_page.ui:171
-#: main/src/ui/application.vala:1439 main/src/ui/main_window.vala:253
+#: main/data/preferences_window/general_preferences_page.ui:178
+#: main/src/ui/application.vala:1511 main/src/ui/main_window.vala:253
 msgid "Restore from Backup"
 msgstr "Restaurer depuis une sauvegarde"
 
-#: main/data/preferences_window/general_preferences_page.ui:172
+#: main/data/preferences_window/general_preferences_page.ui:179
 msgid "Restore accounts, messages and settings from a backup file"
 msgstr ""
-"Restaurer les comptes, messages et paramètres depuis un fichier de "
-"sauvegarde"
+"Restaurer les comptes, messages et paramètres depuis un fichier de sauvegarde"
 
-#: main/data/preferences_window/general_preferences_page.ui:183
+#: main/data/preferences_window/general_preferences_page.ui:190
 msgid "Data Storage Location"
 msgstr "Emplacement des données"
 
-#: main/data/preferences_window/general_preferences_page.ui:184
+#: main/data/preferences_window/general_preferences_page.ui:191
 msgid "View where your data is stored"
 msgstr "Voir où vos données sont stockées"
 
-#: main/data/preferences_window/general_preferences_page.ui:197
+#: main/data/preferences_window/general_preferences_page.ui:204
 msgid "Database Maintenance"
 msgstr "Maintenance de la base de données"
 
-#: main/data/preferences_window/general_preferences_page.ui:200
-#: main/src/ui/application.vala:1241
+#: main/data/preferences_window/general_preferences_page.ui:207
+#: main/src/ui/application.vala:1313
 msgid "Change Database Password"
 msgstr "Changer le mot de passe de la base de données"
 
-#: main/data/preferences_window/general_preferences_page.ui:201
+#: main/data/preferences_window/general_preferences_page.ui:208
 msgid "Change the password used to encrypt your local data"
 msgstr "Modifier le mot de passe utilisé pour chiffrer vos données locales"
 
-#: main/data/preferences_window/general_preferences_page.ui:212
-#: main/src/ui/application.vala:1791 main/src/ui/application.vala:1796
+#: main/data/preferences_window/general_preferences_page.ui:219
+#: main/src/ui/application.vala:1841 main/src/ui/application.vala:1846
 msgid "Clear Cache"
 msgstr "Vider le cache"
 
-#: main/data/preferences_window/general_preferences_page.ui:213
+#: main/data/preferences_window/general_preferences_page.ui:220
 msgid "Clear cached files, avatars and previews"
 msgstr "Supprimer les fichiers, avatars et aperçus en cache"
 
-#: main/data/preferences_window/general_preferences_page.ui:224
-#: main/src/ui/application.vala:1892 main/src/ui/application.vala:1898
+#: main/data/preferences_window/general_preferences_page.ui:231
+#: main/src/ui/application.vala:1942 main/src/ui/application.vala:1948
 msgid "Reset Database"
 msgstr "Réinitialiser la base de données"
 
-#: main/data/preferences_window/general_preferences_page.ui:225
+#: main/data/preferences_window/general_preferences_page.ui:232
 msgid "Delete all messages, files and OMEMO keys. Your accounts will remain."
 msgstr ""
 "Supprimer tous les messages, fichiers et clés OMEMO. Vos comptes seront "
 "conservés."
 
-#: main/data/preferences_window/general_preferences_page.ui:236
-#: main/src/ui/application.vala:1965
+#: main/data/preferences_window/general_preferences_page.ui:243
+#: main/src/ui/application.vala:2042
 msgid "Factory Reset"
 msgstr "Réinitialisation d'usine"
 
-#: main/data/preferences_window/general_preferences_page.ui:237
+#: main/data/preferences_window/general_preferences_page.ui:244
 msgid "Delete ALL data including accounts. This cannot be undone!"
 msgstr ""
-"Supprimer TOUTES les données, y compris les comptes. Cette action est "
+"Supprimer TOUTES les données y compris les comptes. Cette action est "
 "irréversible !"
 
 #: main/data/preferences_window/preferences_dialog.ui:11
@@ -757,7 +785,7 @@ msgstr "Suivant"
 #: main/src/ui/add_conversation/add_conference_dialog.vala:62
 #: main/src/ui/add_conversation/conference_details_fragment.vala:151
 #: main/src/ui/add_conversation/conference_details_fragment.vala:188
-#: main/src/ui/application.vala:2479
+#: main/src/ui/application.vala:2567
 msgid "Join"
 msgstr "Rejoindre"
 
@@ -776,7 +804,7 @@ msgstr "Sélectionner un avatar"
 
 #: main/src/ui/add_conversation/add_groupchat_dialog.vala:112
 #: main/src/ui/conversation_details.vala:662
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:451
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:536
 msgid "Images"
 msgstr "Images"
 
@@ -813,17 +841,17 @@ msgid "Too many occupants in room"
 msgstr "Trop de participant·es dans ce salon"
 
 #: main/src/ui/add_conversation/conference_details_fragment.vala:183
-#: main/src/ui/notifier_freedesktop.vala:190
-#: main/src/windows/preferences_window/add_account_dialog.vala:388
+#: main/src/ui/notifier_freedesktop.vala:197
+#: main/src/windows/preferences_window/add_account_dialog.vala:395
 #, c-format
 msgid "Could not connect to %s"
 msgstr "Impossible de se connecter à %s"
 
 #: main/src/ui/add_conversation/conference_details_fragment.vala:186
-#: main/src/windows/preferences_window/add_account_dialog.vala:404
-#: main/src/windows/preferences_window/add_account_dialog.vala:414
-#: main/src/windows/preferences_window/add_account_dialog.vala:424
-#: main/src/windows/preferences_window/add_account_dialog.vala:510
+#: main/src/windows/preferences_window/add_account_dialog.vala:411
+#: main/src/windows/preferences_window/add_account_dialog.vala:421
+#: main/src/windows/preferences_window/add_account_dialog.vala:431
+#: main/src/windows/preferences_window/add_account_dialog.vala:517
 msgid "Invalid address"
 msgstr "Adresse invalide"
 
@@ -862,62 +890,66 @@ msgstr "Quitter le groupe"
 msgid "Search directory for '%s'"
 msgstr "Rechercher '%s' dans l'annuaire"
 
-#: main/src/ui/application.vala:310 main/src/ui/systray.vala:288
+#: main/src/ui/application.vala:430 main/src/ui/systray.vala:299
 msgid "Quit"
 msgstr "Quitter"
 
-#: main/src/ui/application.vala:505
+#: main/src/ui/application.vala:686
 msgid "Backup Restored"
 msgstr "Sauvegarde restaurée"
 
-#: main/src/ui/application.vala:507
+#: main/src/ui/application.vala:688
 msgid ""
 "Wrong password.\n"
 "\n"
-"Please enter the password that was active for the database when the backup was created."
+"Please enter the password that was active for the database when the backup "
+"was created."
 msgstr ""
 "Mot de passe incorrect.\n"
 "\n"
-"Veuillez saisir le mot de passe actif pour la base de données lors de la création de la sauvegarde."
+"Veuillez saisir le mot de passe actif pour la base de données lors de la "
+"création de la sauvegarde."
 
-#: main/src/ui/application.vala:509
+#: main/src/ui/application.vala:690
 msgid ""
 "A backup has been restored.\n"
 "\n"
-"Please enter the password that was active for the database when the backup was created."
+"Please enter the password that was active for the database when the backup "
+"was created."
 msgstr ""
 "Une sauvegarde a été restaurée.\n"
 "\n"
-"Veuillez saisir le mot de passe actif pour la base de données lors de la création de la sauvegarde."
+"Veuillez saisir le mot de passe actif pour la base de données lors de la "
+"création de la sauvegarde."
 
-#: main/src/ui/application.vala:512
+#: main/src/ui/application.vala:693
 msgid "Unlock DinoX"
-msgstr ""
+msgstr "Déverrouiller DinoX"
 
-#: main/src/ui/application.vala:513
+#: main/src/ui/application.vala:694
 msgid "Please enter your password to open the encrypted database."
 msgstr ""
-"Veuillez entrer le mot de passe pour ouvrir la base de données chiffrée."
+"Veuillez entrer votre mot de passe pour ouvrir la base de données chiffrée."
 
-#: main/src/ui/application.vala:515
+#: main/src/ui/application.vala:696
 #, c-format
 msgid "Wrong password. Attempt %d/%d"
-msgstr ""
+msgstr "Mot de passe incorrect. Tentative %d/%d"
 
-#: main/src/ui/application.vala:619
+#: main/src/ui/application.vala:745
 msgid "Unlock"
-msgstr ""
+msgstr "Déverrouiller"
 
-#: main/src/ui/application.vala:636 main/src/ui/application.vala:2121
-#: main/src/ui/application.vala:2128
+#: main/src/ui/application.vala:762 main/src/ui/application.vala:2216
+#: main/src/ui/application.vala:2223
 msgid "Confirm Password"
 msgstr "Confirmer le mot de passe"
 
-#: main/src/ui/application.vala:643 main/src/ui/application.vala:737
+#: main/src/ui/application.vala:769 main/src/ui/application.vala:809
 msgid "Set Password"
 msgstr "Définir le mot de passe"
 
-#: main/src/ui/application.vala:644
+#: main/src/ui/application.vala:770
 msgid ""
 "On first use, you need to set a password. Without a password, DinoX cannot "
 "open the encrypted database."
@@ -925,104 +957,104 @@ msgstr ""
 "À la première utilisation, vous devez définir un mot de passe. Sans mot de "
 "passe, DinoX ne peut pas ouvrir la base de données chiffrée."
 
-#: main/src/ui/application.vala:646
+#: main/src/ui/application.vala:772
 #, c-format
 msgid "Invalid password. Attempt %d/%d"
-msgstr ""
+msgstr "Mot de passe invalide. Tentative %d/%d"
 
-#: main/src/ui/application.vala:1154
+#: main/src/ui/application.vala:1226
 msgid "Set Status Message"
 msgstr "Définir le message de statut"
 
-#: main/src/ui/application.vala:1163
+#: main/src/ui/application.vala:1235
 msgid "Set"
 msgstr "Définir"
 
-#: main/src/ui/application.vala:1226
+#: main/src/ui/application.vala:1298
 msgid "Current Password"
-msgstr ""
+msgstr "Mot de passe actuel"
 
-#: main/src/ui/application.vala:1228
+#: main/src/ui/application.vala:1300
 msgid "New Password"
-msgstr ""
+msgstr "Nouveau mot de passe"
 
-#: main/src/ui/application.vala:1230
+#: main/src/ui/application.vala:1302
 msgid "Confirm New Password"
-msgstr ""
+msgstr "Confirmer le nouveau mot de passe"
 
-#: main/src/ui/application.vala:1242
+#: main/src/ui/application.vala:1314
 msgid "This password is used to encrypt your local DinoX data."
 msgstr "Ce mot de passe est utilisé pour chiffrer vos données DinoX locales."
 
-#: main/src/ui/application.vala:1246
+#: main/src/ui/application.vala:1318
 msgid "Change"
 msgstr "Changer"
 
-#: main/src/ui/application.vala:1320
+#: main/src/ui/application.vala:1392
 msgid "Modern XMPP client with extended features"
 msgstr "Client XMPP moderne avec fonctionnalités étendues"
 
-#: main/src/ui/application.vala:1327 main/src/ui/application.vala:1757
+#: main/src/ui/application.vala:1399 main/src/ui/application.vala:1807
 msgid "User Data Locations"
 msgstr "Emplacements des données"
 
-#: main/src/ui/application.vala:1330 main/src/ui/application.vala:1773
+#: main/src/ui/application.vala:1402 main/src/ui/application.vala:1823
 msgid "Data & Database:"
 msgstr "Données et base de données :"
 
-#: main/src/ui/application.vala:1333 main/src/ui/application.vala:1771
+#: main/src/ui/application.vala:1405 main/src/ui/application.vala:1821
 #: plugins/bot-features/src/message_router.vala:1591
 msgid "Configuration:"
 msgstr "Configuration :"
 
-#: main/src/ui/application.vala:1336 main/src/ui/application.vala:1775
+#: main/src/ui/application.vala:1408 main/src/ui/application.vala:1825
 msgid "Cache:"
 msgstr "Cache :"
 
-#: main/src/ui/application.vala:1339
+#: main/src/ui/application.vala:1411
 msgid "Info:"
 msgstr "Info :"
 
-#: main/src/ui/application.vala:1340
+#: main/src/ui/application.vala:1412
 msgid ""
-"Your personal data (accounts, messages, files) is stored separately from the"
-" application."
+"Your personal data (accounts, messages, files) is stored separately from the "
+"application."
 msgstr ""
 "Vos données personnelles (comptes, messages, fichiers) sont stockées "
 "séparément de l'application."
 
-#: main/src/ui/application.vala:1342
+#: main/src/ui/application.vala:1414
 msgid "When you update DinoX, your data remains intact."
 msgstr "Lorsque vous mettez à jour DinoX, vos données restent intactes."
 
-#: main/src/ui/application.vala:1344
+#: main/src/ui/application.vala:1416
 msgid "Use Settings → General → Backup User Data to create a backup."
 msgstr ""
 "Utilisez Paramètres → Général → Sauvegarder les données pour créer une "
 "sauvegarde."
 
-#: main/src/ui/application.vala:1362
+#: main/src/ui/application.vala:1434
 msgid "Select Backup File"
 msgstr "Sélectionner le fichier de sauvegarde"
 
 # DinoX v0.7.7 - Additional Backup/Restore strings
-#: main/src/ui/application.vala:1370
+#: main/src/ui/application.vala:1442
 msgid "Backup Files (*.tar.gz, *.tar.gz.gpg)"
 msgstr "Fichiers de sauvegarde (*.tar.gz, *.tar.gz.gpg)"
 
-#: main/src/ui/application.vala:1400
+#: main/src/ui/application.vala:1472
 msgid "Enter Backup Password"
 msgstr "Entrer le mot de passe de sauvegarde"
 
-#: main/src/ui/application.vala:1401
+#: main/src/ui/application.vala:1473
 msgid "This backup is encrypted. Please enter the password to decrypt it."
 msgstr "Cette sauvegarde est chiffrée. Entrez le mot de passe."
 
-#: main/src/ui/application.vala:1417
+#: main/src/ui/application.vala:1489
 msgid "Decrypt & Restore"
 msgstr "Déchiffrer et restaurer"
 
-#: main/src/ui/application.vala:1440
+#: main/src/ui/application.vala:1512
 msgid ""
 "This will replace all current data with the backup.\n"
 "\n"
@@ -1036,31 +1068,31 @@ msgstr ""
 "\n"
 "DinoX redémarrera après la restauration."
 
-#: main/src/ui/application.vala:1445
+#: main/src/ui/application.vala:1517
 msgid "Restore Backup"
 msgstr "Restaurer la sauvegarde"
 
-#: main/src/ui/application.vala:1462 main/src/ui/application.vala:1495
+#: main/src/ui/application.vala:1534 main/src/ui/application.vala:1567
 msgid "Decrypting Backup…"
 msgstr "Déchiffrement de la sauvegarde…"
 
-#: main/src/ui/application.vala:1462 main/src/ui/application.vala:1561
+#: main/src/ui/application.vala:1534 main/src/ui/application.vala:1633
 msgid "Restoring Backup…"
 msgstr "Restauration de la sauvegarde…"
 
-#: main/src/ui/application.vala:1463
+#: main/src/ui/application.vala:1535
 msgid "Please wait, this may take a moment…"
 msgstr "Veuillez patienter, cela peut prendre un moment…"
 
-#: main/src/ui/application.vala:1496
+#: main/src/ui/application.vala:1568
 msgid "Decrypting encrypted backup file…"
 msgstr "Déchiffrement du fichier de sauvegarde chiffré…"
 
-#: main/src/ui/application.vala:1548
+#: main/src/ui/application.vala:1620
 msgid "Decryption Failed"
 msgstr "Échec du déchiffrement"
 
-#: main/src/ui/application.vala:1549
+#: main/src/ui/application.vala:1621
 msgid ""
 "Could not decrypt the backup file.\n"
 "\n"
@@ -1070,34 +1102,32 @@ msgstr ""
 "\n"
 "Vérifiez si le mot de passe est correct."
 
-#: main/src/ui/application.vala:1551 main/src/ui/application.vala:1701
+#: main/src/ui/application.vala:1623 main/src/ui/application.vala:1758
 #: main/src/ui/chat_input/chat_input_controller.vala:72
 #: main/src/ui/chat_input/chat_input_controller.vala:466
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:652
-#: plugins/tor-manager/src/settings_page.vala:240
-#: plugins/tor-manager/src/settings_page.vala:261
-#: plugins/tor-manager/src/settings_page.vala:355
-#: plugins/tor-manager/src/settings_page.vala:383
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:737
+#: plugins/tor-manager/src/settings_page.vala:235
+#: plugins/tor-manager/src/settings_page.vala:286
 msgid "OK"
 msgstr "OK"
 
-#: main/src/ui/application.vala:1562
+#: main/src/ui/application.vala:1634
 msgid "Extracting files from backup…"
 msgstr "Extraction des fichiers de la sauvegarde…"
 
-#: main/src/ui/application.vala:1683
+#: main/src/ui/application.vala:1740
 msgid "Restore Complete!"
 msgstr "Restauration terminée !"
 
-#: main/src/ui/application.vala:1684
+#: main/src/ui/application.vala:1741
 msgid "DinoX will now restart…"
 msgstr "DinoX va maintenant redémarrer…"
 
-#: main/src/ui/application.vala:1698
+#: main/src/ui/application.vala:1755
 msgid "Restore Failed"
 msgstr "Échec de la restauration"
 
-#: main/src/ui/application.vala:1699
+#: main/src/ui/application.vala:1756
 #, c-format
 msgid ""
 "Could not restore the backup file.\n"
@@ -1108,69 +1138,75 @@ msgstr ""
 "\n"
 "Erreur: %s"
 
-#: main/src/ui/application.vala:1699 main/src/ui/application.vala:2452
+#: main/src/ui/application.vala:1756 main/src/ui/application.vala:2540
 msgid "Unknown error"
 msgstr "Erreur inconnue"
 
-#: main/src/ui/application.vala:1777
+#: main/src/ui/application.vala:1827
 msgid ""
-"Your personal data (accounts, messages, files) is stored separately from the"
-" application. When you update DinoX, your data remains intact."
+"Your personal data (accounts, messages, files) is stored separately from the "
+"application. When you update DinoX, your data remains intact."
 msgstr ""
 "Vos données personnelles (comptes, messages, fichiers) sont stockées "
 "séparément de l'application. Lorsque vous mettez à jour DinoX, vos données "
-"restent intactes.Vos données personnelles (comptes, messages, fichiers) sont"
-" stockées séparément de l'application. Lorsque vous mettez à jour DinoX, vos"
-" données restent intactes."
+"restent intactes.Vos données personnelles (comptes, messages, fichiers) sont "
+"stockées séparément de l'application. Lorsque vous mettez à jour DinoX, vos "
+"données restent intactes."
 
-#: main/src/ui/application.vala:1782 main/src/ui/application.vala:2287
-#: main/src/ui/application.vala:2431
+#: main/src/ui/application.vala:1832 main/src/ui/application.vala:2382
+#: main/src/ui/application.vala:2519
 #: main/src/ui/chat_input/sticker_chooser.vala:179
 #: main/src/ui/conversation_details.vala:362
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:669
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:935
-#: main/src/ui/conversation_view_controller.vala:389
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:678
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:944
+#: main/src/ui/conversation_view_controller.vala:496
+#: main/src/ui/conversation_view_controller.vala:506
 msgid "Close"
 msgstr "Fermer"
 
-#: main/src/ui/application.vala:1792
+#: main/src/ui/application.vala:1842
 msgid ""
-"This will delete cached files, avatars, previews and database caches (entity discovery, roster, MAM sync state, stickers).\n"
+"This will delete cached files, avatars, previews and database caches (entity "
+"discovery, roster, MAM sync state, stickers).\n"
 "\n"
 "All data will be re-fetched from the server when needed."
 msgstr ""
-"Cela supprimera les fichiers en cache, avatars, aperçus et caches de la base de données (découverte d'entités, liste de contacts, état de synchronisation MAM, autocollants).\n"
+"Cela supprimera les fichiers en cache, avatars, aperçus et caches de la base "
+"de données (découverte d'entités, liste de contacts, état de synchronisation "
+"MAM, autocollants).\n"
 "\n"
 "Toutes les données seront récupérées depuis le serveur au besoin."
 
-#: main/src/ui/application.vala:1843
+#: main/src/ui/application.vala:1893
 #, c-format
 msgid "Cache cleared (%s freed, %d DB rows removed)"
 msgstr "Cache vidé (%s libérés, %d lignes BD supprimées)"
 
-#: main/src/ui/application.vala:1846
+#: main/src/ui/application.vala:1896
 msgid "Failed to clear cache"
 msgstr "Échec du vidage du cache"
 
-#: main/src/ui/application.vala:1893
+#: main/src/ui/application.vala:1943
 msgid ""
 "This will delete all messages, files and OMEMO encryption keys.\n"
 "\n"
-"<b>Your accounts will remain, but you will lose all chat history and need to re-verify encryption with your contacts.</b>\n"
+"<b>Your accounts will remain, but you will lose all chat history and need to "
+"re-verify encryption with your contacts.</b>\n"
 "\n"
 "This action cannot be undone!"
 msgstr ""
 "Ceci supprimera tous les messages, fichiers et clés de chiffrement OMEMO.\n"
 "\n"
-"<b>Vos comptes resteront, mais vous perdrez tout l'historique des discussions et devrez revérifier le chiffrement avec vos contacts.</b>\n"
+"<b>Vos comptes resteront, mais vous perdrez tout l'historique des "
+"discussions et devrez revérifier le chiffrement avec vos contacts.</b>\n"
 "\n"
 "Cette action est irréversible !"
 
-#: main/src/ui/application.vala:1924
+#: main/src/ui/application.vala:1973
 msgid "Resetting database… DinoX will restart."
 msgstr "Réinitialisation de la base de données… DinoX va redémarrer."
 
-#: main/src/ui/application.vala:1966
+#: main/src/ui/application.vala:2043
 msgid ""
 "<b>⚠️ WARNING: This will delete ALL data!</b>\n"
 "\n"
@@ -1190,19 +1226,19 @@ msgstr ""
 "\n"
 "C'est irréversible. Créez d'abord une sauvegarde !"
 
-#: main/src/ui/application.vala:1971
+#: main/src/ui/application.vala:2048
 msgid "Create Backup First"
 msgstr "Créer d'abord une sauvegarde"
 
-#: main/src/ui/application.vala:1972
+#: main/src/ui/application.vala:2049
 msgid "Delete Everything"
 msgstr "Tout supprimer"
 
-#: main/src/ui/application.vala:1992
+#: main/src/ui/application.vala:2069
 msgid "Are you absolutely sure?"
 msgstr "Êtes-vous absolument sûr ?"
 
-#: main/src/ui/application.vala:1993
+#: main/src/ui/application.vala:2070
 msgid ""
 "Type 'DELETE' to confirm factory reset.\n"
 "\n"
@@ -1212,77 +1248,79 @@ msgstr ""
 "\n"
 "Ceci supprimera définitivement toutes vos données DinoX."
 
-#: main/src/ui/application.vala:2003
+#: main/src/ui/application.vala:2080
 msgid "Confirm Delete"
 msgstr "Confirmer la suppression"
 
-#: main/src/ui/application.vala:2030
+#: main/src/ui/application.vala:2107
 msgid "Factory reset in progress… DinoX will restart."
 msgstr "Réinitialisation d'usine en cours… DinoX va redémarrer."
 
-#: main/src/ui/application.vala:2104
+#: main/src/ui/application.vala:2199
 msgid "Set Backup Password"
 msgstr "Définir le mot de passe de sauvegarde"
 
-#: main/src/ui/application.vala:2105
+#: main/src/ui/application.vala:2200
 msgid ""
 "Enter a password to encrypt the backup.\n"
 "\n"
-"<b>Important:</b> Remember this password! Without it, the backup cannot be restored."
+"<b>Important:</b> Remember this password! Without it, the backup cannot be "
+"restored."
 msgstr ""
 "Entrez un mot de passe pour chiffrer la sauvegarde.\n"
 "\n"
-"<b>Important:</b> Retenez ce mot de passe ! Sans lui, la sauvegarde ne peut pas être restaurée."
+"<b>Important:</b> Retenez ce mot de passe ! Sans lui, la sauvegarde ne peut "
+"pas être restaurée."
 
-#: main/src/ui/application.vala:2113
+#: main/src/ui/application.vala:2208
 msgid "Password (minimum 4 characters)"
 msgstr "Mot de passe (minimum 4 caractères)"
 
-#: main/src/ui/application.vala:2145
+#: main/src/ui/application.vala:2240
 msgid "Create Encrypted Backup"
 msgstr "Créer une sauvegarde chiffrée"
 
-#: main/src/ui/application.vala:2157 main/src/ui/application.vala:2172
+#: main/src/ui/application.vala:2252 main/src/ui/application.vala:2267
 msgid "Password too short"
 msgstr "Mot de passe trop court"
 
-#: main/src/ui/application.vala:2159 main/src/ui/application.vala:2174
+#: main/src/ui/application.vala:2254 main/src/ui/application.vala:2269
 msgid "Passwords do not match"
 msgstr "Les mots de passe ne correspondent pas"
 
-#: main/src/ui/application.vala:2161 main/src/ui/application.vala:2176
+#: main/src/ui/application.vala:2256 main/src/ui/application.vala:2271
 msgid "✓ Passwords match"
 msgstr "✓ Les mots de passe correspondent"
 
-#: main/src/ui/application.vala:2194
+#: main/src/ui/application.vala:2289
 msgid "Select Backup Location"
 msgstr "Sélectionner l'emplacement de sauvegarde"
 
-#: main/src/ui/application.vala:2236
+#: main/src/ui/application.vala:2331
 msgid "Creating Encrypted Backup…"
 msgstr "Création de la sauvegarde chiffrée…"
 
-#: main/src/ui/application.vala:2236
+#: main/src/ui/application.vala:2331
 msgid "Creating Backup…"
 msgstr "Création de la sauvegarde…"
 
-#: main/src/ui/application.vala:2237
+#: main/src/ui/application.vala:2332
 msgid "Please wait while your data is being backed up."
 msgstr "Veuillez patienter pendant la sauvegarde de vos données."
 
-#: main/src/ui/application.vala:2281
+#: main/src/ui/application.vala:2376
 msgid "No data directory found to backup"
 msgstr "Aucun répertoire de données trouvé pour la sauvegarde"
 
-#: main/src/ui/application.vala:2284 main/src/ui/application.vala:2450
+#: main/src/ui/application.vala:2379 main/src/ui/application.vala:2538
 msgid "Backup Failed"
 msgstr "Échec de la sauvegarde"
 
-#: main/src/ui/application.vala:2438
+#: main/src/ui/application.vala:2526
 msgid "Encrypted Backup Created"
 msgstr "Sauvegarde chiffrée créée"
 
-#: main/src/ui/application.vala:2440
+#: main/src/ui/application.vala:2528
 #, c-format
 msgid ""
 "Your encrypted backup was created successfully.\n"
@@ -1293,15 +1331,15 @@ msgstr ""
 "\n"
 "Taille : %s"
 
-#: main/src/ui/application.vala:2441
+#: main/src/ui/application.vala:2529
 msgid "Your encrypted backup was created successfully."
 msgstr "Votre sauvegarde chiffrée a été créée avec succès."
 
-#: main/src/ui/application.vala:2443
+#: main/src/ui/application.vala:2531
 msgid "Backup Created"
 msgstr "Sauvegarde créée"
 
-#: main/src/ui/application.vala:2445
+#: main/src/ui/application.vala:2533
 #, c-format
 msgid ""
 "Your backup was created successfully.\n"
@@ -1312,11 +1350,11 @@ msgstr ""
 "\n"
 "Taille : %s"
 
-#: main/src/ui/application.vala:2446
+#: main/src/ui/application.vala:2534
 msgid "Your backup was created successfully."
 msgstr "Votre sauvegarde a été créée avec succès."
 
-#: main/src/ui/application.vala:2453
+#: main/src/ui/application.vala:2541
 #, c-format
 msgid "Backup failed: %s"
 msgstr "Échec de la sauvegarde : %s"
@@ -1346,36 +1384,36 @@ msgid "Invite to Call"
 msgstr "Inviter à un appel"
 
 #: main/src/ui/call_window/call_window_controller.vala:207
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:900
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:909
 #: main/src/ui/conversation_titlebar/menu_entry.vala:85
 #: main/src/ui/occupant_menu/view.vala:27
 #: main/src/ui/occupant_menu/view.vala:352
 msgid "Invite"
 msgstr "Inviter"
 
-#: main/src/ui/call_window/call_window_controller.vala:673
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:319
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:350
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:365
-#: main/src/ui/util/helper.vala:79 main/src/ui/util/helper.vala:83
-#: main/src/ui/util/helper.vala:91
+#: main/src/ui/call_window/call_window_controller.vala:700
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:328
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:359
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:374
+#: main/src/ui/util/helper.vala:82 main/src/ui/util/helper.vala:86
+#: main/src/ui/util/helper.vala:94
 msgid "Me"
 msgstr "Moi"
 
-#: main/src/ui/call_window/call_window.vala:241
+#: main/src/ui/call_window/call_window.vala:245
 #, c-format
 msgid "%s ended the call"
 msgstr "%s a arrêté l’appel"
 
-#: main/src/ui/call_window/call_window.vala:243
+#: main/src/ui/call_window/call_window.vala:247
 #, c-format
 msgid "%s declined the call"
 msgstr "%s a rejeté l’appel"
 
-#: main/src/ui/call_window/call_window.vala:246
+#: main/src/ui/call_window/call_window.vala:250
 #, c-format
 msgid "Call full (max. %d participants)"
-msgstr ""
+msgstr "Appel complet (max. %d participants)"
 
 #: main/src/ui/call_window/participant_widget.vala:140
 msgid "Debug information"
@@ -1391,9 +1429,9 @@ msgid "Ringing…"
 msgstr "Ça sonne…"
 
 #: main/src/ui/call_window/participant_widget.vala:153
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:429
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:748
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1754
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:505
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:833
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1778
 #: plugins/mqtt/src/settings_page.vala:491
 msgid "Connecting…"
 msgstr "Connexion…"
@@ -1414,13 +1452,10 @@ msgstr "Échec de l'enregistrement vidéo"
 #: main/src/ui/chat_input/chat_input_controller.vala:71
 #, c-format
 msgid ""
-"The video encoder could not be initialized: %s\n"
+"The video encoder could not be initialized:\n"
 "\n"
-"Please ensure GStreamer plugins are installed (gst-plugins-good, gst-plugins-ugly, gst-libav)."
+"%s"
 msgstr ""
-"L'encodeur vidéo n'a pas pu être initialisé : %s\n"
-"\n"
-"Veuillez vous assurer que les plugins GStreamer sont installés (gst-plugins-good, gst-plugins-ugly, gst-libav)."
 
 #: main/src/ui/chat_input/chat_input_controller.vala:309
 msgid "This conference does not allow you to send messages."
@@ -1431,7 +1466,7 @@ msgid "Request permission"
 msgstr "Demander la permission"
 
 #: main/src/ui/chat_input/encryption_button.vala:35
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:251
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:262
 msgid "Unencrypted"
 msgstr "Non chiffré"
 
@@ -1461,8 +1496,8 @@ msgid "Request permission to send messages"
 msgstr "Demander la permission d’envoyer des messages"
 
 #: main/src/ui/contact_details/permissions_provider.vala:24
-#: plugins/tor-manager/src/settings_page.vala:145
-#: plugins/tor-manager/src/settings_page.vala:244
+#: plugins/tor-manager/src/settings_page.vala:144
+#: plugins/tor-manager/src/settings_page.vala:239
 msgid "Request"
 msgstr "Demander"
 
@@ -1495,30 +1530,42 @@ msgid "Send read receipts"
 msgstr "Envoyer les accusés de réception"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:148
-#: main/src/ui/notifier_freedesktop.vala:114
+#: main/src/ui/notifier_freedesktop.vala:121
 #: main/src/ui/notifier_gnotifications.vala:72
 msgid "Incoming video call"
 msgstr "Appel vidéo entrant"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:148
 #: main/src/ui/conversation_content_view/call_widget.vala:179
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:367
-#: main/src/ui/notifier_freedesktop.vala:114
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:376
+#: main/src/ui/notifier_freedesktop.vala:121
 #: main/src/ui/notifier_gnotifications.vala:72
 msgid "Incoming call"
 msgstr "Appel entrant"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:150
-#: main/src/ui/notifier_freedesktop.vala:116
+#: main/src/ui/notifier_freedesktop.vala:123
 #: main/src/ui/notifier_gnotifications.vala:74
 msgid "Incoming video group call"
 msgstr "Appel vidéo de groupe entrant"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:150
-#: main/src/ui/notifier_freedesktop.vala:116
+#: main/src/ui/notifier_freedesktop.vala:123
 #: main/src/ui/notifier_gnotifications.vala:74
 msgid "Incoming group call"
 msgstr "Appel de groupe entrant"
+
+#: main/src/ui/conversation_content_view/call_widget.vala:154
+msgid "Ring ring…!"
+msgstr "Dring dring… !"
+
+#: main/src/ui/conversation_content_view/call_widget.vala:160
+msgid "Dependencies for call support not met"
+msgstr "Les dépendances pour le support des appels ne sont pas remplies"
+
+#: main/src/ui/conversation_content_view/call_widget.vala:164
+msgid "Ring ring…?"
+msgstr "Dring dring… ?"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:170
 msgid "Call started"
@@ -1530,7 +1577,7 @@ msgid "Started %s ago"
 msgstr "A commencé il y a %s"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:179
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:367
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:376
 msgid "Outgoing call"
 msgstr "Appel sortant"
 
@@ -1543,15 +1590,15 @@ msgid "Call ended"
 msgstr "Appel terminé"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:186
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:342
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:571
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:353
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:580
 #, no-c-format
 msgid "%H∶%M"
 msgstr "%H∶%M"
 
 #: main/src/ui/conversation_content_view/call_widget.vala:186
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:343
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:572
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:354
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:581
 #, no-c-format
 msgid "%l∶%M %p"
 msgstr "%l∶%M %p"
@@ -1596,6 +1643,10 @@ msgstr "%s a rejeté cet appel"
 msgid "Call failed"
 msgstr "Appel échoué"
 
+#: main/src/ui/conversation_content_view/call_widget.vala:215
+msgid "Call failed to establish"
+msgstr "L'appel n'a pas pu être établi"
+
 #: main/src/ui/conversation_content_view/call_widget.vala:252
 msgid "a few seconds"
 msgstr "quelques secondes"
@@ -1620,50 +1671,50 @@ msgstr "%s et %s sont en train d’écrire…"
 msgid "%s is typing…"
 msgstr "%s est en train d’écrire…"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:283
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:294
 msgid "Delivered"
 msgstr "Reçu"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:287
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:298
 msgid "Read"
 msgstr "Lu"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:293
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:304
 msgid "Unable to send message"
 msgstr "Impossible d’envoyer le message"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:330
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:341
 #, no-c-format
 msgid "%x, %H∶%M"
 msgstr "le %x à %Hh %M"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:331
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:342
 #, no-c-format
 msgid "%x, %l∶%M %p"
 msgstr "le %x à %lh %M %p"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:334
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:345
 #, no-c-format
 msgid "%b %d, %H∶%M"
 msgstr "le %d %b à %Hh %M"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:335
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:346
 #, no-c-format
 msgid "%b %d, %l∶%M %p"
 msgstr "le %d %b à %lh %M %p"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:338
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:349
 #, no-c-format
 msgid "%a, %H∶%M"
 msgstr "%a à %Hh %M"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:339
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:350
 #, no-c-format
 msgid "%a, %l∶%M %p"
 msgstr "%a à %lh %M %p"
 
-#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:349
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:577
+#: main/src/ui/conversation_content_view/conversation_item_skeleton.vala:360
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:586
 msgid "Just now"
 msgstr "À l’instant"
 
@@ -1672,12 +1723,12 @@ msgid "More actions"
 msgstr "Plus d'actions"
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:67
-#: main/src/ui/conversation_content_view/file_image_widget.vala:224
+#: main/src/ui/conversation_content_view/file_image_widget.vala:227
 msgid "Open"
 msgstr "Ouvrir"
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:68
-#: main/src/ui/conversation_content_view/file_image_widget.vala:225
+#: main/src/ui/conversation_content_view/file_image_widget.vala:228
 #: main/src/ui/conversation_content_view/file_widget.vala:224
 msgid "Save as…"
 msgstr "Enregistrer sous…"
@@ -1702,113 +1753,128 @@ msgid "Uploading…"
 msgstr "Envoi en cours…"
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:101
-#, c-format
-msgid "%s offered: %s"
+#, fuzzy, c-format
+msgid "%%s offered: %%s"
 msgstr "%s proposé au téléchargement : %s"
 
 #: main/src/ui/conversation_content_view/file_default_widget.vala:103
+#, fuzzy, c-format
+msgid "%%s offered"
+msgstr "%s proposé au téléchargement : %s"
+
+#: main/src/ui/conversation_content_view/file_default_widget.vala:105
 #, c-format
 msgid "File offered: %s"
 msgstr "Fichier proposé au téléchargement : %s"
 
-#: main/src/ui/conversation_content_view/file_default_widget.vala:105
+#: main/src/ui/conversation_content_view/file_default_widget.vala:107
 msgid "File offered"
 msgstr "Fichier proposé au téléchargement"
 
-#: main/src/ui/conversation_content_view/file_default_widget.vala:111
+#: main/src/ui/conversation_content_view/file_default_widget.vala:113
 msgid "File transfer failed"
 msgstr "Échec du transfert de fichier"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:36
+#: main/src/ui/conversation_content_view/file_default_widget.vala:163
+msgid "—"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/item_actions.vala:30
 msgid "Kick user"
 msgstr "Expulser l'utilisateur"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:69
+#: main/src/ui/conversation_content_view/item_actions.vala:57
 msgid "Ban user"
 msgstr "Bannir l'utilisateur"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:82
+#: main/src/ui/conversation_content_view/item_actions.vala:70
 #: main/src/ui/conversation_content_view/reactions_widget.vala:141
 msgid "Add reaction"
 msgstr "Ajouter une réaction"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:94
+#: main/src/ui/conversation_content_view/item_actions.vala:82
 msgid "This conversation does not support reactions."
 msgstr "Cette conversation ne gère pas les réactions."
 
-#: main/src/ui/conversation_content_view/item_actions.vala:107
+#: main/src/ui/conversation_content_view/item_actions.vala:95
 msgid "Reply"
 msgstr "Répondre"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:117
+#: main/src/ui/conversation_content_view/item_actions.vala:105
 msgid "This conversation does not support replies."
 msgstr "Cette conversation ne gère pas les réponses."
 
-#: main/src/ui/conversation_content_view/item_actions.vala:146
+#: main/src/ui/conversation_content_view/item_actions.vala:129
 msgid "Moderate message..."
 msgstr "Modérer le message…"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:148
+#: main/src/ui/conversation_content_view/item_actions.vala:131
 msgid "Delete..."
 msgstr "Supprimer..."
 
-#: main/src/ui/conversation_content_view/item_actions.vala:150
-#: main/src/ui/conversation_content_view/item_actions.vala:168
+#: main/src/ui/conversation_content_view/item_actions.vala:133
+#: main/src/ui/conversation_content_view/item_actions.vala:151
 msgid "Delete locally"
 msgstr "Supprimer localement"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:160
+#: main/src/ui/conversation_content_view/item_actions.vala:143
 msgid "Moderate message"
 msgstr "Modérer le message"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:160
+#: main/src/ui/conversation_content_view/item_actions.vala:143
 msgid "Delete message"
 msgstr "Supprimer le message"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:164
-msgid "Do you want to remove this message from the channel?"
+#: main/src/ui/conversation_content_view/item_actions.vala:147
+#, fuzzy
+msgid "Do you want to remove this message from the group?"
 msgstr "Voulez-vous supprimer ce message du canal ?"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:165
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:873
+#: main/src/ui/conversation_content_view/item_actions.vala:148
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:882
 #: main/src/windows/conversation_details.vala:63
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:136
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:485
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:142
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:570
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:299
 msgid "Remove"
 msgstr "Supprimer"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:167
+#: main/src/ui/conversation_content_view/item_actions.vala:150
 msgid "Do you want to delete this message just for yourself or for everyone?"
 msgstr ""
-"Voulez-vous supprimer ce message seulement pour vous ou pour tout le monde ?"
+"Voulez-vous supprimer ce message uniquement pour vous ou pour tout le monde ?"
 
-#: main/src/ui/conversation_content_view/item_actions.vala:168
+#: main/src/ui/conversation_content_view/item_actions.vala:151
 msgid "Delete for everyone"
 msgstr "Supprimer pour tous"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:202
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:334
+#: main/src/ui/conversation_content_view/message_widget.vala:203
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:343
 msgid "Message deleted"
 msgstr "Message supprimé"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:206
+#: main/src/ui/conversation_content_view/message_widget.vala:207
 msgid "edited"
 msgstr "modifié"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:210
-msgid "Message truncated - exceeds 100,000 characters"
+#: main/src/ui/conversation_content_view/message_widget.vala:211
+#, fuzzy
+msgid "Message truncated - exceeds 50,000 characters"
 msgstr "Message tronqué - dépasse 100 000 caractères"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:219
+#: main/src/ui/conversation_content_view/message_widget.vala:220
 msgid "pending…"
 msgstr "en cours d’envoi…"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:234
+#: main/src/ui/conversation_content_view/message_widget.vala:235
 msgid "delivery failed"
 msgstr "échec de l’envoi"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:404
+#: main/src/ui/conversation_content_view/message_widget.vala:373
+msgid "Navigate to location"
+msgstr "Naviguer vers le lieu"
+
+#: main/src/ui/conversation_content_view/message_widget.vala:450
 msgid "Edit message"
 msgstr "Éditer le message"
 
@@ -1820,6 +1886,19 @@ msgstr "Fichier"
 msgid "You"
 msgstr "Vous"
 
+#: main/src/ui/conversation_content_view/reactions_widget.vala:187
+msgid " , "
+msgstr ""
+
+#: main/src/ui/conversation_content_view/reactions_widget.vala:190
+msgid "and"
+msgstr ""
+
+#: main/src/ui/conversation_content_view/reactions_widget.vala:193
+#, c-format
+msgid "reacted with %s"
+msgstr ""
+
 #: main/src/ui/conversation_content_view/subscription_notification.vala:62
 msgid "Send request"
 msgstr "Envoyer une requête"
@@ -1829,11 +1908,11 @@ msgid "You do not receive status updates from this contact yet."
 msgstr "Vous ne recevez pas encore les changements de statuts de ce contact."
 
 #: main/src/ui/conversation_content_view/subscription_notification.vala:81
-#: main/src/ui/notifier_freedesktop.vala:166
-#: main/src/ui/notifier_freedesktop.vala:266
+#: main/src/ui/notifier_freedesktop.vala:173
+#: main/src/ui/notifier_freedesktop.vala:277
 #: main/src/ui/notifier_gnotifications.vala:102
-#: main/src/ui/notifier_gnotifications.vala:140
-#: main/src/ui/notifier_gnotifications.vala:158
+#: main/src/ui/notifier_gnotifications.vala:144
+#: main/src/ui/notifier_gnotifications.vala:162
 msgid "Deny"
 msgstr "Refuser"
 
@@ -1944,17 +2023,17 @@ msgid "Danger Zone"
 msgstr "Zone de danger"
 
 #: main/src/ui/conversation_details.vala:330
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:602
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:611
 msgid "Destroy Room"
 msgstr "Détruire le salon"
 
 #: main/src/ui/conversation_details.vala:336
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:918
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:927
 msgid "Destroy Room?"
 msgstr "Détruire le salon ?"
 
 #: main/src/ui/conversation_details.vala:337
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:919
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:928
 msgid ""
 "Are you sure you want to permanently destroy this room? This action cannot "
 "be undone and all history will be lost for all participants."
@@ -1966,12 +2045,12 @@ msgstr ""
 "tous les participants."
 
 #: main/src/ui/conversation_details.vala:340
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:922
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:931
 msgid "Destroy"
 msgstr "Détruire"
 
 #: main/src/ui/conversation_details.vala:361
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:934
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:943
 msgid "Failed to destroy room"
 msgstr "Échec de la destruction du salon"
 
@@ -2023,105 +2102,105 @@ msgstr "URL"
 msgid "Note"
 msgstr "Note"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:356
-#: main/src/ui/notifier_freedesktop.vala:71
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:365
+#: main/src/ui/notifier_freedesktop.vala:78
 #: main/src/ui/notifier_gnotifications.vala:36
 msgid "Image sent"
 msgstr "Image envoyée"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:356
-#: main/src/ui/notifier_freedesktop.vala:71
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:365
+#: main/src/ui/notifier_freedesktop.vala:78
 #: main/src/ui/notifier_gnotifications.vala:36
 msgid "File sent"
 msgstr "Fichier envoyé"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:358
-#: main/src/ui/notifier_freedesktop.vala:73
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:367
+#: main/src/ui/notifier_freedesktop.vala:80
 #: main/src/ui/notifier_gnotifications.vala:38
 msgid "Image received"
 msgstr "Image reçue"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:358
-#: main/src/ui/notifier_freedesktop.vala:73
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:367
+#: main/src/ui/notifier_freedesktop.vala:80
 #: main/src/ui/notifier_gnotifications.vala:38
 msgid "File received"
 msgstr "Fichier reçu"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:442
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:451
 msgid "Thema:"
 msgstr "Sujet :"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:462
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:471
 msgid "Privat"
 msgstr "Privé"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:464
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:473
 msgid "Öffentlich"
 msgstr "Public"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:468
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:477
 msgid "Typ:"
 msgstr "Type :"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:502
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:511
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Away"
 msgstr "Absent"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:504
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:513
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Not Available"
 msgstr "Non disponible"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:506
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:515
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Busy"
 msgstr "Occupé"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:508
-#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:257
-#: main/src/ui/systray.vala:407
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:517
+#: main/src/ui/main_window.vala:198 main/src/ui/systray.vala:268
+#: main/src/ui/systray.vala:426
 msgid "Online"
 msgstr "En ligne"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:564
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:573
 #: main/src/ui/widgets/date_separator.vala:37
 #, no-c-format
 msgid "%b %d"
 msgstr "%d %b"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:568
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:577
 #: main/src/ui/widgets/date_separator.vala:28
 msgid "Yesterday"
 msgstr "Hier"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:587
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:653
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:596
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:662
 #: main/src/ui/conversation_titlebar/menu_entry.vala:61
 msgid "Conversation Details"
 msgstr "Détails de cette conversation"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:588
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:899
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:597
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:908
 #: main/src/ui/conversation_titlebar/menu_entry.vala:84
 msgid "Invite Contact"
 msgstr "Inviter un contact"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:592
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:660
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:789
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:601
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:669
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:798
 #: main/src/ui/occupant_menu/view.vala:195
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:147
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:213
 msgid "Unmute"
 msgstr "Rétablir le son"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:592
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:660
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:808
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:601
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:669
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:817
 #: main/src/ui/occupant_menu/view.vala:197
 #: main/src/windows/conversation_details.vala:175
 #: main/src/windows/conversation_details.vala:176
@@ -2130,92 +2209,92 @@ msgstr "Rétablir le son"
 msgid "Mute"
 msgstr "Muet"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:595
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:604
 msgid "Leave and Close"
 msgstr "Quitter et fermer"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:655
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:751
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:664
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:760
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:133
 msgid "Edit Alias"
 msgstr "Modifier l'alias"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:665
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:833
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:674
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:842
 #: main/src/windows/conversation_details.vala:120
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:257
 msgid "Unblock"
 msgstr "Débloquer"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:665
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:852
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:674
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:861
 #: main/src/windows/conversation_details.vala:156
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:277
 msgid "Block"
 msgstr "Bloquer"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:756
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:765
 msgid "Alias"
 msgstr "Alias"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:762
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:771
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:340
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1124
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1493
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1127
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1517
 msgid "Save"
 msgstr "Sauver"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:785
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:794
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:209
 msgid "Unmute contact?"
 msgstr "Réactiver le contact ?"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:786
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:795
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:210
 #, c-format
 msgid "This will enable notifications from %s."
 msgstr "Ceci activera les notifications de %s."
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:804
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:813
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:229
 msgid "Mute contact?"
 msgstr "Mettre en sourdine ?"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:805
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:814
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:230
 #, c-format
 msgid "This will disable notifications from %s."
 msgstr "Ceci désactivera les notifications de %s."
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:829
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:838
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:253
 msgid "Unblock contact?"
 msgstr "Débloquer le contact ?"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:830
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:839
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:254
 #, c-format
 msgid "This will allow %s to send you messages again."
 msgstr "Cela permettra à %s de vous envoyer des messages à nouveau."
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:848
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:857
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:273
 msgid "Block contact?"
 msgstr "Bloquer le contact ?"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:849
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:858
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:274
 #, c-format
 msgid "This will prevent %s from sending you messages."
 msgstr "Ceci empêchera %s de vous envoyer des messages."
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:869
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:878
 #: main/src/windows/conversation_details.vala:59
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:295
 msgid "Remove contact?"
 msgstr "Supprimer le contact ?"
 
-#: main/src/ui/conversation_selector/conversation_selector_row.vala:870
+#: main/src/ui/conversation_selector/conversation_selector_row.vala:879
 #, c-format
 msgid ""
 "This will:\n"
@@ -2278,13 +2357,63 @@ msgid "Select file"
 msgstr "Sélectionner un fichier"
 
 #: main/src/ui/conversation_view_controller.vala:303
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:441
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:526
 msgid "Select"
 msgstr "Sélectionner"
 
-#: main/src/ui/conversation_view_controller.vala:388
-msgid "Failed to get location"
-msgstr "Échec de l'obtention de la position"
+#: main/src/ui/conversation_view_controller.vala:420
+#, c-format
+msgid ""
+"The detected location has an accuracy of approximately %.0f km. This may be "
+"very inaccurate. You can send it anyway or enter coordinates manually."
+msgstr ""
+"La position détectée a une précision d'environ %.0f km. Cela peut être très "
+"imprécis. Vous pouvez l'envoyer quand même ou entrer les coordonnées "
+"manuellement."
+
+#: main/src/ui/conversation_view_controller.vala:421
+msgid "Low location accuracy"
+msgstr "Faible précision de localisation"
+
+#: main/src/ui/conversation_view_controller.vala:424
+msgid "Enter manually"
+msgstr "Saisir manuellement"
+
+#: main/src/ui/conversation_view_controller.vala:425
+msgid "Send anyway"
+msgstr "Envoyer quand même"
+
+#: main/src/ui/conversation_view_controller.vala:441
+msgid "Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"
+msgstr ""
+"Entrez des coordonnées ou collez un lien geo: (par ex. geo:48.2082,16.3738)"
+
+#: main/src/ui/conversation_view_controller.vala:448
+msgid "Latitude"
+msgstr "Latitude"
+
+#: main/src/ui/conversation_view_controller.vala:455
+msgid "Longitude"
+msgstr "Longitude"
+
+#: main/src/ui/conversation_view_controller.vala:462
+msgid "or geo: link"
+msgstr "ou lien geo:"
+
+#: main/src/ui/conversation_view_controller.vala:474
+msgid "Send"
+msgstr "Envoyer"
+
+#: main/src/ui/conversation_view_controller.vala:495
+#: main/src/ui/conversation_view_controller.vala:505
+msgid "Invalid coordinates"
+msgstr "Coordonnées invalides"
+
+#: main/src/ui/conversation_view_controller.vala:495
+#: main/src/ui/conversation_view_controller.vala:505
+msgid "Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."
+msgstr ""
+"Veuillez entrer une latitude valide (-90 à 90) et une longitude (-180 à 180)."
 
 #: main/src/ui/file_send_overlay.vala:60
 msgid "The file exceeds the server's maximum upload size."
@@ -2313,12 +2442,12 @@ msgid "Sign in or create an account to get started."
 msgstr "Connectez-vous ou créez un compte pour commencer."
 
 #: main/src/ui/main_window.vala:249
-#: main/src/windows/preferences_window/add_account_dialog.vala:145
+#: main/src/windows/preferences_window/add_account_dialog.vala:152
 msgid "Sign in"
 msgstr "Connexion"
 
 #: main/src/ui/main_window.vala:251
-#: main/src/windows/preferences_window/add_account_dialog.vala:288
+#: main/src/windows/preferences_window/add_account_dialog.vala:295
 msgid "Create account"
 msgstr "Créer un compte"
 
@@ -2332,40 +2461,47 @@ msgstr "Aucun compte actif"
 msgid "Manage accounts"
 msgstr "Gérer les comptes"
 
-#: main/src/ui/notifier_freedesktop.vala:159
+#: main/src/ui/notifier_freedesktop.vala:166
 #: main/src/ui/notifier_gnotifications.vala:93
 msgid "Subscription request"
 msgstr "Demande d’ajout de contact"
 
-#: main/src/ui/notifier_freedesktop.vala:194
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:763
+#: main/src/ui/notifier_freedesktop.vala:202
+#: main/src/ui/notifier_gnotifications.vala:114
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:851
+#, c-format
+msgid "%s does not support SCRAM channel binding (MITM protection)"
+msgstr ""
+
+#: main/src/ui/notifier_freedesktop.vala:204
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:853
 msgid "Wrong password"
 msgstr "Mauvais mot de passe"
 
-#: main/src/ui/notifier_freedesktop.vala:197
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:765
+#: main/src/ui/notifier_freedesktop.vala:208
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:855
 msgid "Invalid TLS certificate"
 msgstr "Certificat TLS invalide"
 
-#: main/src/ui/notifier_freedesktop.vala:222
-#: main/src/ui/notifier_gnotifications.vala:128
+#: main/src/ui/notifier_freedesktop.vala:233
+#: main/src/ui/notifier_gnotifications.vala:132
 #, c-format
 msgid "Invitation to %s"
 msgstr "Invitation à %s"
 
-#: main/src/ui/notifier_freedesktop.vala:223
-#: main/src/ui/notifier_gnotifications.vala:129
+#: main/src/ui/notifier_freedesktop.vala:234
+#: main/src/ui/notifier_gnotifications.vala:133
 #, c-format
 msgid "%s invited you to %s"
 msgstr "%s vous a invité·e à rejoindre le salon %s"
 
-#: main/src/ui/notifier_freedesktop.vala:256
-#: main/src/ui/notifier_gnotifications.vala:148
+#: main/src/ui/notifier_freedesktop.vala:267
+#: main/src/ui/notifier_gnotifications.vala:152
 msgid "Permission request"
 msgstr "Demande de permission"
 
-#: main/src/ui/notifier_freedesktop.vala:257
-#: main/src/ui/notifier_gnotifications.vala:149
+#: main/src/ui/notifier_freedesktop.vala:268
+#: main/src/ui/notifier_gnotifications.vala:153
 #, c-format
 msgid "%s requests the permission to write in %s"
 msgstr "%s demande la permission d’écrire dans %s"
@@ -2537,9 +2673,7 @@ msgstr "Modéré"
 
 #: main/src/ui/util/data_forms.vala:68
 msgid "Only occupants with voice may send messages"
-msgstr ""
-"Seuls les participant·es avec la permission d’écrire peuvent envoyer des "
-"messages"
+msgstr "Seuls les occupants ayant la parole peuvent envoyer des messages"
 
 #: main/src/ui/util/data_forms.vala:71
 msgid "Members only"
@@ -2555,38 +2689,38 @@ msgstr ""
 
 #: main/src/ui/util/data_forms.vala:75
 msgid "Allow invites"
-msgstr ""
+msgstr "Autoriser les invitations"
 
 #: main/src/ui/util/data_forms.vala:76
 msgid "Allow occupants to invite others"
-msgstr ""
+msgstr "Autoriser les occupants à inviter d'autres personnes"
 
 #: main/src/ui/util/data_forms.vala:79
 msgid "Logging"
-msgstr ""
+msgstr "Journalisation"
 
 #: main/src/ui/util/data_forms.vala:80
 msgid "Log conversation history"
-msgstr ""
+msgstr "Enregistrer l'historique des conversations"
 
 #: main/src/ui/util/data_forms.vala:83
 msgid "Language"
-msgstr ""
+msgstr "Langue"
 
 #: main/src/ui/util/data_forms.vala:86
 msgid "Password protected"
-msgstr ""
+msgstr "Protégé par mot de passe"
 
-#: main/src/ui/util/helper.vala:75
+#: main/src/ui/util/helper.vala:78
 #, c-format
 msgid "%s from %s"
 msgstr "%s de %s"
 
-#: main/src/ui/util/helper.vala:509
+#: main/src/ui/util/helper.vala:523
 msgid "Delete all message history?"
 msgstr "Supprimer tout l'historique des messages ?"
 
-#: main/src/ui/util/helper.vala:510
+#: main/src/ui/util/helper.vala:524
 msgid ""
 "This will permanently delete all messages in this conversation. This action "
 "cannot be undone."
@@ -2595,11 +2729,11 @@ msgstr ""
 "Cette action ne peut pas être annulée.Ceci supprimera définitivement tous "
 "les messages de cette conversation. Cette action ne peut pas être annulée."
 
-#: main/src/ui/util/helper.vala:515
+#: main/src/ui/util/helper.vala:529
 msgid "Also delete for chat partner"
 msgstr "Supprimer aussi pour le partenaire de chat"
 
-#: main/src/ui/util/helper.vala:521
+#: main/src/ui/util/helper.vala:535
 msgid "Delete"
 msgstr "Supprimer"
 
@@ -2653,9 +2787,8 @@ msgid "Notifications disabled"
 msgstr "Notifications désactivées"
 
 #: main/src/windows/conversation_details.vala:253
-#, fuzzy
 msgid "Profile"
-msgstr "Enregistrer le profil"
+msgstr "Profil"
 
 #: main/src/windows/conversation_details.vala:256
 #: plugins/bot-features/src/botfather_handler.vala:430
@@ -2666,111 +2799,149 @@ msgstr "Paramètres"
 msgid "Room Configuration"
 msgstr "Configuration du salon"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:121
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:127
 msgid "Connect"
 msgstr "Se connecter"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:132
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:138
 #, c-format
 msgid "Remove pinned certificate for %s?"
 msgstr "Supprimer le certificat épinglé pour %s ?"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:133
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:139
 msgid ""
 "The server will need to present a valid CA-signed certificate, or you will "
 "be asked to trust it again."
 msgstr ""
-"Le serveur devra présenter un certificat signé par une CA valide, ou il vous"
-" sera demandé de lui faire confiance à nouveau."
+"Le serveur devra présenter un certificat signé par une CA valide, ou il vous "
+"sera demandé de lui faire confiance à nouveau."
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:239
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:216
+msgid "Managed by Tor Plugin — disable to use standalone SOCKS5"
+msgstr ""
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:278
 msgid "Disable account"
 msgstr "Désactiver ce compte"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:239
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:278
 msgid "Enable account"
 msgstr "Activer ce compte"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:303
-#: plugins/tor-manager/src/ui_indicator.vala:123
-msgid "Checking status..."
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:336
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:968
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1782
+#: plugins/mqtt/src/settings_page.vala:495
+#: plugins/mqtt/src/topic_manager_dialog.vala:233
+#: plugins/mqtt/src/topic_manager_dialog.vala:265
+msgid "Disabled"
+msgstr "Désactivé"
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:338
+#, fuzzy
+msgid "Disabled (configured)"
+msgstr "(Pas encore configuré)"
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:353
+#, fuzzy
+msgid "Checking..."
 msgstr "Vérification du statut…"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:310
-msgid "Service is running and reachable"
-msgstr "Le service est en cours d'exécution et accessible"
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:373
+#, fuzzy
+msgid "Connection failed"
+msgstr "Mode de connexion"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:314
-msgid "Proxy unreachable"
-msgstr "Proxy inaccessible"
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:382
+#: plugins/mqtt/src/topic_manager_dialog.vala:233
+#: plugins/mqtt/src/topic_manager_dialog.vala:265
+#: plugins/mqtt/src/topic_manager_dialog.vala:363
+msgid "Active"
+msgstr "Actif"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:370
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:386
+#, fuzzy
+msgid "Connecting..."
+msgstr "Connexion"
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:390
+#, fuzzy
+msgid "Reachable (not connected)"
+msgstr "Épinglé (non connecté)"
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:446
 msgid "Pinned (self-signed / manually trusted)"
 msgstr "Épinglé (auto-signé / manuellement approuvé)"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:373
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:449
 msgid "Valid (CA-signed)"
 msgstr "Valide (signé par CA)"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:386
-#: main/src/windows/preferences_window/add_account_dialog.vala:232
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:462
+#: main/src/windows/preferences_window/add_account_dialog.vala:239
 msgid "From:"
 msgstr "De :"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:389
-#: main/src/windows/preferences_window/add_account_dialog.vala:235
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:465
+#: main/src/windows/preferences_window/add_account_dialog.vala:242
 msgid "Until:"
 msgstr "Jusqu'au :"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:391
-#: main/src/windows/preferences_window/add_account_dialog.vala:237
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:467
+#: main/src/windows/preferences_window/add_account_dialog.vala:244
 msgid "expired"
 msgstr "expiré"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:407
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:483
 msgid "Pinned (not connected)"
 msgstr "Épinglé (non connecté)"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:440
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:512
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:397
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:454
+#: plugins/mqtt/src/settings_page.vala:276
+msgid "Reconnecting…"
+msgstr "Reconnexion…"
+
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:525
 msgid "Select avatar"
 msgstr "Sélectionner une image de profil"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:455
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:540
 msgid "All files"
 msgstr "Tous les fichiers"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:473
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:558
 #, c-format
 msgid "Remove account %s?"
 msgstr "Supprimer le compte %s ?"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:474
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:559
 msgid "You won't be able to access your conversation history anymore."
 msgstr "Vous ne pourrez plus accéder à votre historique de conversation."
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:478
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:563
 msgid "Also delete account from server"
 msgstr "Supprimer aussi le compte du serveur"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:750
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:959
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:835
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:960
 #: plugins/mqtt/src/settings_page.vala:487
 msgid "Connected"
 msgstr "Connecté"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:752
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:837
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:282
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:414
 msgid "Disconnected"
 msgstr "Déconnecté"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:754
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:839
 msgid "Unknown Status"
 msgstr "Statut inconnu"
 
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:772
-#: main/src/windows/preferences_window/account_preferences_subpage.vala:774
-#: plugins/tor-manager/src/settings_page.vala:382
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:862
+#: main/src/windows/preferences_window/account_preferences_subpage.vala:864
 msgid "Error"
 msgstr "Erreur"
 
@@ -2783,75 +2954,76 @@ msgstr "Comptes désactivés"
 msgid "Add Account"
 msgstr "Ajouter un compte"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:169
+#: main/src/windows/preferences_window/add_account_dialog.vala:176
 #, c-format
 msgid "The server could not prove that it is %s."
 msgstr "Le serveur n’a pas su prouver qu’il est %s."
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:171
+#: main/src/windows/preferences_window/add_account_dialog.vala:178
 msgid "Its security certificate is not trusted by your operating system."
 msgstr ""
-"Votre système d’exploitation ne fait pas confiance au certificat proposé."
+"Son certificat de sécurité n'est pas approuvé par votre système "
+"d'exploitation."
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:173
+#: main/src/windows/preferences_window/add_account_dialog.vala:180
 msgid "Its security certificate is issued to another domain."
 msgstr "Son certificat a été généré pour un autre domaine."
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:175
+#: main/src/windows/preferences_window/add_account_dialog.vala:182
 msgid "Its security certificate will only become valid in the future."
 msgstr "Son certificat ne deviendra valide que dans le futur."
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:177
+#: main/src/windows/preferences_window/add_account_dialog.vala:184
 msgid "Its security certificate is expired."
 msgstr "Son certificat a expiré."
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:224
+#: main/src/windows/preferences_window/add_account_dialog.vala:231
 msgid "Issuer:"
 msgstr "Émetteur :"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:241
+#: main/src/windows/preferences_window/add_account_dialog.vala:248
 msgid "Valid:"
 msgstr "Valide :"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:248
+#: main/src/windows/preferences_window/add_account_dialog.vala:255
 msgid "SHA-256 Fingerprint:"
 msgstr "Empreinte SHA-256 :"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:307
+#: main/src/windows/preferences_window/add_account_dialog.vala:314
 #, c-format
 msgid "You can now use the account %s."
 msgstr "Vous pouvez maintenant utiliser le compte %s."
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:364
+#: main/src/windows/preferences_window/add_account_dialog.vala:371
 msgid "Wrong username or password"
 msgstr "Mauvais nom d’utilisateur·ice ou mot de passe"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:367
+#: main/src/windows/preferences_window/add_account_dialog.vala:374
 msgid "Something went wrong"
 msgstr "Quelque chose s’est mal passé"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:442
+#: main/src/windows/preferences_window/add_account_dialog.vala:449
 msgid "No response from server"
 msgstr "Pas de réponse du serveur"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:453
+#: main/src/windows/preferences_window/add_account_dialog.vala:460
 #, c-format
 msgid "Register on %s"
 msgstr "S’inscrire sur %s"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:456
+#: main/src/windows/preferences_window/add_account_dialog.vala:463
 msgid "The server requires to sign up through a website"
 msgstr "Ce serveur nécessite de s’inscrire depuis un site Web"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:458
+#: main/src/windows/preferences_window/add_account_dialog.vala:465
 msgid "Open website"
 msgstr "Ouvrir le site web"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:470
+#: main/src/windows/preferences_window/add_account_dialog.vala:477
 msgid "Register"
 msgstr "S’inscrire"
 
-#: main/src/windows/preferences_window/add_account_dialog.vala:472
+#: main/src/windows/preferences_window/add_account_dialog.vala:479
 #, c-format
 msgid "Check %s for information on how to sign up"
 msgstr "Consultez %s pour plus d’informations sur comment s’inscrire"
@@ -2859,11 +3031,11 @@ msgstr "Consultez %s pour plus d’informations sur comment s’inscrire"
 #: main/src/windows/preferences_window/change_password_dialog.vala:58
 #, c-format
 msgid "Error: %s"
-msgstr ""
+msgstr "Erreur : %s"
 
 #: main/src/windows/preferences_window/change_password_dialog.vala:61
 msgid "Wrong current password"
-msgstr ""
+msgstr "Mot de passe actuel incorrect"
 
 #: main/src/windows/preferences_window/contacts_preferences_page.vala:199
 msgid "No contacts"
@@ -2896,26 +3068,30 @@ msgstr "Changer le nom affiché pour %s"
 msgid "Alias (optional)"
 msgstr "Alias (optionnel)"
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:80
+#: main/src/windows/preferences_window/general_preferences_page.vala:143
 msgid "Local (localhost)"
 msgstr "Local (localhost)"
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:81
+#: main/src/windows/preferences_window/general_preferences_page.vala:144
 #: plugins/bot-features/src/message_router.vala:1568
 msgid "Network (0.0.0.0 + TLS)"
 msgstr "Réseau (0.0.0.0 + TLS)"
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:241
-#: main/src/windows/preferences_window/general_preferences_page.vala:243
+#: main/src/windows/preferences_window/general_preferences_page.vala:294
+msgid "Restart DinoX to apply the new language"
+msgstr "Redémarrez DinoX pour appliquer la nouvelle langue"
+
+#: main/src/windows/preferences_window/general_preferences_page.vala:340
+#: main/src/windows/preferences_window/general_preferences_page.vala:342
 msgid "Empty = auto-generated self-signed"
 msgstr "Vide = auto-signé généré automatiquement"
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:264
+#: main/src/windows/preferences_window/general_preferences_page.vala:363
 msgid "Certificate deleted. Server will restart with new certificate."
 msgstr ""
 "Certificat supprimé. Le serveur redémarrera avec un nouveau certificat."
 
-#: main/src/windows/preferences_window/general_preferences_page.vala:284
+#: main/src/windows/preferences_window/general_preferences_page.vala:383
 msgid "Certificate and key deleted."
 msgstr "Certificat et clé supprimés."
 
@@ -2927,7 +3103,8 @@ msgstr "Bot #%d non trouvé ou ne vous appartient pas."
 #: plugins/bot-features/src/botfather_handler.vala:70
 msgid "Unknown command. Type /help for a list of available commands."
 msgstr ""
-"Commande inconnue. Saisissez /help pour la liste des commandes disponibles."
+"Commande inconnue. Tapez /help pour afficher la liste des commandes "
+"disponibles."
 
 #: plugins/bot-features/src/botfather_handler.vala:77
 #: plugins/bot-features/src/botfather_handler.vala:420
@@ -3023,7 +3200,8 @@ msgid ""
 "Bot '%s' deleted, but ejabberd account '%s' could not be removed: %s\n"
 "Manual cleanup may be needed."
 msgstr ""
-"Bot '%s' supprimé, mais le compte ejabberd '%s' n'a pas pu être supprimé : %s\n"
+"Bot '%s' supprimé, mais le compte ejabberd '%s' n'a pas pu être supprimé : "
+"%s\n"
 "Un nettoyage manuel peut être nécessaire."
 
 #: plugins/bot-features/src/botfather_handler.vala:182
@@ -3078,7 +3256,7 @@ msgstr "Token pour '%s' (ID : %d)"
 #: plugins/bot-features/src/botfather_handler.vala:239
 msgid "Tokens are shown only once at creation and not stored."
 msgstr ""
-"Les tokens ne sont affichés qu'une seule fois à la création et ne sont pas "
+"Les jetons ne sont affichés qu'une seule fois à la création et ne sont pas "
 "stockés."
 
 #: plugins/bot-features/src/botfather_handler.vala:246
@@ -3139,6 +3317,9 @@ msgstr "Définir les commandes du bot"
 #: plugins/bot-features/src/message_router.vala:615
 #: plugins/bot-features/src/message_router.vala:864
 #: plugins/bot-features/src/message_router.vala:1178
+#: plugins/mqtt/src/command_handler.vala:581
+#: plugins/mqtt/src/command_handler.vala:618
+#: plugins/mqtt/src/command_handler.vala:635
 msgid "Example:"
 msgstr "Exemple :"
 
@@ -3246,6 +3427,7 @@ msgid "Set description"
 msgstr "Définir la description"
 
 #: plugins/bot-features/src/botfather_handler.vala:437
+#: plugins/mqtt/src/command_handler.vala:601
 msgid "Examples:"
 msgstr "Exemples :"
 
@@ -3420,7 +3602,7 @@ msgstr "Activer l'IA"
 #: plugins/bot-features/src/message_router.vala:824
 #: plugins/bot-features/src/message_router.vala:834
 msgid "Current configuration"
-msgstr ""
+msgstr "Configuration actuelle"
 
 #: plugins/bot-features/src/message_router.vala:505
 #: plugins/bot-features/src/message_router.vala:516
@@ -3444,7 +3626,7 @@ msgstr "Changer de fournisseur"
 #: plugins/bot-features/src/message_router.vala:827
 #: plugins/bot-features/src/message_router.vala:837
 msgid "Set up again"
-msgstr ""
+msgstr "Reconfigurer"
 
 #: plugins/bot-features/src/message_router.vala:517
 msgid "Show/change system prompt"
@@ -3464,6 +3646,12 @@ msgstr "Afficher/changer le system prompt"
 #: plugins/bot-features/src/message_router.vala:1371
 #: plugins/bot-features/src/message_router.vala:1446
 #: plugins/bot-features/src/message_router.vala:1727
+#: plugins/mqtt/src/command_handler.vala:583
+#: plugins/mqtt/src/command_handler.vala:605
+#: plugins/mqtt/src/command_handler.vala:621
+#: plugins/mqtt/src/command_handler.vala:639
+#: plugins/mqtt/src/command_handler.vala:653
+#: plugins/mqtt/src/command_handler.vala:670
 msgid "Back:"
 msgstr "Retour :"
 
@@ -3787,7 +3975,7 @@ msgstr ""
 #: plugins/bot-features/src/message_router.vala:928
 msgid "Deleting server message archive (ALL users)..."
 msgstr ""
-"Suppression de l'archive de messages du serveur (TOUS les utilisateurs)..."
+"Suppression de l'archive des messages du serveur (TOUS les utilisateurs)…"
 
 #: plugins/bot-features/src/message_router.vala:934
 msgid "Server message archive (MAM) cleared."
@@ -3897,7 +4085,7 @@ msgstr "Activer Telegram"
 #: plugins/bot-features/src/message_router.vala:1112
 #, c-format
 msgid "Unknown: /api %s"
-msgstr ""
+msgstr "Inconnu : /api %s"
 
 #: plugins/bot-features/src/message_router.vala:1127
 #, c-format
@@ -4245,7 +4433,7 @@ msgstr "Un nouveau sera généré au prochain démarrage en mode réseau."
 #: plugins/bot-features/src/message_router.vala:1552
 #, c-format
 msgid "Unknown: /api server %s"
-msgstr ""
+msgstr "Inconnu : /api server %s"
 
 #: plugins/bot-features/src/message_router.vala:1563
 msgid "API: Server Settings"
@@ -4424,59 +4612,103 @@ msgid "Critical (badge + notification + sound)"
 msgstr "Critique (badge + notification + son)"
 
 #: plugins/mqtt/src/alert_manager.vala:47
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1003
 msgid "Normal"
 msgstr "Normal"
 
-#: plugins/mqtt/src/bot_conversation.vala:627
+#: plugins/mqtt/src/bot_conversation.vala:124
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:579
+msgid "MQTT Bot"
+msgstr "Bot MQTT"
+
+#: plugins/mqtt/src/bot_conversation.vala:131
+#, fuzzy, c-format
+msgid "%s (Standalone)"
+msgstr "MQTT (autonome)"
+
+#: plugins/mqtt/src/bot_conversation.vala:714
 msgid "(empty)"
 msgstr "(vide)"
 
-#: plugins/mqtt/src/command_handler.vala:241
-#, c-format
-msgid ""
-"Unknown command: /mqtt %s\n"
-"\n"
-"Type /mqtt help for available commands."
-msgstr ""
-"Commande inconnue : /mqtt %s\n"
-"\n"
-"Saisissez /mqtt help pour les commandes disponibles."
+#: plugins/mqtt/src/command_handler.vala:245
+#, fuzzy, c-format
+msgid "Unknown command: /mqtt %s"
+msgstr "Inconnu : /ki %s"
 
-#: plugins/mqtt/src/command_handler.vala:254
+#: plugins/mqtt/src/command_handler.vala:246
+#, fuzzy
+msgid "Show menu"
+msgstr "Afficher le token"
+
+#: plugins/mqtt/src/command_handler.vala:297
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:639
+msgid "Topics"
+msgstr "Topics"
+
+#: plugins/mqtt/src/command_handler.vala:302
+#, fuzzy
+msgid "Alerts"
+msgstr "Alerte"
+
+#: plugins/mqtt/src/command_handler.vala:306
+#: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Bridges"
+msgstr "Ponts"
+
+#: plugins/mqtt/src/command_handler.vala:310
+#, fuzzy
+msgid "Presets"
+msgstr "Ajouter un modèle"
+
+#: plugins/mqtt/src/command_handler.vala:314
+#, fuzzy
+msgid "Discovery"
+msgstr "Activer la découverte"
+
+#: plugins/mqtt/src/command_handler.vala:319
+msgid "Tools"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:331
+#, fuzzy
+msgid "Menu"
+msgstr "Menus :"
+
+#: plugins/mqtt/src/command_handler.vala:339
 msgid "MQTT Status\n"
 msgstr "Statut MQTT\n"
 
-#: plugins/mqtt/src/command_handler.vala:260
+#: plugins/mqtt/src/command_handler.vala:345
 #, c-format
 msgid "Standalone: %s\n"
 msgstr "Autonome : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:261
-#: plugins/mqtt/src/command_handler.vala:272
-#: plugins/mqtt/src/command_handler.vala:1388
+#: plugins/mqtt/src/command_handler.vala:346
+#: plugins/mqtt/src/command_handler.vala:357
+#: plugins/mqtt/src/command_handler.vala:1578
 msgid "Connected ✔"
 msgstr "Connecté ✔"
 
-#: plugins/mqtt/src/command_handler.vala:261
-#: plugins/mqtt/src/command_handler.vala:272
-#: plugins/mqtt/src/command_handler.vala:1388
+#: plugins/mqtt/src/command_handler.vala:346
+#: plugins/mqtt/src/command_handler.vala:357
+#: plugins/mqtt/src/command_handler.vala:1578
 msgid "Disconnected ✘"
 msgstr "Déconnecté ✘"
 
-#: plugins/mqtt/src/command_handler.vala:270
+#: plugins/mqtt/src/command_handler.vala:355
 #, c-format
 msgid "Account %s: %s\n"
 msgstr "Compte %s : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:277
+#: plugins/mqtt/src/command_handler.vala:362
 msgid "No active MQTT connections.\n"
 msgstr "Aucune connexion MQTT active.\n"
 
-#: plugins/mqtt/src/command_handler.vala:278
+#: plugins/mqtt/src/command_handler.vala:363
 msgid "Enable MQTT in Preferences > Account > MQTT Bot."
 msgstr "Activez MQTT dans Préférences > Compte > Bot MQTT."
 
-#: plugins/mqtt/src/command_handler.vala:286
+#: plugins/mqtt/src/command_handler.vala:371
 msgid ""
 "Usage: /mqtt subscribe <topic>\n"
 "\n"
@@ -4490,46 +4722,46 @@ msgstr ""
 "  /mqtt subscribe home/sensors/#\n"
 "  /mqtt subscribe home/+/temperature"
 
-#: plugins/mqtt/src/command_handler.vala:291
-#: plugins/mqtt/src/command_handler.vala:327
-#: plugins/mqtt/src/command_handler.vala:501
-#: plugins/mqtt/src/command_handler.vala:514
-#: plugins/mqtt/src/command_handler.vala:541
-#: plugins/mqtt/src/command_handler.vala:1212
-#: plugins/mqtt/src/command_handler.vala:1262
-#: plugins/mqtt/src/command_handler.vala:1304
-#: plugins/mqtt/src/command_handler.vala:1325
-#: plugins/mqtt/src/command_handler.vala:1360
-#: plugins/mqtt/src/command_handler.vala:1410
-#: plugins/mqtt/src/command_handler.vala:1441
+#: plugins/mqtt/src/command_handler.vala:376
+#: plugins/mqtt/src/command_handler.vala:412
+#: plugins/mqtt/src/command_handler.vala:690
+#: plugins/mqtt/src/command_handler.vala:703
+#: plugins/mqtt/src/command_handler.vala:730
+#: plugins/mqtt/src/command_handler.vala:1408
+#: plugins/mqtt/src/command_handler.vala:1452
+#: plugins/mqtt/src/command_handler.vala:1494
+#: plugins/mqtt/src/command_handler.vala:1515
+#: plugins/mqtt/src/command_handler.vala:1550
+#: plugins/mqtt/src/command_handler.vala:1600
+#: plugins/mqtt/src/command_handler.vala:1631
 msgid "No config available for this connection."
 msgstr "Aucune configuration disponible pour cette connexion."
 
-#: plugins/mqtt/src/command_handler.vala:299
+#: plugins/mqtt/src/command_handler.vala:384
 #, c-format
 msgid "Already subscribed to: %s"
 msgstr "Déjà abonné à : %s"
 
-#: plugins/mqtt/src/command_handler.vala:317
+#: plugins/mqtt/src/command_handler.vala:402
 #, c-format
 msgid "Subscribed to: %s ✔"
 msgstr "Abonné à : %s ✔"
 
-#: plugins/mqtt/src/command_handler.vala:322
+#: plugins/mqtt/src/command_handler.vala:407
 msgid "Usage: /mqtt unsubscribe <topic>"
 msgstr "Utilisation : /mqtt unsubscribe <topic>"
 
-#: plugins/mqtt/src/command_handler.vala:351
+#: plugins/mqtt/src/command_handler.vala:436
 #, c-format
 msgid "Unsubscribed from: %s ✔"
 msgstr "Désabonné de : %s ✔"
 
-#: plugins/mqtt/src/command_handler.vala:355
+#: plugins/mqtt/src/command_handler.vala:440
 #, c-format
 msgid "Topic not found in subscriptions: %s"
 msgstr "Topic non trouvé dans les abonnements : %s"
 
-#: plugins/mqtt/src/command_handler.vala:360
+#: plugins/mqtt/src/command_handler.vala:445
 msgid ""
 "Usage: /mqtt publish <topic> <payload>\n"
 "\n"
@@ -4541,7 +4773,7 @@ msgstr ""
 "Exemple :\n"
 "  /mqtt publish home/light/set ON"
 
-#: plugins/mqtt/src/command_handler.vala:363
+#: plugins/mqtt/src/command_handler.vala:448
 msgid ""
 "Usage: /mqtt publish <topic> <payload>\n"
 "\n"
@@ -4551,11 +4783,11 @@ msgstr ""
 "\n"
 "La charge utile ne peut pas être vide."
 
-#: plugins/mqtt/src/command_handler.vala:373
+#: plugins/mqtt/src/command_handler.vala:458
 msgid "Cannot publish — MQTT client is not connected."
 msgstr "Impossible de publier — le client MQTT n'est pas connecté."
 
-#: plugins/mqtt/src/command_handler.vala:377
+#: plugins/mqtt/src/command_handler.vala:462
 #, c-format
 msgid ""
 "Published to %s:\n"
@@ -4564,7 +4796,7 @@ msgstr ""
 "Publié sur %s :\n"
 "%s"
 
-#: plugins/mqtt/src/command_handler.vala:384
+#: plugins/mqtt/src/command_handler.vala:469
 msgid ""
 "No topic subscriptions configured.\n"
 "\n"
@@ -4574,89 +4806,323 @@ msgstr ""
 "\n"
 "Utilisez /mqtt subscribe <topic> pour en ajouter un."
 
-#: plugins/mqtt/src/command_handler.vala:389
+#: plugins/mqtt/src/command_handler.vala:474
 msgid "Active Topic Subscriptions\n"
 msgstr "Abonnements aux topics actifs\n"
 
-#: plugins/mqtt/src/command_handler.vala:420
-msgid ""
-"MQTT Bot Commands\n"
-"─────────────────\n"
-"/mqtt status              — Connection status\n"
-"/mqtt subscribe <topic>   — Subscribe to a topic\n"
-"/mqtt unsubscribe <topic> — Unsubscribe from a topic\n"
-"/mqtt publish <t> <msg>   — Publish to a topic\n"
-"/mqtt topics              — List subscriptions\n"
-"/mqtt alias <topic> <name>— Set topic display alias\n"
-"/mqtt aliases             — List all aliases\n"
-"/mqtt rmalias <topic>     — Remove alias\n"
-"/mqtt qos <topic> <0|1|2> — Set topic QoS level\n"
-"/mqtt chart <topic> [N]   — Sparkline chart\n"
-"/mqtt bridge <topic> <jid>— Forward to XMPP contact\n"
-"/mqtt bridges             — List bridge rules\n"
-"/mqtt rmbridge <number>   — Remove bridge rule\n"
-"/mqtt preset add <name> <topic> <payload>\n"
-"                          — Add publish preset\n"
-"/mqtt preset remove <N>   — Remove preset by number\n"
-"/mqtt preset <name>       — Execute preset\n"
-"/mqtt presets             — List all presets\n"
-"/mqtt config              — Show connection config\n"
-"/mqtt reconnect           — Force reconnect\n"
-"/mqtt manager             — Open Topic Manager\n"
-"/mqtt alert <topic> <op> <value>\n"
-"                          — Set threshold alert\n"
-"/mqtt alerts              — List alert rules\n"
-"/mqtt rmalert <number>    — Remove alert rule\n"
-"/mqtt priority <topic> <level>\n"
-"                          — Set topic priority\n"
-"/mqtt history [topic] [N] — Show topic history\n"
-"/mqtt dbstats             — Database statistics\n"
-"/mqtt purge               — Manual data cleanup\n"
-"/mqtt pause               — Pause messages\n"
-"/mqtt resume              — Resume messages\n"
-"/mqtt discovery [on|off]  — HA Discovery status/toggle\n"
-"/mqtt help                — This help text\n"
-"\n"
-"Topic wildcards:\n"
-"  + = single level (home/+/temp)\n"
-"  # = all below   (home/sensors/#)\n"
-"\n"
-"Alert examples:\n"
-"  /mqtt alert home/temp > 30\n"
-"  /mqtt alert home/door == OPEN\n"
-"\n"
-"Bridge example:\n"
-"  /mqtt bridge home/alerts/# user@example.com\n"
-"\n"
-"Preset example:\n"
-"  /mqtt preset add LichtAN home/light/set ON\n"
-"  /mqtt preset LichtAN\n"
-"\n"
-"QoS levels: 0 (fire&forget), 1 (ack), 2 (exactly once)\n"
-"Priority levels: silent, normal, alert, critical\n"
-"\n"
-"Alias example:\n"
-"  /mqtt alias home/temp 🌡 Wohnzimmer\n"
-"\n"
-"HA Discovery:\n"
-"  /mqtt discovery         — Show discovery status\n"
-"  /mqtt discovery on      — Enable & publish\n"
-"  /mqtt discovery off     — Disable & remove"
+#: plugins/mqtt/src/command_handler.vala:536
+#, fuzzy
+msgid "MQTT Bot — Main Menu"
+msgstr "Bot MQTT — Autonome"
+
+#: plugins/mqtt/src/command_handler.vala:539
+#, fuzzy
+msgid "Connection & broker info"
+msgstr "Mode de connexion"
+
+#: plugins/mqtt/src/command_handler.vala:541
+msgid "Categories:"
 msgstr ""
 
-#: plugins/mqtt/src/command_handler.vala:493
+#: plugins/mqtt/src/command_handler.vala:542
+msgid "Subscribe, Publish, Aliases, QoS"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:543
+#, fuzzy
+msgid "Threshold alerts & priority"
+msgstr "Alertes de seuil pour les topics MQTT"
+
+#: plugins/mqtt/src/command_handler.vala:544
+msgid "XMPP forwarding rules"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:545
+#, fuzzy
+msgid "Publish presets (quick actions)"
+msgstr "Modèles de publication"
+
+#: plugins/mqtt/src/command_handler.vala:546
+#: plugins/mqtt/src/command_handler.vala:645
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:541
+#: plugins/mqtt/src/settings_page.vala:306
+msgid "Home Assistant Discovery"
+msgstr "Découverte Home Assistant"
+
+#: plugins/mqtt/src/command_handler.vala:547
+msgid "History, Charts, Database, Manager"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:549
+#, fuzzy
+msgid "Quick Actions:"
+msgstr "Actions"
+
+#: plugins/mqtt/src/command_handler.vala:550
+#, fuzzy
+msgid "List subscriptions"
+msgstr "Modifier l'abonnement"
+
+#: plugins/mqtt/src/command_handler.vala:551
+#, fuzzy
+msgid "List alerts"
+msgstr "Lister vos bots"
+
+#: plugins/mqtt/src/command_handler.vala:552
+#, fuzzy
+msgid "List presets"
+msgstr "Aucun modèle de publication"
+
+#: plugins/mqtt/src/command_handler.vala:553
+#, fuzzy
+msgid "Pause / Resume messages"
+msgstr "Mettre les messages en pause"
+
+#: plugins/mqtt/src/command_handler.vala:554
+#, fuzzy
+msgid "Show config"
+msgstr "Afficher le token"
+
+#: plugins/mqtt/src/command_handler.vala:555
+#, fuzzy
+msgid "Force reconnect"
+msgstr "Reconnecter"
+
+#: plugins/mqtt/src/command_handler.vala:556
+#, fuzzy
+msgid "Clear chat"
+msgstr "Vider le cache"
+
+#: plugins/mqtt/src/command_handler.vala:563
+#, fuzzy
+msgid "Topics & Subscriptions"
+msgstr "Abonnements aux topics"
+
+#: plugins/mqtt/src/command_handler.vala:566
+#, fuzzy
+msgid "List active subscriptions"
+msgstr "Abonnements actifs"
+
+#: plugins/mqtt/src/command_handler.vala:567
+#, fuzzy
+msgid "Subscribe to a topic"
+msgstr "S'abonner au topic"
+
+#: plugins/mqtt/src/command_handler.vala:568
+#: plugins/mqtt/src/topic_manager_dialog.vala:213
+msgid "Unsubscribe"
+msgstr "Se désabonner"
+
+#: plugins/mqtt/src/command_handler.vala:569
+#, fuzzy
+msgid "Publish message"
+msgstr "Modèles de publication"
+
+#: plugins/mqtt/src/command_handler.vala:570
+msgid "Set QoS level"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:572
+#, fuzzy
+msgid "Aliases:"
+msgstr "Alias"
+
+#: plugins/mqtt/src/command_handler.vala:573
+#, fuzzy
+msgid "List all aliases"
+msgstr "Alias local"
+
+#: plugins/mqtt/src/command_handler.vala:574
+msgid "Set display alias"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:575
+#, fuzzy
+msgid "Remove alias"
+msgstr "Supprimer l'alerte"
+
+#: plugins/mqtt/src/command_handler.vala:577
+#, fuzzy
+msgid "Topic wildcards:"
+msgstr "Topics :"
+
+#: plugins/mqtt/src/command_handler.vala:578
+msgid "single level"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:579
+msgid "all below"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:581
+msgid "Living Room"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:589
+msgid "Alerts & Priorities"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:592
+#, fuzzy
+msgid "List alert rules"
+msgstr "Règles d'alerte"
+
+#: plugins/mqtt/src/command_handler.vala:593
+msgid "Set threshold alert"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:594
+#: plugins/mqtt/src/topic_manager_dialog.vala:280
+msgid "Remove alert"
+msgstr "Supprimer l'alerte"
+
+#: plugins/mqtt/src/command_handler.vala:595
+#, fuzzy
+msgid "Set notification priority"
+msgstr "Priorité de notification"
+
+#: plugins/mqtt/src/command_handler.vala:597
+#, fuzzy
+msgid "Alert operators: > < >= <= == !="
+msgstr ""
+"Opérateur inconnu : %s\n"
+"\n"
+"Opérateurs valides : > < >= <= == != contains"
+
+#: plugins/mqtt/src/command_handler.vala:598
+msgid "JSON field: topic.field (e.g. home/sensor.temperature > 30)"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:599
+msgid "Priority levels: silent, normal, alert, critical"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:611
+#, fuzzy
+msgid "MQTT → XMPP Bridges"
+msgstr "Pont MQTT → XMPP"
+
+#: plugins/mqtt/src/command_handler.vala:614
+#, fuzzy
+msgid "List bridge rules"
+msgstr "Règles de pont"
+
+#: plugins/mqtt/src/command_handler.vala:615
+#, fuzzy
+msgid "Forward to XMPP contact"
+msgstr "Transférer les messages MQTT vers des contacts XMPP"
+
+#: plugins/mqtt/src/command_handler.vala:616
+#: plugins/mqtt/src/topic_manager_dialog.vala:238
+msgid "Remove bridge"
+msgstr "Supprimer le pont"
+
+#: plugins/mqtt/src/command_handler.vala:627
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:676
+msgid "Publish Presets"
+msgstr "Modèles de publication"
+
+#: plugins/mqtt/src/command_handler.vala:630
+msgid "List all presets"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:631
+#, fuzzy
+msgid "Add preset"
+msgstr "Ajouter un modèle"
+
+#: plugins/mqtt/src/command_handler.vala:632
+#, fuzzy
+msgid "Remove by number"
+msgstr "Supprimer l'alerte"
+
+#: plugins/mqtt/src/command_handler.vala:633
+msgid "Execute preset"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:636
+msgid "  /mqtt preset add LightON home/light/set ON\n"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:637
+msgid ""
+"  /mqtt preset LightON\n"
+"\n"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:648
+#, fuzzy
+msgid "Show discovery status"
+msgstr "Statut de découverte MQTT\n"
+
+#: plugins/mqtt/src/command_handler.vala:649
+#, fuzzy
+msgid "Enable & publish"
+msgstr "Activer la publication en texte libre"
+
+#: plugins/mqtt/src/command_handler.vala:650
+msgid "Disable & remove"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:651
+msgid "Republish all"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:659
+msgid "Tools & Diagnostics"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:662
+#, fuzzy
+msgid "Show topic history"
+msgstr "Topics avec historique\n"
+
+#: plugins/mqtt/src/command_handler.vala:663
+msgid "Sparkline chart"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:664
+#, fuzzy
+msgid "Database statistics"
+msgstr "Maintenance de la base de données"
+
+#: plugins/mqtt/src/command_handler.vala:665
+msgid "Manual data cleanup"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:666
+#, fuzzy
+msgid "Open Topic Manager dialog"
+msgstr "Ouverture du gestionnaire de sujets…"
+
+#: plugins/mqtt/src/command_handler.vala:668
+msgid "fire & forget"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:668
+#, fuzzy
+msgid "ack"
+msgstr "Retour"
+
+#: plugins/mqtt/src/command_handler.vala:668
+#: plugins/mqtt/src/command_handler.vala:1169
+msgid "exactly once"
+msgstr "exactement une fois"
+
+#: plugins/mqtt/src/command_handler.vala:683
+#, fuzzy
 msgid ""
 "Usage: /mqtt alias <topic> <name>\n"
 "\n"
 "Example:\n"
-"  /mqtt alias home/sensors/temp 🌡 Wohnzimmer"
+"  /mqtt alias home/sensors/temp 🌡 Living Room"
 msgstr ""
 "Utilisation : /mqtt alias <topic> <name>\n"
 "\n"
 "Exemple :\n"
 "  /mqtt alias home/sensors/temp 🌡 Salon"
 
-#: plugins/mqtt/src/command_handler.vala:497
+#: plugins/mqtt/src/command_handler.vala:686
 msgid ""
 "Usage: /mqtt alias <topic> <name>\n"
 "\n"
@@ -4666,12 +5132,12 @@ msgstr ""
 "\n"
 "Le nom de l'alias ne peut pas être vide."
 
-#: plugins/mqtt/src/command_handler.vala:506
+#: plugins/mqtt/src/command_handler.vala:695
 #, c-format
 msgid "Alias set: %s → %s ✔"
 msgstr "Alias défini : %s → %s ✔"
 
-#: plugins/mqtt/src/command_handler.vala:518
+#: plugins/mqtt/src/command_handler.vala:707
 msgid ""
 "No topic aliases configured.\n"
 "\n"
@@ -4681,25 +5147,25 @@ msgstr ""
 "\n"
 "Utilisez /mqtt alias <topic> <name> pour en définir un."
 
-#: plugins/mqtt/src/command_handler.vala:523
+#: plugins/mqtt/src/command_handler.vala:712
 msgid "Topic Aliases\n"
 msgstr "Alias de topics\n"
 
-#: plugins/mqtt/src/command_handler.vala:537
+#: plugins/mqtt/src/command_handler.vala:726
 msgid "Usage: /mqtt rmalias <topic>"
 msgstr "Utilisation : /mqtt rmalias <topic>"
 
-#: plugins/mqtt/src/command_handler.vala:545
+#: plugins/mqtt/src/command_handler.vala:734
 #, c-format
 msgid "Alias removed for: %s ✔"
 msgstr "Alias supprimé pour : %s ✔"
 
-#: plugins/mqtt/src/command_handler.vala:547
+#: plugins/mqtt/src/command_handler.vala:736
 #, c-format
 msgid "No alias found for: %s"
 msgstr "Aucun alias trouvé pour : %s"
 
-#: plugins/mqtt/src/command_handler.vala:559
+#: plugins/mqtt/src/command_handler.vala:748
 msgid ""
 "Usage: /mqtt alert <topic> <op> <value>\n"
 "\n"
@@ -4721,7 +5187,7 @@ msgstr ""
 "  /mqtt alert home/data.temperature > 25\n"
 "    (vérifie le champ JSON 'temperature')"
 
-#: plugins/mqtt/src/command_handler.vala:570
+#: plugins/mqtt/src/command_handler.vala:759
 #, c-format
 msgid ""
 "Unknown operator: %s\n"
@@ -4732,20 +5198,20 @@ msgstr ""
 "\n"
 "Opérateurs valides : > < >= <= == != contains"
 
-#: plugins/mqtt/src/command_handler.vala:596
-#: plugins/mqtt/src/command_handler.vala:619
-#: plugins/mqtt/src/command_handler.vala:661
-#: plugins/mqtt/src/command_handler.vala:678
-#: plugins/mqtt/src/command_handler.vala:709
-#: plugins/mqtt/src/command_handler.vala:724
-#: plugins/mqtt/src/command_handler.vala:885
-#: plugins/mqtt/src/command_handler.vala:903
-#: plugins/mqtt/src/command_handler.vala:922
-#: plugins/mqtt/src/command_handler.vala:991
+#: plugins/mqtt/src/command_handler.vala:785
+#: plugins/mqtt/src/command_handler.vala:808
+#: plugins/mqtt/src/command_handler.vala:850
+#: plugins/mqtt/src/command_handler.vala:867
+#: plugins/mqtt/src/command_handler.vala:898
+#: plugins/mqtt/src/command_handler.vala:913
+#: plugins/mqtt/src/command_handler.vala:1074
+#: plugins/mqtt/src/command_handler.vala:1092
+#: plugins/mqtt/src/command_handler.vala:1111
+#: plugins/mqtt/src/command_handler.vala:1180
 msgid "Alert manager not available."
 msgstr "Gestionnaire d'alertes non disponible."
 
-#: plugins/mqtt/src/command_handler.vala:602
+#: plugins/mqtt/src/command_handler.vala:791
 msgid ""
 "Alert rule created ✔\n"
 "\n"
@@ -4753,32 +5219,32 @@ msgstr ""
 "Règle d'alerte créée ✔\n"
 "\n"
 
-#: plugins/mqtt/src/command_handler.vala:603
+#: plugins/mqtt/src/command_handler.vala:792
 #, c-format
 msgid "Topic: %s\n"
 msgstr "Topic : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:605
+#: plugins/mqtt/src/command_handler.vala:794
 #, c-format
 msgid "Field: %s\n"
 msgstr "Champ : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:607
+#: plugins/mqtt/src/command_handler.vala:796
 #, c-format
 msgid "Condition: %s %s\n"
 msgstr "Condition : %s %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:608
+#: plugins/mqtt/src/command_handler.vala:797
 #, c-format
 msgid "Priority: %s\n"
 msgstr "Priorité : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:609
+#: plugins/mqtt/src/command_handler.vala:798
 #, c-format
 msgid "Cooldown: %llds"
 msgstr "Temps de recharge : %llds"
 
-#: plugins/mqtt/src/command_handler.vala:623
+#: plugins/mqtt/src/command_handler.vala:812
 msgid ""
 "No alert rules defined.\n"
 "\n"
@@ -4788,11 +5254,11 @@ msgstr ""
 "\n"
 "Utilisez /mqtt alert <topic> <op> <value> pour en créer une."
 
-#: plugins/mqtt/src/command_handler.vala:628
+#: plugins/mqtt/src/command_handler.vala:817
 msgid "Alert Rules\n"
 msgstr "Règles d'alerte\n"
 
-#: plugins/mqtt/src/command_handler.vala:642
+#: plugins/mqtt/src/command_handler.vala:831
 msgid ""
 "\n"
 "Use /mqtt rmalert <number> to remove a rule."
@@ -4800,7 +5266,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt rmalert <number> pour supprimer une règle."
 
-#: plugins/mqtt/src/command_handler.vala:651
+#: plugins/mqtt/src/command_handler.vala:840
 msgid ""
 "Usage: /mqtt rmalert <number>\n"
 "\n"
@@ -4810,19 +5276,19 @@ msgstr ""
 "\n"
 "Utilisez /mqtt alerts pour voir les numéros de règles."
 
-#: plugins/mqtt/src/command_handler.vala:657
-#: plugins/mqtt/src/command_handler.vala:1118
-#: plugins/mqtt/src/command_handler.vala:1300
+#: plugins/mqtt/src/command_handler.vala:846
+#: plugins/mqtt/src/command_handler.vala:1307
+#: plugins/mqtt/src/command_handler.vala:1490
 #, c-format
 msgid "Invalid number: %s"
 msgstr "Nombre invalide : %s"
 
-#: plugins/mqtt/src/command_handler.vala:664
+#: plugins/mqtt/src/command_handler.vala:853
 #, c-format
 msgid "Alert rule #%d removed ✔"
 msgstr "Règle d'alerte #%d supprimée ✔"
 
-#: plugins/mqtt/src/command_handler.vala:666
+#: plugins/mqtt/src/command_handler.vala:855
 #, c-format
 msgid ""
 "Alert rule #%d not found.\n"
@@ -4833,7 +5299,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt alerts pour voir les numéros de règles."
 
-#: plugins/mqtt/src/command_handler.vala:682
+#: plugins/mqtt/src/command_handler.vala:871
 msgid ""
 "No per-topic priority overrides set.\n"
 "All topics use default priority: normal\n"
@@ -4847,11 +5313,11 @@ msgstr ""
 "Utilisation : /mqtt priority <topic> <level>\n"
 "Niveaux : silent, normal, alert, critical"
 
-#: plugins/mqtt/src/command_handler.vala:689
+#: plugins/mqtt/src/command_handler.vala:878
 msgid "Topic Priority Overrides\n"
 msgstr "Priorités personnalisées des topics\n"
 
-#: plugins/mqtt/src/command_handler.vala:695
+#: plugins/mqtt/src/command_handler.vala:884
 msgid ""
 "\n"
 "Use /mqtt priority <topic> normal to remove override."
@@ -4859,7 +5325,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt priority <topic> normal pour supprimer la personnalisation."
 
-#: plugins/mqtt/src/command_handler.vala:700
+#: plugins/mqtt/src/command_handler.vala:889
 msgid ""
 "Usage: /mqtt priority <topic> <level>\n"
 "\n"
@@ -4877,18 +5343,18 @@ msgstr ""
 "  /mqtt priority home/sensors/heartbeat silent\n"
 "  /mqtt priority home/alerts/# critical"
 
-#: plugins/mqtt/src/command_handler.vala:714
+#: plugins/mqtt/src/command_handler.vala:903
 #, c-format
 msgid "Topic '%s' reset to default priority (normal) ✔"
 msgstr "Topic '%s' réinitialisé à la priorité par défaut (normal) ✔"
 
-#: plugins/mqtt/src/command_handler.vala:716
+#: plugins/mqtt/src/command_handler.vala:905
 #, c-format
 msgid "Topic '%s' priority set to %s ✔"
 msgstr "Priorité du topic '%s' définie à %s ✔"
 
-#: plugins/mqtt/src/command_handler.vala:734
-#: plugins/mqtt/src/command_handler.vala:803
+#: plugins/mqtt/src/command_handler.vala:923
+#: plugins/mqtt/src/command_handler.vala:992
 msgid ""
 "No topic history available yet.\n"
 "History is recorded when MQTT messages arrive."
@@ -4896,23 +5362,13 @@ msgstr ""
 "Aucun historique de topic disponible.\n"
 "L'historique est enregistré à la réception des messages MQTT."
 
-#: plugins/mqtt/src/command_handler.vala:739
-#: plugins/mqtt/src/command_handler.vala:808
+#: plugins/mqtt/src/command_handler.vala:928
+#: plugins/mqtt/src/command_handler.vala:997
 msgid "Topics with History\n"
 msgstr "Topics avec historique\n"
 
-#: plugins/mqtt/src/command_handler.vala:759
-#: plugins/mqtt/src/command_handler.vala:837
-#, c-format
-msgid "No history for topic: %s"
-msgstr "Aucun historique pour le topic : %s"
-
-#: plugins/mqtt/src/command_handler.vala:763
-#, c-format
-msgid "History: %s\n"
-msgstr "Historique : %s\n"
-
-#: plugins/mqtt/src/command_handler.vala:825
+#: plugins/mqtt/src/command_handler.vala:936
+#: plugins/mqtt/src/command_handler.vala:1014
 msgid ""
 "\n"
 "Use /mqtt history <topic> [N] to see values."
@@ -4920,12 +5376,37 @@ msgstr ""
 "\n"
 "Utilisez /mqtt history <topic> [N] pour voir les valeurs."
 
-#: plugins/mqtt/src/command_handler.vala:841
+#: plugins/mqtt/src/command_handler.vala:948
+#: plugins/mqtt/src/command_handler.vala:1026
+#, c-format
+msgid "No history for topic: %s"
+msgstr "Aucun historique pour le topic : %s"
+
+#: plugins/mqtt/src/command_handler.vala:952
+#, c-format
+msgid "History: %s\n"
+msgstr "Historique : %s\n"
+
+#: plugins/mqtt/src/command_handler.vala:975
+#, c-format
+msgid ""
+"\n"
+"(%d more entries — use /mqtt history %s %d to see all)"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:1030
 #, c-format
 msgid "History: %s (DB)\n"
 msgstr "Historique : %s (BD)\n"
 
-#: plugins/mqtt/src/command_handler.vala:888
+#: plugins/mqtt/src/command_handler.vala:1059
+#, c-format
+msgid ""
+"\n"
+"(%ld total — use /mqtt history %s %ld to see all)"
+msgstr ""
+
+#: plugins/mqtt/src/command_handler.vala:1077
 msgid ""
 "Messages are already paused.\n"
 "Use /mqtt resume to resume."
@@ -4933,7 +5414,7 @@ msgstr ""
 "Les messages sont déjà en pause.\n"
 "Utilisez /mqtt resume pour reprendre."
 
-#: plugins/mqtt/src/command_handler.vala:893
+#: plugins/mqtt/src/command_handler.vala:1082
 msgid ""
 "MQTT messages paused ⏸\n"
 "\n"
@@ -4945,11 +5426,11 @@ msgstr ""
 "Les messages sont toujours enregistrés dans l'historique.\n"
 "Utilisez /mqtt resume pour reprendre l'affichage."
 
-#: plugins/mqtt/src/command_handler.vala:906
+#: plugins/mqtt/src/command_handler.vala:1095
 msgid "Messages are not paused."
 msgstr "Les messages ne sont pas en pause."
 
-#: plugins/mqtt/src/command_handler.vala:910
+#: plugins/mqtt/src/command_handler.vala:1099
 msgid ""
 "MQTT messages resumed ▶\n"
 "\n"
@@ -4959,7 +5440,7 @@ msgstr ""
 "\n"
 "Les messages entrants apparaîtront à nouveau sous forme de bulles de chat."
 
-#: plugins/mqtt/src/command_handler.vala:929
+#: plugins/mqtt/src/command_handler.vala:1118
 msgid ""
 "No per-topic QoS overrides set.\n"
 "All topics use default QoS: 0 (at most once)\n"
@@ -4981,11 +5462,11 @@ msgstr ""
 "  1 = Au moins une fois (acquitté)\n"
 "  2 = Exactement une fois (garanti)"
 
-#: plugins/mqtt/src/command_handler.vala:939
+#: plugins/mqtt/src/command_handler.vala:1128
 msgid "Topic QoS Settings\n"
 msgstr "Paramètres QoS des topics\n"
 
-#: plugins/mqtt/src/command_handler.vala:945
+#: plugins/mqtt/src/command_handler.vala:1134
 msgid ""
 "\n"
 "Use /mqtt qos <topic> 0 to reset to default."
@@ -4993,7 +5474,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt qos <topic> 0 pour réinitialiser par défaut."
 
-#: plugins/mqtt/src/command_handler.vala:952
+#: plugins/mqtt/src/command_handler.vala:1141
 #, c-format
 msgid ""
 "Topic '%s' QoS: %d (%s)\n"
@@ -5002,11 +5483,11 @@ msgstr ""
 "QoS du topic '%s' : %d (%s)\n"
 "\n"
 
-#: plugins/mqtt/src/command_handler.vala:954
+#: plugins/mqtt/src/command_handler.vala:1143
 msgid "Usage: /mqtt qos <topic> <0|1|2>"
 msgstr "Utilisation : /mqtt qos <topic> <0|1|2>"
 
-#: plugins/mqtt/src/command_handler.vala:959
+#: plugins/mqtt/src/command_handler.vala:1148
 #, c-format
 msgid ""
 "Invalid QoS level: %s\n"
@@ -5017,12 +5498,12 @@ msgstr ""
 "\n"
 "Valeurs valides : 0, 1, 2"
 
-#: plugins/mqtt/src/command_handler.vala:969
+#: plugins/mqtt/src/command_handler.vala:1158
 #, c-format
 msgid "Topic '%s' QoS reset to default (0 — at most once) ✔"
 msgstr "QoS du topic '%s' réinitialisé par défaut (0 — au plus une fois) ✔"
 
-#: plugins/mqtt/src/command_handler.vala:971
+#: plugins/mqtt/src/command_handler.vala:1160
 #, c-format
 msgid ""
 "Topic '%s' QoS set to %d (%s) ✔\n"
@@ -5031,28 +5512,24 @@ msgstr ""
 "QoS du topic '%s' défini à %d (%s) ✔\n"
 "\n"
 
-#: plugins/mqtt/src/command_handler.vala:973
+#: plugins/mqtt/src/command_handler.vala:1162
 msgid "Active subscriptions have been updated."
 msgstr "Les abonnements actifs ont été mis à jour."
 
-#: plugins/mqtt/src/command_handler.vala:978
+#: plugins/mqtt/src/command_handler.vala:1167
 msgid "at most once"
 msgstr "au plus une fois"
 
-#: plugins/mqtt/src/command_handler.vala:979
+#: plugins/mqtt/src/command_handler.vala:1168
 msgid "at least once"
 msgstr "au moins une fois"
 
-#: plugins/mqtt/src/command_handler.vala:980
-msgid "exactly once"
-msgstr "exactement une fois"
-
-#: plugins/mqtt/src/command_handler.vala:981
+#: plugins/mqtt/src/command_handler.vala:1170
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:294
 msgid "unknown"
 msgstr "inconnu"
 
-#: plugins/mqtt/src/command_handler.vala:997
+#: plugins/mqtt/src/command_handler.vala:1186
 msgid ""
 "No topic history available.\n"
 "History is recorded when MQTT messages arrive.\n"
@@ -5064,11 +5541,11 @@ msgstr ""
 "\n"
 "Utilisation : /mqtt chart <topic> [N]"
 
-#: plugins/mqtt/src/command_handler.vala:1003
+#: plugins/mqtt/src/command_handler.vala:1192
 msgid "Topics with History Data\n"
 msgstr "Topics avec données d'historique\n"
 
-#: plugins/mqtt/src/command_handler.vala:1011
+#: plugins/mqtt/src/command_handler.vala:1200
 msgid ""
 "\n"
 "Use /mqtt chart <topic> [N] to generate a chart."
@@ -5076,7 +5553,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt chart <topic> [N] pour générer un graphique."
 
-#: plugins/mqtt/src/command_handler.vala:1023
+#: plugins/mqtt/src/command_handler.vala:1212
 #, c-format
 msgid ""
 "Cannot generate chart for '%s'.\n"
@@ -5085,7 +5562,7 @@ msgstr ""
 "Impossible de générer le graphique pour '%s'.\n"
 "\n"
 
-#: plugins/mqtt/src/command_handler.vala:1024
+#: plugins/mqtt/src/command_handler.vala:1213
 msgid ""
 "Possible reasons:\n"
 "• No history data for this topic\n"
@@ -5094,10 +5571,11 @@ msgid ""
 msgstr ""
 "Raisons possibles :\n"
 "• Aucune donnée d'historique pour ce sujet\n"
-"• La charge utile n'est pas numérique (des nombres ou du JSON avec des champs numériques sont requis)\n"
+"• La charge utile n'est pas numérique (des nombres ou du JSON avec des "
+"champs numériques sont requis)\n"
 "• Moins de 2 points de données disponibles"
 
-#: plugins/mqtt/src/command_handler.vala:1040
+#: plugins/mqtt/src/command_handler.vala:1229
 msgid ""
 "Usage: /mqtt bridge <topic> <jid>\n"
 "\n"
@@ -5115,7 +5593,7 @@ msgstr ""
 "  /mqtt bridge home/alerts/# user@example.com\n"
 "  /mqtt bridge sensors/fire admin@company.org"
 
-#: plugins/mqtt/src/command_handler.vala:1051
+#: plugins/mqtt/src/command_handler.vala:1240
 #, c-format
 msgid ""
 "Invalid JID: %s\n"
@@ -5126,13 +5604,13 @@ msgstr ""
 "\n"
 "%s"
 
-#: plugins/mqtt/src/command_handler.vala:1055
-#: plugins/mqtt/src/command_handler.vala:1083
-#: plugins/mqtt/src/command_handler.vala:1122
+#: plugins/mqtt/src/command_handler.vala:1244
+#: plugins/mqtt/src/command_handler.vala:1272
+#: plugins/mqtt/src/command_handler.vala:1311
 msgid "Bridge manager not available."
 msgstr "Gestionnaire de ponts non disponible."
 
-#: plugins/mqtt/src/command_handler.vala:1070
+#: plugins/mqtt/src/command_handler.vala:1259
 #, c-format
 msgid ""
 "Bridge rule created ✔\n"
@@ -5143,12 +5621,12 @@ msgstr ""
 "\n"
 "Topic : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1072
+#: plugins/mqtt/src/command_handler.vala:1261
 #, c-format
 msgid "Target: %s\n"
 msgstr "Cible : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1073
+#: plugins/mqtt/src/command_handler.vala:1262
 #, c-format
 msgid ""
 "Client: %s\n"
@@ -5157,7 +5635,7 @@ msgstr ""
 "Client : %s\n"
 "\n"
 
-#: plugins/mqtt/src/command_handler.vala:1074
+#: plugins/mqtt/src/command_handler.vala:1263
 msgid ""
 "MQTT messages matching this topic will be forwarded\n"
 "as XMPP chat messages to the target contact."
@@ -5165,7 +5643,7 @@ msgstr ""
 "Les messages MQTT correspondant à ce sujet seront transférés\n"
 "en messages de chat XMPP au contact cible."
 
-#: plugins/mqtt/src/command_handler.vala:1088
+#: plugins/mqtt/src/command_handler.vala:1277
 #, c-format
 msgid ""
 "No bridge rules for this connection (%s).\n"
@@ -5176,11 +5654,11 @@ msgstr ""
 "\n"
 "Utilisez /mqtt bridge <topic> <jid> pour en créer une."
 
-#: plugins/mqtt/src/command_handler.vala:1093
+#: plugins/mqtt/src/command_handler.vala:1282
 msgid "MQTT → XMPP Bridge Rules\n"
 msgstr "Règles de pont MQTT → XMPP\n"
 
-#: plugins/mqtt/src/command_handler.vala:1103
+#: plugins/mqtt/src/command_handler.vala:1292
 msgid ""
 "\n"
 "Use /mqtt rmbridge <number> to remove a rule."
@@ -5188,7 +5666,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt rmbridge <number> pour supprimer une règle."
 
-#: plugins/mqtt/src/command_handler.vala:1112
+#: plugins/mqtt/src/command_handler.vala:1301
 msgid ""
 "Usage: /mqtt rmbridge <number>\n"
 "\n"
@@ -5198,12 +5676,8 @@ msgstr ""
 "\n"
 "Utilisez /mqtt bridges pour voir les numéros de règles."
 
-#: plugins/mqtt/src/command_handler.vala:1125
-#, c-format
-msgid "Bridge rule #%d removed ✔"
-msgstr "Règle de pont #%d supprimée ✔"
-
-#: plugins/mqtt/src/command_handler.vala:1127
+#: plugins/mqtt/src/command_handler.vala:1316
+#: plugins/mqtt/src/command_handler.vala:1323
 #, c-format
 msgid ""
 "Bridge rule #%d not found.\n"
@@ -5214,52 +5688,59 @@ msgstr ""
 "\n"
 "Utilisez /mqtt bridges pour voir les numéros de règles."
 
-#: plugins/mqtt/src/command_handler.vala:1145
+#: plugins/mqtt/src/command_handler.vala:1321
+#, c-format
+msgid "Bridge rule #%d removed ✔"
+msgstr "Règle de pont #%d supprimée ✔"
+
+#: plugins/mqtt/src/command_handler.vala:1341
 msgid "Opening Topic Manager…"
 msgstr "Ouverture du gestionnaire de sujets…"
 
-#: plugins/mqtt/src/command_handler.vala:1155
-#: plugins/mqtt/src/command_handler.vala:1165
+#: plugins/mqtt/src/command_handler.vala:1351
+#: plugins/mqtt/src/command_handler.vala:1361
 msgid "MQTT database not available."
 msgstr "Base de données MQTT non disponible."
 
-#: plugins/mqtt/src/command_handler.vala:1169
+#: plugins/mqtt/src/command_handler.vala:1365
 #, c-format
 msgid ""
 "No expired data found. All data is within retention limits:\n"
 "• Messages: %d days\n"
 msgstr ""
-"Aucune donnée expirée trouvée. Toutes les données sont dans les limites de rétention :\n"
+"Aucune donnée expirée trouvée. Toutes les données sont dans les limites de "
+"rétention :\n"
 "• Messages : %d jours\n"
 
-#: plugins/mqtt/src/command_handler.vala:1172
+#: plugins/mqtt/src/command_handler.vala:1368
 #, c-format
 msgid "• Freetext: %d days\n"
 msgstr "• Texte libre : %d jours\n"
 
-#: plugins/mqtt/src/command_handler.vala:1174
+#: plugins/mqtt/src/command_handler.vala:1370
 #, c-format
 msgid "• Connection Log: %d days\n"
 msgstr "• Journal de connexion : %d jours\n"
 
-#: plugins/mqtt/src/command_handler.vala:1176
+#: plugins/mqtt/src/command_handler.vala:1372
 #, c-format
 msgid "• Publish History: %d days"
 msgstr "• Historique de publication : %d jours"
 
-#: plugins/mqtt/src/command_handler.vala:1179
+#: plugins/mqtt/src/command_handler.vala:1375
 #, c-format
 msgid "Purge complete: %d expired rows deleted ✔"
 msgstr "Purge terminée : %d lignes expirées supprimées ✔"
 
-#: plugins/mqtt/src/command_handler.vala:1217
+#: plugins/mqtt/src/command_handler.vala:1413
+#, fuzzy
 msgid ""
 "No publish presets defined.\n"
 "\n"
 "Use /mqtt preset add <name> <topic> <payload> to create one.\n"
 "\n"
 "Example:\n"
-"  /mqtt preset add LichtAN home/light/set ON"
+"  /mqtt preset add LightON home/light/set ON"
 msgstr ""
 "Aucun modèle de publication défini.\n"
 "\n"
@@ -5268,11 +5749,11 @@ msgstr ""
 "Exemple :\n"
 "  /mqtt preset add LichtAN home/light/set ON"
 
-#: plugins/mqtt/src/command_handler.vala:1224
+#: plugins/mqtt/src/command_handler.vala:1417
 msgid "Publish Presets\n"
 msgstr "Modèles de publication\n"
 
-#: plugins/mqtt/src/command_handler.vala:1230
+#: plugins/mqtt/src/command_handler.vala:1423
 msgid ""
 "\n"
 "Use /mqtt preset <name> to publish."
@@ -5280,7 +5761,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt preset <name> pour publier."
 
-#: plugins/mqtt/src/command_handler.vala:1231
+#: plugins/mqtt/src/command_handler.vala:1424
 msgid ""
 "\n"
 "Use /mqtt preset remove <number> to delete."
@@ -5288,12 +5769,13 @@ msgstr ""
 "\n"
 "Utilisez /mqtt preset remove <number> pour supprimer."
 
-#: plugins/mqtt/src/command_handler.vala:1246
+#: plugins/mqtt/src/command_handler.vala:1439
+#, fuzzy
 msgid ""
 "Usage: /mqtt preset add <name> <topic> <payload>\n"
 "\n"
 "Example:\n"
-"  /mqtt preset add LichtAN home/light/set ON\n"
+"  /mqtt preset add LightON home/light/set ON\n"
 "  /mqtt preset add TempRead home/sensor/get read"
 msgstr ""
 "Utilisation : /mqtt preset add <name> <topic> <payload>\n"
@@ -5302,11 +5784,11 @@ msgstr ""
 "  /mqtt preset add LichtAN home/light/set ON\n"
 "  /mqtt preset add TempRead home/sensor/get read"
 
-#: plugins/mqtt/src/command_handler.vala:1258
+#: plugins/mqtt/src/command_handler.vala:1448
 msgid "Usage: /mqtt preset add <name> <topic> <payload>"
 msgstr "Utilisation : /mqtt preset add <name> <topic> <payload>"
 
-#: plugins/mqtt/src/command_handler.vala:1270
+#: plugins/mqtt/src/command_handler.vala:1460
 #, c-format
 msgid ""
 "Preset '%s' already exists. Remove it first with /mqtt preset remove <N>."
@@ -5314,7 +5796,7 @@ msgstr ""
 "Le modèle '%s' existe déjà. Supprimez-le d'abord avec /mqtt preset remove "
 "<N>."
 
-#: plugins/mqtt/src/command_handler.vala:1286
+#: plugins/mqtt/src/command_handler.vala:1476
 #, c-format
 msgid ""
 "Preset '%s' created ✔\n"
@@ -5331,7 +5813,7 @@ msgstr ""
 "\n"
 "Utilisez /mqtt preset %s pour publier."
 
-#: plugins/mqtt/src/command_handler.vala:1295
+#: plugins/mqtt/src/command_handler.vala:1485
 msgid ""
 "Usage: /mqtt preset remove <number>\n"
 "\n"
@@ -5341,17 +5823,17 @@ msgstr ""
 "\n"
 "Utilisez /mqtt presets pour voir les numéros."
 
-#: plugins/mqtt/src/command_handler.vala:1308
+#: plugins/mqtt/src/command_handler.vala:1498
 #, c-format
 msgid "Preset #%d not found. Use /mqtt presets to see numbers."
 msgstr "Modèle #%d non trouvé. Utilisez /mqtt presets pour voir les numéros."
 
-#: plugins/mqtt/src/command_handler.vala:1317
+#: plugins/mqtt/src/command_handler.vala:1507
 #, c-format
 msgid "Preset '%s' (#%d) removed ✔"
 msgstr "Modèle '%s' (#%d) supprimé ✔"
 
-#: plugins/mqtt/src/command_handler.vala:1338
+#: plugins/mqtt/src/command_handler.vala:1528
 #, c-format
 msgid ""
 "Preset '%s' not found.\n"
@@ -5362,85 +5844,85 @@ msgstr ""
 "\n"
 "Utilisez /mqtt presets pour lister les modèles disponibles."
 
-#: plugins/mqtt/src/command_handler.vala:1351
+#: plugins/mqtt/src/command_handler.vala:1541
 #, c-format
 msgid "Published: %s → %s : %s ✔"
 msgstr "Publié : %s → %s : %s ✔"
 
-#: plugins/mqtt/src/command_handler.vala:1365
+#: plugins/mqtt/src/command_handler.vala:1555
 msgid "MQTT Connection Config\n"
 msgstr "Configuration de connexion MQTT\n"
 
-#: plugins/mqtt/src/command_handler.vala:1367
+#: plugins/mqtt/src/command_handler.vala:1557
 #, c-format
 msgid "Connection: %s\n"
 msgstr "Connexion : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1368
+#: plugins/mqtt/src/command_handler.vala:1558
 #: plugins/mqtt/src/discovery_manager.vala:540
 #, c-format
 msgid "Enabled: %s\n"
 msgstr "Activé : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1368
-#: plugins/mqtt/src/command_handler.vala:1372
+#: plugins/mqtt/src/command_handler.vala:1558
+#: plugins/mqtt/src/command_handler.vala:1562
 #: plugins/mqtt/src/discovery_manager.vala:540
 msgid "Yes"
 msgstr "Oui"
 
-#: plugins/mqtt/src/command_handler.vala:1368
-#: plugins/mqtt/src/command_handler.vala:1372
+#: plugins/mqtt/src/command_handler.vala:1558
+#: plugins/mqtt/src/command_handler.vala:1562
 #: plugins/mqtt/src/discovery_manager.vala:540
 msgid "No"
 msgstr "Non"
 
-#: plugins/mqtt/src/command_handler.vala:1369
+#: plugins/mqtt/src/command_handler.vala:1559
 #, c-format
 msgid "Broker: %s:%d\n"
 msgstr "Broker : %s:%d\n"
 
-#: plugins/mqtt/src/command_handler.vala:1370
+#: plugins/mqtt/src/command_handler.vala:1560
 msgid "(auto-detect)"
 msgstr "(détection automatique)"
 
-#: plugins/mqtt/src/command_handler.vala:1372
+#: plugins/mqtt/src/command_handler.vala:1562
 #, c-format
 msgid "TLS: %s\n"
 msgstr "TLS : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1373
+#: plugins/mqtt/src/command_handler.vala:1563
 #, c-format
 msgid "Server Type: %s\n"
 msgstr "Type de serveur : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1376
+#: plugins/mqtt/src/command_handler.vala:1566
 msgid "Auth: XMPP Credentials (shared)\n"
 msgstr "Auth : Identifiants XMPP (partagés)\n"
 
-#: plugins/mqtt/src/command_handler.vala:1378
+#: plugins/mqtt/src/command_handler.vala:1568
 #, c-format
 msgid "Auth: %s (manual)\n"
 msgstr "Auth : %s (manuel)\n"
 
-#: plugins/mqtt/src/command_handler.vala:1380
+#: plugins/mqtt/src/command_handler.vala:1570
 msgid "Auth: None\n"
 msgstr "Auth : Aucune\n"
 
-#: plugins/mqtt/src/command_handler.vala:1384
+#: plugins/mqtt/src/command_handler.vala:1574
 #, c-format
 msgid "Topics: %d subscribed\n"
 msgstr "Topics : %d abonnés\n"
 
-#: plugins/mqtt/src/command_handler.vala:1387
+#: plugins/mqtt/src/command_handler.vala:1577
 #, c-format
 msgid "Status: %s\n"
 msgstr "Statut : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1390
+#: plugins/mqtt/src/command_handler.vala:1580
 msgid "Status: No client\n"
 msgstr "Statut : Pas de client\n"
 
-#: plugins/mqtt/src/command_handler.vala:1394
+#: plugins/mqtt/src/command_handler.vala:1584
 msgid ""
 "\n"
 "Free Text Publish: Enabled\n"
@@ -5448,22 +5930,22 @@ msgstr ""
 "\n"
 "Publication en texte libre : Activée\n"
 
-#: plugins/mqtt/src/command_handler.vala:1395
+#: plugins/mqtt/src/command_handler.vala:1585
 #, c-format
 msgid "  Publish Topic: %s\n"
 msgstr "  Sujet de publication : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1397
+#: plugins/mqtt/src/command_handler.vala:1587
 #, c-format
 msgid "  Response Topic: %s\n"
 msgstr "  Sujet de réponse : %s\n"
 
-#: plugins/mqtt/src/command_handler.vala:1413
+#: plugins/mqtt/src/command_handler.vala:1603
 #, c-format
 msgid "Connection '%s' is disabled. Enable it first."
 msgstr "La connexion '%s' est désactivée. Activez-la d'abord."
 
-#: plugins/mqtt/src/command_handler.vala:1420
+#: plugins/mqtt/src/command_handler.vala:1610
 msgid ""
 "Reconnecting standalone connection…\n"
 "\n"
@@ -5473,7 +5955,7 @@ msgstr ""
 "\n"
 "Vérifiez /mqtt status dans quelques secondes."
 
-#: plugins/mqtt/src/command_handler.vala:1428
+#: plugins/mqtt/src/command_handler.vala:1618
 #, c-format
 msgid ""
 "Reconnecting %s…\n"
@@ -5484,12 +5966,12 @@ msgstr ""
 "\n"
 "Vérifiez /mqtt status dans quelques secondes."
 
-#: plugins/mqtt/src/command_handler.vala:1432
+#: plugins/mqtt/src/command_handler.vala:1622
 #, c-format
 msgid "Account '%s' not found."
 msgstr "Compte '%s' non trouvé."
 
-#: plugins/mqtt/src/command_handler.vala:1448
+#: plugins/mqtt/src/command_handler.vala:1638
 #, c-format
 msgid ""
 "HA Discovery is disabled for '%s'.\n"
@@ -5500,32 +5982,29 @@ msgstr ""
 "\n"
 "Utilisez /mqtt discovery on pour l'activer."
 
-#: plugins/mqtt/src/command_handler.vala:1453
+#: plugins/mqtt/src/command_handler.vala:1643
 #, c-format
 msgid "HA Discovery is enabled (prefix: %s) but not yet connected."
-msgstr ""
-"La découverte HA est activée (préfixe : %s) mais pas encore connectée."
+msgstr "HA Discovery est activé (préfixe : %s) mais pas encore connecté."
 
-#: plugins/mqtt/src/command_handler.vala:1464
+#: plugins/mqtt/src/command_handler.vala:1654
 msgid "HA Discovery already enabled — re-published configs."
 msgstr "Découverte HA déjà activée — configurations republiées."
 
-#: plugins/mqtt/src/command_handler.vala:1477
+#: plugins/mqtt/src/command_handler.vala:1666
 #, c-format
 msgid ""
 "HA Discovery enabled (prefix: %s).\n"
 "\n"
-"Reconnecting to set LWT… check /mqtt status in a few seconds."
+"Device will appear in Home Assistant shortly.\n"
+"LWT (offline on crash) takes effect after next reconnect."
 msgstr ""
-"Découverte HA activée (préfixe : %s).\n"
-"\n"
-"Reconnexion pour définir LWT… vérifiez /mqtt status dans quelques secondes."
 
-#: plugins/mqtt/src/command_handler.vala:1484
+#: plugins/mqtt/src/command_handler.vala:1674
 msgid "HA Discovery is already disabled."
 msgstr "La découverte HA est déjà désactivée."
 
-#: plugins/mqtt/src/command_handler.vala:1492
+#: plugins/mqtt/src/command_handler.vala:1683
 msgid ""
 "HA Discovery disabled — configs removed from broker.\n"
 "\n"
@@ -5535,7 +6014,7 @@ msgstr ""
 "\n"
 "Home Assistant supprimera l'appareil après son délai de disponibilité."
 
-#: plugins/mqtt/src/command_handler.vala:1497
+#: plugins/mqtt/src/command_handler.vala:1688
 #, c-format
 msgid ""
 "Current prefix: %s\n"
@@ -5546,17 +6025,16 @@ msgstr ""
 "\n"
 "Pour le modifier, éditez le préfixe de découverte dans les Paramètres."
 
-#: plugins/mqtt/src/command_handler.vala:1503
+#: plugins/mqtt/src/command_handler.vala:1694
 msgid "HA Discovery is not active. Enable it first with /mqtt discovery on"
 msgstr ""
-"La découverte HA n'est pas active. Activez-la d'abord avec /mqtt discovery "
-"on"
+"HA Discovery n'est pas actif. Activez-le d'abord avec /mqtt discovery on"
 
-#: plugins/mqtt/src/command_handler.vala:1506
+#: plugins/mqtt/src/command_handler.vala:1697
 msgid "Published updated state for all entities."
 msgstr "État mis à jour publié pour toutes les entités."
 
-#: plugins/mqtt/src/command_handler.vala:1509
+#: plugins/mqtt/src/command_handler.vala:1700
 msgid ""
 "Usage: /mqtt discovery [on|off|refresh]\n"
 "\n"
@@ -5570,54 +6048,83 @@ msgstr ""
 "  off     — Désactiver & supprimer du broker\n"
 "  refresh — Republier les valeurs d'état"
 
-#: plugins/mqtt/src/database.vala:719
+#: plugins/mqtt/src/command_handler.vala:1712
+#, fuzzy
+msgid "Bot conversation not available."
+msgstr "Gestionnaire d'alertes non disponible."
+
+#: plugins/mqtt/src/command_handler.vala:1723
+msgid "Could not clear history — conversation not found."
+msgstr ""
+
+#: plugins/mqtt/src/database.vala:730
 msgid "mqtt.db Statistics\n"
 msgstr "Statistiques mqtt.db\n"
 
-#: plugins/mqtt/src/database.vala:721
+#: plugins/mqtt/src/database.vala:732
 #, c-format
 msgid "Messages:       %d rows (max %d days)\n"
 msgstr "Messages :      %d lignes (max. %d jours)\n"
 
-#: plugins/mqtt/src/database.vala:723
+#: plugins/mqtt/src/database.vala:734
 #, c-format
 msgid "Freetext:       %d rows (max %d days)\n"
 msgstr "Texte libre :   %d lignes (max. %d jours)\n"
 
-#: plugins/mqtt/src/database.vala:725
+#: plugins/mqtt/src/database.vala:736
 #, c-format
 msgid "Connection Log: %d rows (max %d days)\n"
 msgstr "Journal conn. : %d lignes (max. %d jours)\n"
 
-#: plugins/mqtt/src/database.vala:727
+#: plugins/mqtt/src/database.vala:738
 #, c-format
 msgid "Topic Stats:    %d rows (permanent)\n"
 msgstr "Stats sujets :  %d lignes (permanent)\n"
 
-#: plugins/mqtt/src/database.vala:729
+#: plugins/mqtt/src/database.vala:740
 #, c-format
 msgid "Alert Rules:    %d rows (user-managed)\n"
 msgstr "Règles d'alerte :%d lignes (gérées par l'util.)\n"
 
-#: plugins/mqtt/src/database.vala:731
+#: plugins/mqtt/src/database.vala:742
 #, c-format
 msgid "Bridge Rules:   %d rows (user-managed)\n"
 msgstr "Règles de pont : %d lignes (gérées par l'util.)\n"
 
-#: plugins/mqtt/src/database.vala:733
+#: plugins/mqtt/src/database.vala:744
 #, c-format
 msgid "Publish Presets:%d rows (user-managed)\n"
 msgstr "Modèles :       %d lignes (gérés par l'util.)\n"
 
-#: plugins/mqtt/src/database.vala:735
+#: plugins/mqtt/src/database.vala:746
 #, c-format
 msgid "Publish History:%d rows (max %d days)\n"
 msgstr "Historique pub. :%d lignes (max. %d jours)\n"
 
-#: plugins/mqtt/src/database.vala:737
+#: plugins/mqtt/src/database.vala:748
 #, c-format
 msgid "Retained Cache: %d rows (permanent)\n"
 msgstr "Cache retained : %d lignes (permanent)\n"
+
+#: plugins/mqtt/src/discovery_manager.vala:282
+#, fuzzy
+msgid "DinoX MQTT (Standalone)"
+msgstr "MQTT (autonome)"
+
+#: plugins/mqtt/src/discovery_manager.vala:284
+#, c-format
+msgid "DinoX MQTT (%s)"
+msgstr ""
+
+#: plugins/mqtt/src/discovery_manager.vala:289
+#, fuzzy
+msgid "DinoX"
+msgstr "À propos de DinoX"
+
+#: plugins/mqtt/src/discovery_manager.vala:291
+#, fuzzy
+msgid "MQTT Plugin"
+msgstr "Port MQTT"
 
 #: plugins/mqtt/src/discovery_manager.vala:345
 msgid "Subscriptions"
@@ -5625,8 +6132,8 @@ msgstr "Abonnements"
 
 #: plugins/mqtt/src/discovery_manager.vala:349
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:499
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:856
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:863
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:857
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:864
 msgid "Bridge Rules"
 msgstr "Règles de pont"
 
@@ -5808,7 +6315,7 @@ msgstr "Broker personnalisé"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:325
 msgid "Connect to any MQTT broker with own credentials."
 msgstr ""
-"Se connecter à n'importe quel broker MQTT avec vos propres identifiants."
+"Se connecter à n'importe quel courtier MQTT avec vos propres identifiants."
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:328
 msgid "Hostname"
@@ -5822,7 +6329,7 @@ msgstr "TLS désactivé"
 #: plugins/mqtt/src/settings_page.vala:183
 msgid "Credentials and data are sent in plain text to a non-local host!"
 msgstr ""
-"Les identifiants et données sont envoyés en clair vers un hôte non local !"
+"Les identifiants et données sont envoyés en clair vers un hôte distant !"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:358
 #: plugins/mqtt/src/settings_page.vala:194
@@ -5856,12 +6363,6 @@ msgstr "Rouvrir la conversation du bot MQTT dans la barre latérale"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:439
 msgid "Disconnect and reconnect to the MQTT broker"
 msgstr "Déconnecter et reconnecter au broker MQTT"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:397
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:454
-#: plugins/mqtt/src/settings_page.vala:276
-msgid "Reconnecting…"
-msgstr "Reconnexion…"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:409
 msgid "Standalone MQTT"
@@ -5928,7 +6429,8 @@ msgstr "En pause — les messages sont enregistrés mais non affichés"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:531
 msgid "Incoming MQTT messages are recorded but not shown in chat"
 msgstr ""
-"Les messages MQTT entrants sont enregistrés mais non affichés dans le chat"
+"Les messages MQTT entrants sont enregistrés mais ne sont pas affichés dans "
+"le chat"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:529
 msgid "Messages paused"
@@ -5937,11 +6439,6 @@ msgstr "Messages en pause"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:532
 msgid "Messages resumed"
 msgstr "Messages repris"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:541
-#: plugins/mqtt/src/settings_page.vala:306
-msgid "Home Assistant Discovery"
-msgstr "Découverte Home Assistant"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:542
 msgid "Auto-announce DinoX as a device in HA."
@@ -5966,16 +6463,12 @@ msgstr "Préfixe de découverte"
 msgid "Save & Apply"
 msgstr "Enregistrer & Appliquer"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:579
-msgid "MQTT Bot"
-msgstr "Bot MQTT"
-
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:594
 msgid "Subscribe to Topic"
 msgstr "S'abonner au topic"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:610
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1209
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1212
 #: plugins/mqtt/src/topic_manager_dialog.vala:94
 msgid "Subscribe"
 msgstr "S'abonner"
@@ -5986,11 +6479,7 @@ msgstr "Alias (optionnel, ex. 🌡 Salon)"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:633
 msgid "Active Subscriptions"
-msgstr ""
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:639
-msgid "Topics"
-msgstr "Topics"
+msgstr "Abonnements actifs"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:654
 msgid "Free-Text Publish (Node-RED)"
@@ -5999,8 +6488,8 @@ msgstr "Publication en texte libre (Node-RED)"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:655
 msgid "Type free text in the bot chat to publish directly to a topic"
 msgstr ""
-"Saisir du texte libre dans le chat du bot pour publier directement sur un "
-"sujet"
+"Saisissez du texte libre dans le chat du bot pour publier directement dans "
+"un sujet"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:658
 msgid "Enable Free-Text Publish"
@@ -6013,10 +6502,6 @@ msgstr "Sujet de publication"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:668
 msgid "Response Topic"
 msgstr "Sujet de réponse"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:676
-msgid "Publish Presets"
-msgstr "Modèles de publication"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:677
 msgid "Quick-publish actions for the MQTT bot"
@@ -6052,6 +6537,10 @@ msgstr "Motif de sujet"
 msgid "JSON field (optional)"
 msgstr "Champ JSON (optionnel)"
 
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:737
+msgid "contains"
+msgstr "contient"
+
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:741
 msgid "Operator"
 msgstr "Opérateur"
@@ -6071,8 +6560,8 @@ msgstr "Ajouter une alerte"
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:773
 msgid "Rules that trigger notifications when MQTT messages match patterns"
 msgstr ""
-"Règles déclenchant des notifications lorsque les messages MQTT correspondent"
-" à des motifs"
+"Règles déclenchant des notifications quand les messages MQTT correspondent à "
+"des motifs"
 
 #: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:794
 msgid "New Bridge Rule"
@@ -6086,98 +6575,146 @@ msgstr "Transférer les messages MQTT vers un contact XMPP ou un MUC"
 msgid "XMPP JID"
 msgstr "JID XMPP"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:820
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:814
+msgid "full"
+msgstr "complet"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:815
+msgid "payload"
+msgstr "données utiles"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:816
+msgid "short"
+msgstr "court"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:817
+msgid "file (URL)"
+msgstr "fichier (URL)"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:821
 msgid "Format"
 msgstr "Format"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:841
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:842
 msgid "Send as account"
 msgstr "Envoyer en tant que compte"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:845
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1300
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:846
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1303
 msgid "Add Bridge"
 msgstr "Ajouter un pont"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:857
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:858
 msgid "Forward MQTT messages to XMPP contacts or MUCs"
 msgstr "Transférer les messages MQTT vers des contacts ou MUCs XMPP"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:963
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:964
 msgid "Disconnected (retrying…)"
 msgstr "Déconnecté (nouvelle tentative…)"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:967
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1758
-#: plugins/mqtt/src/settings_page.vala:495
-#: plugins/mqtt/src/topic_manager_dialog.vala:233
-#: plugins/mqtt/src/topic_manager_dialog.vala:265
-msgid "Disabled"
-msgstr "Désactivé"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:992
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:993
 #: plugins/mqtt/src/server_detector.vala:38
 msgid "ejabberd (mod_mqtt)"
 msgstr "ejabberd (mod_mqtt)"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:993
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:994
 msgid "Prosody (mod_pubsub_mqtt) — read-only"
 msgstr "Prosody (mod_pubsub_mqtt) — lecture seule"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:994
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:995
 msgid "Unknown / Not detected"
 msgstr "Inconnu / Non détecté"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1018
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1003
+msgid "Silent"
+msgstr "Silencieux"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1003
+msgid "Alert"
+msgstr "Alerte"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1003
+msgid "Critical"
+msgstr "Critique"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1021
 msgid "No topics subscribed"
 msgstr "Aucun topic abonné"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1019
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1022
 msgid "Add a topic above"
-msgstr ""
+msgstr "Ajouter un sujet ci-dessus"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1052
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1055
 msgid "Quality of Service level"
 msgstr "Niveau de qualité de service"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1064
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1067
 msgid "Notification priority"
 msgstr "Priorité de notification"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1082
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1085
 msgid "Edit subscription"
 msgstr "Modifier l'abonnement"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1349
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1352
 msgid "No alert rules configured"
 msgstr "Aucune règle d'alerte configurée"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1350
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1409
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1353
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1412
 msgid "Add a rule above"
-msgstr ""
+msgstr "Ajouter une règle ci-dessus"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1408
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1411
 msgid "No bridge rules configured"
 msgstr "Aucune règle de pont configurée"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1437
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1427
+#, c-format
+msgid "Format: %s"
+msgstr "Format : %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1432
+#, c-format
+msgid "via %s"
+msgstr "via %s"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1435
+#, fuzzy
+msgid "disabled"
+msgstr "Désactivé"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1443
+#, fuzzy
+msgid "Enable/Disable"
+msgstr "Activer la découverte"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1461
 msgid "Edit"
 msgstr "Modifier"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1544
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1553
+msgid "Unnamed"
+msgstr "Sans nom"
+
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1568
 msgid "Remove this preset"
 msgstr "Supprimer ce modèle"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1559
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1583
 msgid "No publish presets"
 msgstr "Aucun modèle de publication"
 
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1560
+#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala:1584
 msgid "Use the form below to add a preset"
 msgstr "Utilisez le formulaire ci-dessous pour ajouter un modèle"
 
-#: plugins/mqtt/src/plugin.vala:1090
+#: plugins/mqtt/src/plugin.vala:903
+msgid "MQTT"
+msgstr "MQTT"
+
+#: plugins/mqtt/src/plugin.vala:1194
 msgid ""
 "ℹ Server: ejabberd (mod_mqtt detected)\n"
 "\n"
@@ -6187,8 +6724,15 @@ msgid ""
 "\n"
 "Per-account mode uses these credentials automatically."
 msgstr ""
+"ℹ Serveur : ejabberd (mod_mqtt détecté)\n"
+"\n"
+"ejabberd partage l'authentification XMPP et MQTT.\n"
+"Vous pouvez utiliser vos identifiants XMPP pour\n"
+"vous connecter au courtier MQTT du même domaine.\n"
+"\n"
+"Le mode par compte utilise ces identifiants automatiquement."
 
-#: plugins/mqtt/src/plugin.vala:1098
+#: plugins/mqtt/src/plugin.vala:1202
 msgid ""
 "⚠ Server: Prosody (mod_pubsub_mqtt detected)\n"
 "\n"
@@ -6214,7 +6758,7 @@ msgstr ""
 "\n"
 "Format des sujets : <HOST>/<TYPE>/<NODE>"
 
-#: plugins/mqtt/src/plugin.vala:1113
+#: plugins/mqtt/src/plugin.vala:1217
 #, c-format
 msgid ""
 "💡 Your XMPP server (%s) supports MQTT!\n"
@@ -6223,36 +6767,43 @@ msgstr ""
 "💡 Votre serveur XMPP (%s) prend en charge MQTT !\n"
 "\n"
 
-#: plugins/mqtt/src/plugin.vala:1114
+#: plugins/mqtt/src/plugin.vala:1218
 #, c-format
 msgid "MQTT is not yet enabled for %s.\n"
 msgstr "MQTT n'est pas encore activé pour %s.\n"
 
-#: plugins/mqtt/src/plugin.vala:1115
+#: plugins/mqtt/src/plugin.vala:1219
+#, fuzzy
 msgid ""
 "To enable it, go to:\n"
 "  Account Settings → MQTT Bot → Enable MQTT\n"
 "\n"
-"Or type: /mqtt help"
 msgstr ""
 "Pour l'activer, allez dans :\n"
 "  Paramètres du compte → Bot MQTT → Activer MQTT\n"
 "\n"
 "Ou saisissez : /mqtt help"
 
-#: plugins/mqtt/src/plugin.vala:1304
+#: plugins/mqtt/src/plugin.vala:1221 plugins/mqtt/src/plugin.vala:1409
+#: plugins/mqtt/src/plugin.vala:1421 plugins/mqtt/src/plugin.vala:1728
+#, fuzzy
+msgid "Show commands"
+msgstr "Définir les commandes du bot"
+
+#: plugins/mqtt/src/plugin.vala:1408
+#, fuzzy
 msgid ""
 "MQTT Bot connected ✔\n"
 "\n"
-"Type /mqtt help for available commands.\n"
-"Subscribed MQTT messages will appear here."
 msgstr ""
-"Bot MQTT connecté ✔\n"
+"Bot MQTT connecté pour %s ✔\n"
 "\n"
-"Saisissez /mqtt help pour les commandes disponibles.\n"
-"Les messages MQTT abonnés apparaîtront ici."
 
-#: plugins/mqtt/src/plugin.vala:1316
+#: plugins/mqtt/src/plugin.vala:1410
+msgid "Subscribed MQTT messages will appear here."
+msgstr ""
+
+#: plugins/mqtt/src/plugin.vala:1420
 #, c-format
 msgid ""
 "MQTT Bot connected for %s ✔\n"
@@ -6261,20 +6812,18 @@ msgstr ""
 "Bot MQTT connecté pour %s ✔\n"
 "\n"
 
-#: plugins/mqtt/src/plugin.vala:1317
-msgid "Type /mqtt help for available commands."
-msgstr "Saisissez /mqtt help pour les commandes disponibles."
-
-#: plugins/mqtt/src/plugin.vala:1483
+#: plugins/mqtt/src/plugin.vala:1720
 #, c-format
 msgid "→ Published to: %s"
 msgstr "→ Publié sur : %s"
 
-#: plugins/mqtt/src/plugin.vala:1490
+#: plugins/mqtt/src/plugin.vala:1727
+msgid "I only understand /mqtt commands."
+msgstr ""
+
+#: plugins/mqtt/src/plugin.vala:1729
+#, fuzzy
 msgid ""
-"I only understand /mqtt commands.\n"
-"\n"
-"Type /mqtt help for available commands.\n"
 "To enable free-text publishing, configure it in\n"
 "Account Settings → MQTT Bot → Publish &amp; Free Text."
 msgstr ""
@@ -6321,8 +6870,7 @@ msgid "Enable Standalone MQTT"
 msgstr "Activer le MQTT autonome"
 
 #: plugins/mqtt/src/settings_page.vala:113
-msgid ""
-"Connect to an external MQTT broker (Mosquitto, Home Assistant, HiveMQ…)"
+msgid "Connect to an external MQTT broker (Mosquitto, Home Assistant, HiveMQ…)"
 msgstr ""
 "Se connecter à un broker MQTT externe (Mosquitto, Home Assistant, HiveMQ…)"
 
@@ -6422,22 +6970,15 @@ msgstr "Pont"
 msgid "Threshold alerts for MQTT topics"
 msgstr "Alertes de seuil pour les topics MQTT"
 
-#: plugins/mqtt/src/topic_manager_dialog.vala:213
-msgid "Unsubscribe"
-msgstr "Se désabonner"
+#: plugins/mqtt/src/topic_manager_dialog.vala:207
+#, c-format
+msgid "QoS %d · %s"
+msgstr "QoS %d · %s"
 
-#: plugins/mqtt/src/topic_manager_dialog.vala:233
-#: plugins/mqtt/src/topic_manager_dialog.vala:265
-msgid "Active"
-msgstr "Actif"
-
-#: plugins/mqtt/src/topic_manager_dialog.vala:238
-msgid "Remove bridge"
-msgstr "Supprimer le pont"
-
-#: plugins/mqtt/src/topic_manager_dialog.vala:280
-msgid "Remove alert"
-msgstr "Supprimer l'alerte"
+#: plugins/mqtt/src/topic_manager_dialog.vala:331
+#, c-format
+msgid "QoS %d · normal"
+msgstr "QoS %d · normal"
 
 #: plugins/tor-manager/src/settings_page.vala:22
 msgid "Tor"
@@ -6455,280 +6996,55 @@ msgstr "Activer Tor intégré"
 msgid "Starts a private Tor process for DinoX"
 msgstr "Démarre un processus Tor privé pour DinoX"
 
-#: plugins/tor-manager/src/settings_page.vala:52
+#: plugins/tor-manager/src/settings_page.vala:49
 msgid "Bridges (Censorship Circumvention)"
 msgstr "Ponts (contournement de la censure)"
 
-#: plugins/tor-manager/src/settings_page.vala:53
-msgid "Required if Tor is blocked by your ISP or government."
-msgstr "Requis si Tor est bloqué par votre FAI ou votre gouvernement."
+#: plugins/tor-manager/src/settings_page.vala:50
+msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
+msgstr ""
+"Requis si Tor est bloqué. Prend en charge les ponts obfs4 et WebTunnel."
 
-#: plugins/tor-manager/src/settings_page.vala:58
+#: plugins/tor-manager/src/settings_page.vala:55
 msgid "Use Bridges"
 msgstr "Utiliser des ponts"
 
-#: plugins/tor-manager/src/settings_page.vala:59
+#: plugins/tor-manager/src/settings_page.vala:56
 msgid "Hides the fact that you are using Tor."
 msgstr "Masque le fait que vous utilisez Tor."
 
-#: plugins/tor-manager/src/settings_page.vala:71
+#: plugins/tor-manager/src/settings_page.vala:68
 msgid "Firewall Mode (Port 80/443 Only)"
 msgstr "Mode pare-feu (ports 80/443 uniquement)"
 
-#: plugins/tor-manager/src/settings_page.vala:72
+#: plugins/tor-manager/src/settings_page.vala:69
 msgid ""
 "Only connect to bridges using standard web ports. Helps behind strict "
 "firewalls."
 msgstr ""
-"Se connecter aux ponts uniquement via les ports web standard. Utile derrière"
-" des pare-feux stricts."
+"Se connecter aux ponts uniquement via les ports web standard. Utile derrière "
+"des pare-feux stricts."
 
-#: plugins/tor-manager/src/settings_page.vala:79
+#: plugins/tor-manager/src/settings_page.vala:76
 msgid ""
-"Warning: Only bridges on port 80/443 will work when Firewall Mode is "
-"enabled!"
+"Warning: Only bridges on port 80/443 will work when Firewall Mode is enabled!"
 msgstr ""
 "Attention : seuls les ponts sur les ports 80/443 fonctionneront lorsque le "
 "mode pare-feu est activé !"
 
-#: plugins/tor-manager/src/settings_page.vala:110
+#: plugins/tor-manager/src/settings_page.vala:102
 msgid "Bridge List (Auto or Manual Entry)"
 msgstr "Liste des ponts (automatique ou saisie manuelle)"
 
-#: plugins/tor-manager/src/settings_page.vala:141
+#: plugins/tor-manager/src/settings_page.vala:133
 msgid "Request Fresh Bridges"
 msgstr "Demander de nouveaux ponts"
 
-#: plugins/tor-manager/src/settings_page.vala:142
-msgid "Connects to Tor Project (Moat) to fetch unblocked bridges."
-msgstr ""
-"Se connecte au projet Tor (Moat) pour récupérer des ponts non bloqués."
-
-#: plugins/tor-manager/src/settings_page.vala:177
-msgid "Alternatively get bridges at https://bridges.torproject.org/"
-msgstr ""
-"Vous pouvez aussi obtenir des ponts sur https://bridges.torproject.org/"
-
-#: plugins/tor-manager/src/settings_page.vala:226
-msgid "Loading..."
-msgstr "Chargement…"
-
-#: plugins/tor-manager/src/settings_page.vala:237
-msgid "Error fetching challenge"
-msgstr "Erreur lors de la récupération du défi"
-
-#: plugins/tor-manager/src/settings_page.vala:260
-msgid "Image Error"
-msgstr "Erreur d'image"
-
-#: plugins/tor-manager/src/settings_page.vala:260
-msgid "Could not load CAPTCHA image."
-msgstr "Impossible de charger l'image CAPTCHA."
-
-#: plugins/tor-manager/src/settings_page.vala:279
-msgid "Type characters from image..."
-msgstr "Saisissez les caractères de l'image…"
-
-#: plugins/tor-manager/src/settings_page.vala:283
-msgid "Solve CAPTCHA"
-msgstr "Résoudre le CAPTCHA"
-
-#: plugins/tor-manager/src/settings_page.vala:284
-msgid "Please type the characters you see in the image to receive bridges."
-msgstr ""
-"Veuillez saisir les caractères visibles dans l'image pour recevoir des "
-"ponts."
-
-#: plugins/tor-manager/src/settings_page.vala:289
-msgid "Submit"
-msgstr "Envoyer"
-
-#: plugins/tor-manager/src/settings_page.vala:347
-#, c-format
-msgid "Received %d fresh bridges."
-msgstr "%d nouveaux ponts reçus."
-
-#: plugins/tor-manager/src/settings_page.vala:349
-#, c-format
-msgid ""
-"Good news! We found %d bridges on common ports (443/80). These are "
-"prioritized."
-msgstr ""
-"Bonne nouvelle ! %d ponts trouvés sur les ports courants (443/80). Ceux-ci "
-"sont prioritaires."
-
-#: plugins/tor-manager/src/settings_page.vala:351
-msgid ""
-"Warning: None of the bridges use standard ports (443/80). If you are behind "
-"a strict firewall, you might need to try again."
-msgstr ""
-"Attention : aucun des ponts n'utilise les ports standard (443/80). Si vous "
-"êtes derrière un pare-feu strict, vous devrez peut-être réessayer."
-
-#: plugins/tor-manager/src/settings_page.vala:354
-msgid "Success"
-msgstr "Succès"
-
-#: plugins/tor-manager/src/settings_page.vala:357
-#: plugins/tor-manager/src/settings_page.vala:369
-msgid "Try Again"
-msgstr "Réessayer"
-
-#: plugins/tor-manager/src/settings_page.vala:368
-msgid "Failed"
-msgstr "Échec"
-
-#: plugins/tor-manager/src/settings_page.vala:368
-msgid "No bridges received. Maybe the solution was wrong?"
-msgstr "Aucun pont reçu. La solution était peut-être incorrecte ?"
-
-#: plugins/tor-manager/src/ui_indicator.vala:86
-#: plugins/tor-manager/src/ui_indicator.vala:117
-msgid "Tor Network"
-msgstr "Réseau Tor"
-
-#: plugins/tor-manager/src/ui_indicator.vala:134
-msgid "Enable Tor"
-msgstr "Activer Tor"
-
-#: plugins/tor-manager/src/ui_indicator.vala:164
-msgid "Network Settings"
-msgstr "Paramètres réseau"
-
-#: plugins/tor-manager/src/ui_indicator.vala:183
-#, c-format
-msgid "Bootstrapping: %d%%"
-msgstr "Démarrage : %d%%"
-
-#: plugins/tor-manager/src/ui_indicator.vala:184
-#, c-format
-msgid ""
-"Tor Starting: %d%%\n"
-"%s"
-msgstr ""
-"Démarrage de Tor : %d%%\n"
-"%s"
-
-#: plugins/tor-manager/src/ui_indicator.vala:202
-msgid "Bridges"
-msgstr "Ponts"
-
-#: plugins/tor-manager/src/ui_indicator.vala:202
-msgid "Direct"
-msgstr "Direct"
-
-#: plugins/tor-manager/src/ui_indicator.vala:206
-#, c-format
-msgid "Tor Connected (%s)"
-msgstr "Tor connecté (%s)"
-
-#: plugins/tor-manager/src/ui_indicator.vala:207
-#, c-format
-msgid "Connected (%s)"
-msgstr "Connecté (%s)"
-
-#: plugins/tor-manager/src/ui_indicator.vala:211
-msgid "Tor Starting..."
-msgstr "Démarrage de Tor…"
-
-#: plugins/tor-manager/src/ui_indicator.vala:212
-msgid "Starting..."
-msgstr "Démarrage…"
-
-#: plugins/tor-manager/src/ui_indicator.vala:217
-msgid "Tor Disabled"
-msgstr "Tor désactivé"
-
-#: plugins/tor-manager/src/ui_indicator.vala:218
-msgid "Tor is disabled"
-msgstr "Tor est désactivé"
-
-#: main/src/ui/conversation_content_view/call_widget.vala
-msgid "Ring ring…!"
-msgstr "Dring dring… !"
-
-#: main/src/ui/conversation_content_view/call_widget.vala
-msgid "Dependencies for call support not met"
-msgstr "Les dépendances pour le support des appels ne sont pas remplies"
-
-#: main/src/ui/conversation_content_view/call_widget.vala
-msgid "Ring ring…?"
-msgstr "Dring dring… ?"
-
-#: main/src/ui/conversation_content_view/call_widget.vala
-msgid "Call failed to establish"
-msgstr "L'appel n'a pas pu être établi"
-
-#: plugins/mqtt/src/topic_manager_dialog.vala
-#, c-format
-msgid "QoS %d · %s"
-msgstr "QoS %d · %s"
-
-#: plugins/mqtt/src/topic_manager_dialog.vala
-#, c-format
-msgid "QoS %d · normal"
-msgstr "QoS %d · normal"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "Silent"
-msgstr "Silencieux"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "Alert"
-msgstr "Alerte"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "Critical"
-msgstr "Critique"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "contains"
-msgstr "contient"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "full"
-msgstr "complet"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "payload"
-msgstr "données utiles"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "short"
-msgstr "court"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "file (URL)"
-msgstr "fichier (URL)"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-#, c-format
-msgid "Format: %s"
-msgstr "Format : %s"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-#, c-format
-msgid "via %s"
-msgstr "via %s"
-
-#: plugins/mqtt/src/mqtt_bot_manager_dialog.vala
-msgid "Unnamed"
-msgstr "Sans nom"
-
-#: plugins/mqtt/src/plugin.vala
-msgid "MQTT"
-msgstr "MQTT"
-
-#: plugins/tor-manager/src/settings_page.vala:53
-msgid "Required if Tor is blocked. Supports obfs4 and WebTunnel bridges."
-msgstr ""
-"Nécessaire si Tor est bloqué. Prend en charge les ponts obfs4 et WebTunnel."
-
-#: plugins/tor-manager/src/settings_page.vala:142
+#: plugins/tor-manager/src/settings_page.vala:134
 msgid "Fetches bridges from Tor Project. Choose transport type:"
 msgstr "Récupère des ponts du projet Tor. Choisissez le type de transport :"
 
-#: plugins/tor-manager/src/settings_page.vala:173
+#: plugins/tor-manager/src/settings_page.vala:172
 msgid ""
 "WebTunnel (port 443, looks like HTTPS) is best for strict firewalls. obfs4 "
 "is more widely available. Both fetch instantly without CAPTCHA."
@@ -6737,82 +7053,361 @@ msgstr ""
 "stricts. obfs4 est plus disponible. Les deux se récupèrent instantanément "
 "sans CAPTCHA."
 
-#: plugins/tor-manager/src/settings_page.vala:237
+#: plugins/tor-manager/src/settings_page.vala:221
+msgid "Loading..."
+msgstr "Chargement…"
+
+#: plugins/tor-manager/src/settings_page.vala:232
 msgid "Error fetching bridges"
 msgstr "Erreur lors de la récupération des ponts"
 
-#: plugins/tor-manager/src/settings_page.vala:286
-msgid "No bridges received. The server may be temporarily unavailable."
-msgstr ""
-"Aucun pont reçu. Le serveur est peut-être temporairement indisponible."
-
-#: plugins/tor-manager/src/settings_page.vala:252
+#: plugins/tor-manager/src/settings_page.vala:279
+#, c-format
 msgid "Received %d %s bridge(s)."
 msgstr "%d pont(s) %s reçu(s)."
 
-#: plugins/tor-manager/src/settings_page.vala:255
+#: plugins/tor-manager/src/settings_page.vala:282
+#, c-format
 msgid "%d bridge(s) on standard ports (443/80)."
 msgstr "%d pont(s) sur les ports standard (443/80)."
 
+#: plugins/tor-manager/src/settings_page.vala:285
+msgid "Success"
+msgstr "Succès"
+
+#: plugins/tor-manager/src/settings_page.vala:288
+#: plugins/tor-manager/src/settings_page.vala:300
+msgid "Try Again"
+msgstr "Réessayer"
+
+#: plugins/tor-manager/src/settings_page.vala:299
+msgid "Failed"
+msgstr "Échec"
+
+#: plugins/tor-manager/src/settings_page.vala:299
+msgid "No bridges received. The server may be temporarily unavailable."
+msgstr "Aucun pont reçu. Le serveur est peut-être temporairement indisponible."
+
+#: plugins/tor-manager/src/ui_indicator.vala:87
+#: plugins/tor-manager/src/ui_indicator.vala:118
+msgid "Tor Network"
+msgstr "Réseau Tor"
+
+#: plugins/tor-manager/src/ui_indicator.vala:124
+msgid "Checking status..."
+msgstr "Vérification du statut…"
+
+#: plugins/tor-manager/src/ui_indicator.vala:135
+msgid "Enable Tor"
+msgstr "Activer Tor"
+
+#: plugins/tor-manager/src/ui_indicator.vala:165
+msgid "Network Settings"
+msgstr "Paramètres réseau"
+
+#: plugins/tor-manager/src/ui_indicator.vala:185
+#, c-format
+msgid "Bootstrapping: %d%%"
+msgstr "Démarrage : %d%%"
+
+#: plugins/tor-manager/src/ui_indicator.vala:186
+#, c-format
+msgid ""
+"Tor Starting: %d%%\n"
+"%s"
+msgstr ""
+"Démarrage de Tor : %d%%\n"
+"%s"
+
 #: plugins/tor-manager/src/ui_indicator.vala:204
+msgid "Direct"
+msgstr "Direct"
+
+#: plugins/tor-manager/src/ui_indicator.vala:206
 msgid "Firewall"
 msgstr "Pare-feu"
 
-#: main/src/ui/conversation_content_view/message_widget.vala:345
-msgid "Navigate to location"
-msgstr "Naviguer vers le lieu"
+#: plugins/tor-manager/src/ui_indicator.vala:208
+#, c-format
+msgid "Tor Connected (%s)"
+msgstr "Tor connecté (%s)"
 
-#: main/src/ui/util/location_manager.vala:28
-msgid "A location request is already in progress."
-msgstr "Une demande de localisation est déjà en cours."
+#: plugins/tor-manager/src/ui_indicator.vala:209
+#, c-format
+msgid "Connected (%s)"
+msgstr "Connecté (%s)"
 
-#: main/src/ui/util/location_manager.vala:37
-msgid "Location services are not available (GeoClue2 not installed)."
-msgstr "Les services de localisation ne sont pas disponibles (GeoClue2 non installé)."
+#: plugins/tor-manager/src/ui_indicator.vala:214
+msgid "Tor Starting..."
+msgstr "Démarrage de Tor…"
 
-#: main/src/ui/conversation_view_controller.vala:394
-msgid "Enter coordinates or paste a geo: link (e.g. geo:48.2082,16.3738)"
-msgstr "Entrez des coordonnées ou collez un lien geo: (par ex. geo:48.2082,16.3738)"
+#: plugins/tor-manager/src/ui_indicator.vala:215
+msgid "Starting..."
+msgstr "Démarrage…"
 
-#: main/src/ui/conversation_view_controller.vala:401
-msgid "Latitude"
-msgstr "Latitude"
+#: plugins/tor-manager/src/ui_indicator.vala:220
+msgid "Tor Disabled"
+msgstr "Tor désactivé"
 
-#: main/src/ui/conversation_view_controller.vala:408
-msgid "Longitude"
-msgstr "Longitude"
+#: plugins/tor-manager/src/ui_indicator.vala:221
+msgid "Tor is disabled"
+msgstr "Tor est désactivé"
 
-#: main/src/ui/conversation_view_controller.vala:415
-msgid "or geo: link"
-msgstr "ou lien geo:"
+#~ msgid "Proxy unreachable"
+#~ msgstr "Proxy inaccessible"
 
-#: main/src/ui/conversation_view_controller.vala:435
-msgid "Send"
-msgstr "Envoyer"
+#~ msgid "Service is running and reachable"
+#~ msgstr "Le service est en cours d'exécution et accessible"
 
-#: main/src/ui/conversation_view_controller.vala:452
-msgid "Invalid coordinates"
-msgstr "Coordonnées invalides"
+#~ msgid "Proxy Type"
+#~ msgstr "Type de proxy"
 
-#: main/src/ui/conversation_view_controller.vala:452
-msgid "Please enter valid latitude (-90 to 90) and longitude (-180 to 180)."
-msgstr "Veuillez entrer une latitude valide (-90 à 90) et une longitude (-180 à 180)."
+#~ msgid "Search or enter channel address..."
+#~ msgstr "Rechercher ou entrer l'adresse du canal..."
 
-#: main/src/ui/conversation_view_controller.vala
-msgid "Low location accuracy"
-msgstr "Faible précision de localisation"
+#~ msgid "Join Channel"
+#~ msgstr "Rejoindre un salon"
 
-#: main/src/ui/conversation_view_controller.vala
-msgid "The detected location has an accuracy of approximately %.0f km. This may be very inaccurate. You can send it anyway or enter coordinates manually."
-msgstr "La position détectée a une précision d'environ %.0f km. Cela peut être très imprécis. Vous pouvez l'envoyer quand même ou entrer les coordonnées manuellement."
+#, c-format
+#~ msgid ""
+#~ "The video encoder could not be initialized: %s\n"
+#~ "\n"
+#~ "Please ensure GStreamer plugins are installed (gst-plugins-good, gst-"
+#~ "plugins-ugly, gst-libav)."
+#~ msgstr ""
+#~ "L'encodeur vidéo n'a pas pu être initialisé : %s\n"
+#~ "\n"
+#~ "Veuillez vous assurer que les plugins GStreamer sont installés (gst-"
+#~ "plugins-good, gst-plugins-ugly, gst-libav)."
 
-#: main/src/ui/conversation_view_controller.vala
-msgid "Enter manually"
-msgstr "Saisir manuellement"
+#~ msgid "Failed to get location"
+#~ msgstr "Échec de l'obtention de la position"
 
-#: main/src/ui/conversation_view_controller.vala
-msgid "Send anyway"
-msgstr "Envoyer quand même"
+#, c-format
+#~ msgid ""
+#~ "Unknown command: /mqtt %s\n"
+#~ "\n"
+#~ "Type /mqtt help for available commands."
+#~ msgstr ""
+#~ "Commande inconnue : /mqtt %s\n"
+#~ "\n"
+#~ "Saisissez /mqtt help pour les commandes disponibles."
+
+#~ msgid ""
+#~ "MQTT Bot Commands\n"
+#~ "─────────────────\n"
+#~ "/mqtt status              — Connection status\n"
+#~ "/mqtt subscribe <topic>   — Subscribe to a topic\n"
+#~ "/mqtt unsubscribe <topic> — Unsubscribe from a topic\n"
+#~ "/mqtt publish <t> <msg>   — Publish to a topic\n"
+#~ "/mqtt topics              — List subscriptions\n"
+#~ "/mqtt alias <topic> <name>— Set topic display alias\n"
+#~ "/mqtt aliases             — List all aliases\n"
+#~ "/mqtt rmalias <topic>     — Remove alias\n"
+#~ "/mqtt qos <topic> <0|1|2> — Set topic QoS level\n"
+#~ "/mqtt chart <topic> [N]   — Sparkline chart\n"
+#~ "/mqtt bridge <topic> <jid>— Forward to XMPP contact\n"
+#~ "/mqtt bridges             — List bridge rules\n"
+#~ "/mqtt rmbridge <number>   — Remove bridge rule\n"
+#~ "/mqtt preset add <name> <topic> <payload>\n"
+#~ "                          — Add publish preset\n"
+#~ "/mqtt preset remove <N>   — Remove preset by number\n"
+#~ "/mqtt preset <name>       — Execute preset\n"
+#~ "/mqtt presets             — List all presets\n"
+#~ "/mqtt config              — Show connection config\n"
+#~ "/mqtt reconnect           — Force reconnect\n"
+#~ "/mqtt manager             — Open Topic Manager\n"
+#~ "/mqtt alert <topic> <op> <value>\n"
+#~ "                          — Set threshold alert\n"
+#~ "/mqtt alerts              — List alert rules\n"
+#~ "/mqtt rmalert <number>    — Remove alert rule\n"
+#~ "/mqtt priority <topic> <level>\n"
+#~ "                          — Set topic priority\n"
+#~ "/mqtt history [topic] [N] — Show topic history\n"
+#~ "/mqtt dbstats             — Database statistics\n"
+#~ "/mqtt purge               — Manual data cleanup\n"
+#~ "/mqtt pause               — Pause messages\n"
+#~ "/mqtt resume              — Resume messages\n"
+#~ "/mqtt discovery [on|off]  — HA Discovery status/toggle\n"
+#~ "/mqtt help                — This help text\n"
+#~ "\n"
+#~ "Topic wildcards:\n"
+#~ "  + = single level (home/+/temp)\n"
+#~ "  # = all below   (home/sensors/#)\n"
+#~ "\n"
+#~ "Alert examples:\n"
+#~ "  /mqtt alert home/temp > 30\n"
+#~ "  /mqtt alert home/door == OPEN\n"
+#~ "\n"
+#~ "Bridge example:\n"
+#~ "  /mqtt bridge home/alerts/# user@example.com\n"
+#~ "\n"
+#~ "Preset example:\n"
+#~ "  /mqtt preset add LichtAN home/light/set ON\n"
+#~ "  /mqtt preset LichtAN\n"
+#~ "\n"
+#~ "QoS levels: 0 (fire&forget), 1 (ack), 2 (exactly once)\n"
+#~ "Priority levels: silent, normal, alert, critical\n"
+#~ "\n"
+#~ "Alias example:\n"
+#~ "  /mqtt alias home/temp 🌡 Wohnzimmer\n"
+#~ "\n"
+#~ "HA Discovery:\n"
+#~ "  /mqtt discovery         — Show discovery status\n"
+#~ "  /mqtt discovery on      — Enable & publish\n"
+#~ "  /mqtt discovery off     — Disable & remove"
+#~ msgstr ""
+#~ "Commandes du bot MQTT\n"
+#~ "─────────────────\n"
+#~ "/mqtt status              — État de la connexion\n"
+#~ "/mqtt subscribe <topic>   — S'abonner à un sujet\n"
+#~ "/mqtt unsubscribe <topic> — Se désabonner d'un sujet\n"
+#~ "/mqtt publish <t> <msg>   — Publier dans un sujet\n"
+#~ "/mqtt topics              — Lister les abonnements\n"
+#~ "/mqtt alias <topic> <name>— Définir un alias de sujet\n"
+#~ "/mqtt aliases             — Lister tous les alias\n"
+#~ "/mqtt rmalias <topic>     — Supprimer un alias\n"
+#~ "/mqtt qos <topic> <0|1|2> — Définir le QoS du sujet\n"
+#~ "/mqtt chart <topic> [N]   — Graphique sparkline\n"
+#~ "/mqtt bridge <topic> <jid>— Transférer vers contact XMPP\n"
+#~ "/mqtt bridges             — Lister les règles de pont\n"
+#~ "/mqtt rmbridge <number>   — Supprimer une règle de pont\n"
+#~ "/mqtt preset add <name> <topic> <payload>\n"
+#~ "                          — Ajouter un préréglage\n"
+#~ "/mqtt preset remove <N>   — Supprimer un préréglage\n"
+#~ "/mqtt preset <name>       — Exécuter un préréglage\n"
+#~ "/mqtt presets             — Lister tous les préréglages\n"
+#~ "/mqtt config              — Afficher la configuration\n"
+#~ "/mqtt reconnect           — Forcer la reconnexion\n"
+#~ "/mqtt manager             — Ouvrir le gestionnaire\n"
+#~ "/mqtt alert <topic> <op> <value>\n"
+#~ "                          — Définir une alerte seuil\n"
+#~ "/mqtt alerts              — Lister les règles d'alerte\n"
+#~ "/mqtt rmalert <number>    — Supprimer une règle d'alerte\n"
+#~ "/mqtt priority <topic> <level>\n"
+#~ "                          — Définir la priorité du sujet\n"
+#~ "/mqtt history [topic] [N] — Afficher l'historique\n"
+#~ "/mqtt dbstats             — Statistiques de la base\n"
+#~ "/mqtt purge               — Nettoyage manuel\n"
+#~ "/mqtt pause               — Suspendre les messages\n"
+#~ "/mqtt resume              — Reprendre les messages\n"
+#~ "/mqtt discovery [on|off]  — Statut/bascule HA Discovery\n"
+#~ "/mqtt help                — Ce texte d'aide\n"
+#~ "\n"
+#~ "Jokers de sujets :\n"
+#~ "  + = un seul niveau (home/+/temp)\n"
+#~ "  # = tout en dessous (home/sensors/#)\n"
+#~ "\n"
+#~ "Exemples d'alertes :\n"
+#~ "  /mqtt alert home/temp > 30\n"
+#~ "  /mqtt alert home/door == OPEN\n"
+#~ "\n"
+#~ "Exemple de pont :\n"
+#~ "  /mqtt bridge home/alerts/# user@example.com\n"
+#~ "\n"
+#~ "Exemple de préréglage :\n"
+#~ "  /mqtt preset add LichtAN home/light/set ON\n"
+#~ "  /mqtt preset LichtAN\n"
+#~ "\n"
+#~ "Niveaux QoS : 0 (fire&forget), 1 (ack), 2 (exactement une fois)\n"
+#~ "Niveaux de priorité : silent, normal, alert, critical\n"
+#~ "\n"
+#~ "Exemple d'alias :\n"
+#~ "  /mqtt alias home/temp 🌡 Wohnzimmer\n"
+#~ "\n"
+#~ "HA Discovery :\n"
+#~ "  /mqtt discovery         — Afficher le statut\n"
+#~ "  /mqtt discovery on      — Activer et publier\n"
+#~ "  /mqtt discovery off     — Désactiver et supprimer"
+
+#, c-format
+#~ msgid ""
+#~ "HA Discovery enabled (prefix: %s).\n"
+#~ "\n"
+#~ "Reconnecting to set LWT… check /mqtt status in a few seconds."
+#~ msgstr ""
+#~ "Découverte HA activée (préfixe : %s).\n"
+#~ "\n"
+#~ "Reconnexion pour définir LWT… vérifiez /mqtt status dans quelques "
+#~ "secondes."
+
+#~ msgid ""
+#~ "MQTT Bot connected ✔\n"
+#~ "\n"
+#~ "Type /mqtt help for available commands.\n"
+#~ "Subscribed MQTT messages will appear here."
+#~ msgstr ""
+#~ "Bot MQTT connecté ✔\n"
+#~ "\n"
+#~ "Saisissez /mqtt help pour les commandes disponibles.\n"
+#~ "Les messages MQTT abonnés apparaîtront ici."
+
+#~ msgid "Type /mqtt help for available commands."
+#~ msgstr "Saisissez /mqtt help pour les commandes disponibles."
+
+#~ msgid "Required if Tor is blocked by your ISP or government."
+#~ msgstr "Requis si Tor est bloqué par votre FAI ou votre gouvernement."
+
+#~ msgid "Connects to Tor Project (Moat) to fetch unblocked bridges."
+#~ msgstr ""
+#~ "Se connecte au projet Tor (Moat) pour récupérer des ponts non bloqués."
+
+#~ msgid "Alternatively get bridges at https://bridges.torproject.org/"
+#~ msgstr ""
+#~ "Vous pouvez aussi obtenir des ponts sur https://bridges.torproject.org/"
+
+#~ msgid "Error fetching challenge"
+#~ msgstr "Erreur lors de la récupération du défi"
+
+#~ msgid "Image Error"
+#~ msgstr "Erreur d'image"
+
+#~ msgid "Could not load CAPTCHA image."
+#~ msgstr "Impossible de charger l'image CAPTCHA."
+
+#~ msgid "Type characters from image..."
+#~ msgstr "Saisissez les caractères de l'image…"
+
+#~ msgid "Solve CAPTCHA"
+#~ msgstr "Résoudre le CAPTCHA"
+
+#~ msgid "Please type the characters you see in the image to receive bridges."
+#~ msgstr ""
+#~ "Veuillez saisir les caractères visibles dans l'image pour recevoir des "
+#~ "ponts."
+
+#~ msgid "Submit"
+#~ msgstr "Envoyer"
+
+#, c-format
+#~ msgid "Received %d fresh bridges."
+#~ msgstr "%d nouveaux ponts reçus."
+
+#, c-format
+#~ msgid ""
+#~ "Good news! We found %d bridges on common ports (443/80). These are "
+#~ "prioritized."
+#~ msgstr ""
+#~ "Bonne nouvelle ! %d ponts trouvés sur les ports courants (443/80). Ceux-"
+#~ "ci sont prioritaires."
+
+#~ msgid ""
+#~ "Warning: None of the bridges use standard ports (443/80). If you are "
+#~ "behind a strict firewall, you might need to try again."
+#~ msgstr ""
+#~ "Attention : aucun des ponts n'utilise les ports standard (443/80). Si "
+#~ "vous êtes derrière un pare-feu strict, vous devrez peut-être réessayer."
+
+#~ msgid "No bridges received. Maybe the solution was wrong?"
+#~ msgstr "Aucun pont reçu. La solution était peut-être incorrecte ?"
+
+#~ msgid "A location request is already in progress."
+#~ msgstr "Une demande de localisation est déjà en cours."
+
+#~ msgid "Location services are not available (GeoClue2 not installed)."
+#~ msgstr ""
+#~ "Les services de localisation ne sont pas disponibles (GeoClue2 non "
+#~ "installé)."
 
 #~ msgid "Help: How to join channels"
 #~ msgstr "Aide : Comment rejoindre les canaux"
@@ -6833,7 +7428,8 @@ msgstr "Envoyer quand même"
 #~ msgid ""
 #~ "Dieses Passwort wird verwendet, um deine lokalen DinoX-Daten zu "
 #~ "verschlüsseln."
-#~ msgstr "Ce mot de passe est utilisé pour chiffrer vos données locales DinoX."
+#~ msgstr ""
+#~ "Ce mot de passe est utilisé pour chiffrer vos données locales DinoX."
 
 #~ msgid "Decrypting Backup..."
 #~ msgstr "Déchiffrement de la sauvegarde..."
@@ -6882,7 +7478,8 @@ msgstr "Envoyer quand même"
 #~ msgstr ""
 #~ "Voulez-vous chiffrer la sauvegarde avec un mot de passe ?\n"
 #~ "\n"
-#~ "Les sauvegardes chiffrées sont plus sûres mais nécessitent le mot de passe pour être restaurées."
+#~ "Les sauvegardes chiffrées sont plus sûres mais nécessitent le mot de "
+#~ "passe pour être restaurées."
 
 #~ msgid "No Encryption"
 #~ msgstr "Sans chiffrement"
@@ -6913,13 +7510,18 @@ msgstr "Envoyer quand même"
 #~ msgstr "Aide pour rejoindre un salon"
 
 #~ msgid ""
-#~ "To join a channel, click the \"Join Channel\" button and enter the channel JID (example: room@conference.example.org).\n"
+#~ "To join a channel, click the \"Join Channel\" button and enter the "
+#~ "channel JID (example: room@conference.example.org).\n"
 #~ "\n"
-#~ "If you need a password or a nickname, provide them in the dialog. Use the discovery features in the server to find public rooms."
+#~ "If you need a password or a nickname, provide them in the dialog. Use the "
+#~ "discovery features in the server to find public rooms."
 #~ msgstr ""
-#~ "Pour rejoindre un salon, cliquez sur le bouton \"Rejoindre le salon\" et entrez le JID du salon (exemple : room@conference.example.org).\n"
+#~ "Pour rejoindre un salon, cliquez sur le bouton \"Rejoindre le salon\" et "
+#~ "entrez le JID du salon (exemple : room@conference.example.org).\n"
 #~ "\n"
-#~ "Si vous avez besoin d'un mot de passe ou d'un pseudonyme, fournissez-les dans la boîte de dialogue. Utilisez les fonctionnalités de découverte du serveur pour trouver les salons publics."
+#~ "Si vous avez besoin d'un mot de passe ou d'un pseudonyme, fournissez-les "
+#~ "dans la boîte de dialogue. Utilisez les fonctionnalités de découverte du "
+#~ "serveur pour trouver les salons publics."
 
 #~ msgid "Set up account"
 #~ msgstr "Configurer un compte"
@@ -6975,9 +7577,6 @@ msgstr "Envoyer quand même"
 #~ msgid "OpenPGP Key Management"
 #~ msgstr "Gestion des clés OpenPGP"
 
-#~ msgid "Actions"
-#~ msgstr "Actions"
-
 #~ msgid "Generate New Key"
 #~ msgstr "Générer une nouvelle clé"
 
@@ -7016,9 +7615,6 @@ msgstr "Envoyer quand même"
 
 #~ msgid "you@example.com"
 #~ msgstr "vous@exemple.com"
-
-#~ msgid "Passphrase (optional)"
-#~ msgstr "Phrase de passe (optionnel)"
 
 #~ msgid "Passphrase"
 #~ msgstr "Phrase de passe"
@@ -7153,9 +7749,6 @@ msgstr "Envoyer quand même"
 #~ msgid "Could not establish a secure connection"
 #~ msgstr "Impossible d’établir une connexion sécurisée"
 
-#~ msgid "Back"
-#~ msgstr "Retour"
-
 #~ msgid "Choose a public server"
 #~ msgstr "Choisissez un serveur public"
 
@@ -7183,24 +7776,24 @@ msgstr "Envoyer quand même"
 #~ "privacy in mind."
 #~ msgstr ""
 #~ "Dino est un client de discussion libre et moderne pour ordinateur. Il se "
-#~ "concentre sur le fait d’offrir une expérience XMPP simple et fiable tout en "
-#~ "ayant toujours à l’esprit votre vie privée."
+#~ "concentre sur le fait d’offrir une expérience XMPP simple et fiable tout "
+#~ "en ayant toujours à l’esprit votre vie privée."
 
 #~ msgid ""
 #~ "It supports end-to-end encryption with OMEMO and OpenPGP and allows "
 #~ "configuring privacy-related features such as read receipts and typing "
 #~ "notifications."
 #~ msgstr ""
-#~ "Il prend en charge le chiffrement de bout en bout avec OMEMO et OpenPGP et "
-#~ "permet de configurer les fonctions liées à la confidentialité telles que les"
-#~ " accusés de réception et les notifications d’écriture."
+#~ "Il prend en charge le chiffrement de bout en bout avec OMEMO et OpenPGP "
+#~ "et permet de configurer les fonctions liées à la confidentialité telles "
+#~ "que les accusés de réception et les notifications d’écriture."
 
 #~ msgid ""
 #~ "Dino fetches history from the server and synchronizes messages with other "
 #~ "devices."
 #~ msgstr ""
-#~ "Dino récupère l’historique du serveur et synchronise les messages avec les "
-#~ "autres clients."
+#~ "Dino récupère l’historique du serveur et synchronise les messages avec "
+#~ "les autres clients."
 
 #~ msgid "No active search"
 #~ msgstr "Pas de recherche en cours"

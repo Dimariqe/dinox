@@ -107,6 +107,9 @@ namespace Mosquitto {
 
         [CCode (cname = "mosquitto_int_option")]
         public int int_option(Option option, int value);
+
+        [CCode (cname = "mosquitto_socks5_set")]
+        public int socks5_set(string? host, int port = 1080, string? username = null, string? password = null);
     }
 
     /* ── Callback delegates ────────────────────────────────────── */
@@ -243,5 +246,6 @@ namespace Mosquitto {
 
     [CCode (cname = "mosquitto_on_message_v5_cb", has_target = false)]
     public delegate void MessageV5Callback(Client mosq, void* userdata,
-                                            Message* msg, Property? props);
+                                            [CCode (type = "const struct mosquitto_message *")] Message* msg,
+                                            [CCode (type = "const mosquitto_property *")] Property? props);
 }

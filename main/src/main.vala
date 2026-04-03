@@ -32,34 +32,69 @@ void main(string[] args) {
 
     try{
         string? exec_path = args.length > 0 ? args[0] : null;
+
+#if WINDOWS
+        // Resolve exec_path to absolute path EARLY — before SearchPathGenerator
+        // needs it.  On Windows Explorer launch, args[0] may be just "dinox.exe"
+        // (no path separators), so Path.get_dirname() would return "." which
+        // resolves to CWD (often C:\Windows\System32).  We must resolve it to
+        // the actual exe directory for locale and plugin path detection.
+        if (exec_path != null) {
+            if (!exec_path.contains("\\") && !exec_path.contains("/")) {
+                exec_path = Environment.find_program_in_path(exec_path);
+            }
+            if (exec_path != null && !Path.is_absolute(exec_path)) {
+                exec_path = Path.build_filename(Environment.get_current_dir(), exec_path);
+            }
+        }
+#endif
+
         SearchPathGenerator search_path_generator = new SearchPathGenerator(exec_path);
+
+        // Apply user language override before gettext init
+        string lang_file = Path.build_filename(Environment.get_user_data_dir(), "dinox", "language");
+        if (FileUtils.test(lang_file, FileTest.EXISTS)) {
+            try {
+                string lang_code;
+                FileUtils.get_contents(lang_file, out lang_code);
+                lang_code = lang_code.strip();
+                if (lang_code != "" && lang_code != "system") {
+                    Environment.set_variable("LANGUAGE", lang_code, true);
+                    Environment.set_variable("LANG", lang_code + ".UTF-8", true);
+                    Intl.setlocale(LocaleCategory.ALL, "");
+                }
+            } catch (FileError e) {
+                // ignore — use system locale
+            }
+        }
+
         Intl.textdomain(GETTEXT_PACKAGE);
         internationalize(GETTEXT_PACKAGE, search_path_generator.get_locale_path(GETTEXT_PACKAGE, LOCALE_INSTALL_DIR));
 
-        Gst.init(ref args);
-        Gtk.init();
-        
-        // Ensure custom widget types are registered before loading templates that use them
-        typeof(Dino.Ui.SizeRequestBox).ensure();
-        typeof(Dino.Ui.NaturalSizeIncrease).ensure();
-        typeof(Dino.Ui.SizingBin).ensure();
-
-        Dino.Ui.Application app = new Dino.Ui.Application() { search_path_generator=search_path_generator };
-
 #if WINDOWS
-        string? exe_path = args.length > 0 ? args[0] : null;
-        if (exe_path != null) {
-             if (!exe_path.contains("\\") && !exe_path.contains("/")) {
-                  exe_path = Environment.find_program_in_path(exe_path);
-             }
-             if (exe_path != null && !Path.is_absolute(exe_path)) {
-                  exe_path = Path.build_filename(Environment.get_current_dir(), exe_path);
-             }
+        // Windows environment setup — MUST happen BEFORE Gst.init() and Gtk.init()
+        // so that GTK4 can find schemas, pixbuf loaders, and GStreamer its plugins.
+
+        // Attach to parent console if launched from CMD/MSYS2.
+        // With -mwindows the EXE is GUI subsystem (no console on double-click),
+        // but when run from a terminal we want log output to be visible.
+        SystrayWin32.attach_parent_console ();
+
+        // Set AppUserModelID BEFORE any windows are created.
+        // This controls taskbar grouping and is required for jump list
+        // suppression to work (must happen before Gtk.init).
+        SystrayWin32.set_app_id ("im.github.rallep71.DinoX");
+
+        // Single-instance check: if another DinoX is running, activate it and exit.
+        if (!SystrayWin32.check_single_instance ()) {
+            Process.exit (0);
         }
+
+        string? exe_path = exec_path;  // Already resolved to absolute path above
         string exe_dir = (exe_path != null) ? Path.get_dirname(exe_path) : Environment.get_current_dir();
 
-        // Set ALL environment variables that the batch file used to set.
-        // This makes dinox.exe fully self-contained — no .bat needed!
+        // Publish exe_dir so plugins can find bundled files without relying on cwd
+        Environment.set_variable("DINOX_EXE_DIR", exe_dir, true);
 
         // GTK/GLib resource paths
         Environment.set_variable("XDG_DATA_DIRS",
@@ -72,56 +107,98 @@ void main(string[] args) {
             Path.build_filename(exe_dir, "lib", "gdk-pixbuf-2.0", "2.10.0", "loaders"), true);
         Environment.set_variable("GTK_PATH", exe_dir, true);
 
-        // GStreamer plugin path
-        Environment.set_variable("GST_PLUGIN_PATH",
-            Path.build_filename(exe_dir, "lib", "gstreamer-1.0"), true);
+        // Fontconfig — tell it to use our bundled config + fonts.
+        string fc_conf = Path.build_filename(exe_dir, "etc", "fonts");
+        Environment.set_variable("FONTCONFIG_PATH", fc_conf, true);
 
-        // Configure Icon Theme for portable Windows build
-        var display = Gdk.Display.get_default();
-        if (display != null) {
-            var icon_theme = Gtk.IconTheme.get_for_display(display);
-            // Assuming structure: dinox.exe -> share/icons (in dist folder)
-            string icon_path = Path.build_filename(exe_dir, "share", "icons");
-            if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
-                 icon_theme.add_search_path(icon_path);
-                 message("Added icon path: %s", icon_path);
-            } else {
-                 // Try bin/../share/icons structure (standard installation)
-                 icon_path = Path.build_filename(exe_dir, "..", "share", "icons");
-                 if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
-                      icon_theme.add_search_path(icon_path);
-                      message("Added icon path: %s", icon_path);
-                 }
-            }
+        // GStreamer plugin path — only look in our bundled dir, not system.
+        string gst_plugin_dir = Path.build_filename(exe_dir, "lib", "gstreamer-1.0");
+        Environment.set_variable("GST_PLUGIN_PATH", gst_plugin_dir, true);
+        Environment.set_variable("GST_PLUGIN_SYSTEM_PATH", "", true);
+
+        // GStreamer registry cache — use the pre-generated one next to the
+        // plugins if it exists (created by update_dist.sh), otherwise fall
+        // back to a user-data cache so subsequent starts are still fast.
+        string bundled_registry = Path.build_filename(gst_plugin_dir, "registry.bin");
+        if (FileUtils.test(bundled_registry, FileTest.EXISTS)) {
+            Environment.set_variable("GST_REGISTRY", bundled_registry, true);
+        } else {
+            string gst_cache_dir = Path.build_filename(Environment.get_user_data_dir(), "dinox");
+            DirUtils.create_with_parents(gst_cache_dir, 0700);
+            Environment.set_variable("GST_REGISTRY",
+                Path.build_filename(gst_cache_dir, "gstreamer-registry.bin"), true);
         }
 
-        // Force GnuTLS to find the ca-bundle if it's in the same directory (portable mode)
+        // Force GnuTLS to find the CA bundle.
+        // Strategy: merge Windows system cert store + bundled MSYS2 ca-bundle.crt
+        // so that CAs trusted by *either* source are accepted.  This avoids the
+        // common problem where the MSYS2 bundle is outdated (e.g. missing ISRG
+        // Root X1) even though Windows itself trusts Let's Encrypt.
         string? trusted_certs = Environment.get_variable("GTLS_SYSTEM_CA_FILE");
         if (trusted_certs == null) {
-            // Try standard relative paths for portable install
+            string? ca_path = null;
+
+            // Locate bundled CA bundle from MSYS2
             string local_cert = Path.build_filename(exe_dir, "ssl", "certs", "ca-bundle.crt");
+            string local_cert_flat = Path.build_filename(exe_dir, "ca-bundle.crt");
+            string? bundled_path = null;
             if (FileUtils.test(local_cert, FileTest.EXISTS)) {
-                Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert, true);
-                Environment.set_variable("SSL_CERT_FILE", local_cert, true);
-                Environment.set_variable("SSL_CERT_DIR",
-                    Path.build_filename(exe_dir, "ssl", "certs"), true);
-                message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert);
+                bundled_path = local_cert;
+            } else if (FileUtils.test(local_cert_flat, FileTest.EXISTS)) {
+                bundled_path = local_cert_flat;
+            }
+
+            // Export Windows system ROOT certificates and merge with bundled bundle
+            string cache_dir = Path.build_filename(Environment.get_user_data_dir(), "dinox");
+            string cached_pem = Path.build_filename(cache_dir, "merged-ca-bundle.pem");
+            bool have_windows = CertstoreWin32.export_pem(cached_pem);
+
+            if (have_windows && bundled_path != null) {
+                // Append bundled Mozilla roots for maximum coverage
+                try {
+                    uint8[] bundled_data;
+                    FileUtils.get_data(bundled_path, out bundled_data);
+                    var file = File.new_for_path(cached_pem);
+                    var os = file.append_to(FileCreateFlags.NONE);
+                    os.write(bundled_data);
+                    os.close();
+                } catch (Error e) {
+                    warning("Failed to append bundled CA certs: %s", e.message);
+                }
+                ca_path = cached_pem;
+                debug("Merged Windows root certs + %s → %s", bundled_path, cached_pem);
+            } else if (have_windows) {
+                ca_path = cached_pem;
+                debug("Using Windows root certificates: %s", cached_pem);
+            } else if (bundled_path != null) {
+                ca_path = bundled_path;
             } else {
-                 string local_cert_flat = Path.build_filename(exe_dir, "ca-bundle.crt");
-                 if (FileUtils.test(local_cert_flat, FileTest.EXISTS)) {
-                    Environment.set_variable("GTLS_SYSTEM_CA_FILE", local_cert_flat, true);
-                    Environment.set_variable("SSL_CERT_FILE", local_cert_flat, true);
-                    message("Set GTLS_SYSTEM_CA_FILE to %s", local_cert_flat);
-                 }
+                warning("No CA certificates available — TLS connections will fail");
+            }
+
+            if (ca_path != null) {
+                Environment.set_variable("GTLS_SYSTEM_CA_FILE", ca_path, true);
+                Environment.set_variable("SSL_CERT_FILE", ca_path, true);
+                string ca_dir = Path.get_dirname(ca_path);
+                Environment.set_variable("SSL_CERT_DIR", ca_dir, true);
+                debug("Set GTLS_SYSTEM_CA_FILE to %s", ca_path);
+
+                // Explicitly set the default TLS trust database from our merged
+                // CA bundle.  Env vars alone are unreliable: glib-networking on
+                // MSYS2/MinGW may use a backend (OpenSSL/SChannel) that ignores
+                // GTLS_SYSTEM_CA_FILE.  This forces ALL TlsConnections to verify
+                // against our merged Windows + Mozilla root certificates.
+                try {
+                    TlsDatabase tls_db = TlsFileDatabase.@new(ca_path);
+                    TlsBackend.get_default().set_default_database(tls_db);
+                    debug("TLS trust database loaded: %s", ca_path);
+                } catch (Error e) {
+                    warning("Failed to load TLS database from %s: %s", ca_path, e.message);
+                }
             }
         }
-        
-        // Add exe directory AND bin/ folder to PATH.
-        // The exe directory MUST be in PATH so that plugins loaded from
-        // plugins/ can resolve their dependencies on our core DLLs
-        // (libdino-0.dll, libxmpp-vala-0.dll, etc.) which live next to
-        // dinox.exe.  Windows LoadLibrary does NOT search the parent
-        // directory of a DLL being loaded.
+
+        // Add exe directory AND bin/ folder to PATH so DLLs and tools are found
         string bin_path = Path.build_filename(exe_dir, "bin");
         {
             string? old_path = Environment.get_variable("PATH");
@@ -133,14 +210,189 @@ void main(string[] args) {
                 new_path = new_path + ";" + old_path;
             }
             Environment.set_variable("PATH", new_path, true);
-            message("PATH prepended: %s", exe_dir);
+            debug("PATH prepended: %s", exe_dir);
         }
 
-        // Suppress "win32 session dbus binary not found" warning from GLib-GIO.
-        // GApplication internally tries to connect to the session bus even with NON_UNIQUE,
-        // but there is no DBus session bus daemon on Windows.
-        Environment.set_variable("DBUS_SESSION_BUS_ADDRESS", "nul", true);
+        // Suppress "win32 session dbus binary not found" warning
+        Environment.set_variable("DBUS_SESSION_BUS_ADDRESS", "", true);
+
+        // Prevent GStreamer from forking gst-plugin-scanner.exe (which
+        // flashes a CMD window).  In-process scanning is fine for us.
+        Environment.set_variable("GST_REGISTRY_FORK", "no", true);
+
+        // Suppress CRT invalid-parameter-handler assertions BEFORE Gst.init().
+        // GStreamer's MediaFoundation plugin scanning triggers CRT invalid parameter
+        // calls in worker threads which corrupt GLib's handler stack.
+        SystrayWin32.suppress_crt_assertions();
 #endif
+
+        debug("Initializing GStreamer…");
+        Gst.init(ref args);
+        debug("GStreamer initialized");
+
+#if _WIN32
+        // Log GStreamer plugin summary for debugging
+        var registry = Gst.Registry.@get();
+        var plugins = registry.get_plugin_list();
+        debug("GStreamer: %u plugins loaded from %s",
+                plugins.length(),
+                Environment.get_variable("GST_PLUGIN_PATH") ?? "(default)");
+        // Check critical elements for playback + recording
+        string[] critical = {"playbin", "videoconvert", "autoaudiosink",
+                             "qtdemux", "matroskademux", "avdec_h264",
+                             "openh264dec", "avdec_aac", "opusdec",
+                             "wasapi2src", "wasapi2sink", "mfvideosrc",
+                             "mfh264enc", "mfaacenc",
+                             "aacparse", "h264parse", "mp4mux",
+                             "audioconvert", "audioresample",
+                             "filesink", "uridecodebin"};
+        foreach (string el in critical) {
+            var factory = Gst.ElementFactory.find(el);
+            if (factory == null) {
+                warning("GStreamer: MISSING element '%s' — video playback may fail!", el);
+            }
+        }
+
+        // Pre-warm Media Foundation and codec DLLs in a background thread.
+        // First use of mfvideosrc/mfh264enc/wasapi2src loads multiple Windows
+        // system DLLs (mfplat.dll, mfreadwrite.dll, evr.dll, d3d11.dll, etc.)
+        // which takes 5-8 seconds.  By exercising these elements at startup,
+        // the DLLs are cached process-wide and video message recording starts
+        // in ~2s instead of ~8s.
+        new Thread<void*>("gst-mf-warmup", () => {
+            int64 tw0 = GLib.get_monotonic_time();
+            // Video source — loads Media Foundation device source DLLs
+            var wv = Gst.ElementFactory.make("mfvideosrc", null);
+            if (wv != null) { wv.set_state(Gst.State.READY); wv.set_state(Gst.State.NULL); wv = null; }
+            // Video encoder — loads MF Transform DLLs
+            var we = Gst.ElementFactory.make("mfh264enc", null);
+            if (we != null) { we.set_state(Gst.State.READY); we.set_state(Gst.State.NULL); we = null; }
+            // Audio source — loads WASAPI2 DLLs
+            var wa = Gst.ElementFactory.make("wasapi2src", null);
+            if (wa != null) { wa.set_state(Gst.State.READY); wa.set_state(Gst.State.NULL); wa = null; }
+            // Audio encoder — loads libavcodec DLL
+            var waac = Gst.ElementFactory.make("avenc_aac", null);
+            waac = null;
+            // Muxer — loads isomp4 plugin DLL
+            var wmux = Gst.ElementFactory.make("mp4mux", null);
+            wmux = null;
+            debug("GStreamer MF warm-up completed in %lldms",
+                  (GLib.get_monotonic_time() - tw0) / 1000);
+            return null;
+        });
+#endif
+
+        // Suppress "Locale not supported by C library" by falling back gracefully.
+        // This happens when the system locale (e.g. a custom locale on openSUSE)
+        // isn't available in the C library or in AppImage's bundled glibc.
+        // We must also update LANG so that Gtk.init() (which re-reads the
+        // environment) does not fail with the same warning.
+        if (Intl.setlocale(LocaleCategory.ALL, "") == null) {
+            string? lang = Environment.get_variable("LANG");
+            string? working_locale = null;
+            if (lang != null) {
+                string base_lang = lang.split(".")[0];
+                string candidate = base_lang + ".UTF-8";
+                if (Intl.setlocale(LocaleCategory.ALL, candidate) != null) {
+                    working_locale = candidate;
+                }
+            }
+            if (working_locale == null) {
+                Intl.setlocale(LocaleCategory.ALL, "C.UTF-8");
+                working_locale = "C.UTF-8";
+            }
+            // Update environment so Gtk.init() picks up the working locale
+            Environment.set_variable("LC_ALL", working_locale, true);
+        }
+
+        // GTK4 does not support legacy GTK3-era IM modules.  If GTK_IM_MODULE
+        // is set to a GTK3-only module (e.g. "cedilla", "xim"), GTK4 prints
+        // "No IM module matching GTK_IM_MODULE=… found".  Unset only known
+        // GTK3-only modules; leave ibus, fcitx5, etc. alone (GTK4 supports them).
+        string? im_module = Environment.get_variable("GTK_IM_MODULE");
+        if (im_module == "cedilla" || im_module == "xim") {
+            Environment.unset_variable("GTK_IM_MODULE");
+        }
+
+        debug("Initializing GTK…");
+        Gtk.init();
+        debug("GTK initialized");
+        
+        // Ensure custom widget types are registered before loading templates that use them
+        typeof(Dino.Ui.SizeRequestBox).ensure();
+        typeof(Dino.Ui.NaturalSizeIncrease).ensure();
+        typeof(Dino.Ui.SizingBin).ensure();
+
+        Dino.Ui.Application app = new Dino.Ui.Application() { search_path_generator=search_path_generator };
+
+#if WINDOWS
+        // Configure Icon Theme for portable Windows build (needs Gdk.Display → after Gtk.init)
+        var display = Gdk.Display.get_default();
+        if (display != null) {
+            var icon_theme = Gtk.IconTheme.get_for_display(display);
+            string icon_path = Path.build_filename(exe_dir, "share", "icons");
+            if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
+                 icon_theme.add_search_path(icon_path);
+                 debug("Added icon search path: %s", icon_path);
+            } else {
+                 icon_path = Path.build_filename(exe_dir, "..", "share", "icons");
+                 if (FileUtils.test(icon_path, FileTest.IS_DIR)) {
+                      icon_theme.add_search_path(icon_path);
+                      debug("Added icon search path: %s", icon_path);
+                 }
+            }
+
+            // Register GResource icon path for bundled dino-* and custom icons.
+            // Must be set EARLY — before any UI template is loaded.
+            icon_theme.add_resource_path("/im/github/rallep71/DinoX/icons");
+            debug("Added icon resource path: /im/github/rallep71/DinoX/icons");
+
+            // Ensure icon theme name is "Adwaita" — on Windows, GTK4 might
+            // default to a different theme if no desktop environment is detected.
+            if (icon_theme.theme_name != "Adwaita") {
+                debug("Icon theme was '%s', forcing 'Adwaita'", icon_theme.theme_name);
+                icon_theme.theme_name = "Adwaita";
+            }
+
+            // Window decoration buttons on the LEFT (like macOS/custom) and
+            // smooth font rendering via subpixel hinting.
+            // The settings.ini in dist/share/gtk-4.0/ has these too, but
+            // applying them here ensures they take effect even if the file
+            // is missing or GTK loaded defaults before reading it.
+            var gtk_settings = Gtk.Settings.get_for_display(display);
+            if (gtk_settings != null) {
+                gtk_settings.gtk_font_name = "Segoe UI 10";
+                gtk_settings.gtk_hint_font_metrics = true;
+                gtk_settings.gtk_decoration_layout = "close,minimize,maximize:";
+                gtk_settings.gtk_xft_antialias = 1;
+                gtk_settings.gtk_xft_hinting = 1;
+                gtk_settings.gtk_xft_hintstyle = "hintslight";
+                gtk_settings.gtk_xft_rgba = "rgb";
+            }
+        }
+#endif
+
+        // Probe system CA certificate locations on ALL platforms.
+        // GnuTLS compiled on Ubuntu defaults to /etc/ssl/certs/ca-certificates.crt
+        // which doesn't exist on openSUSE, Fedora, Alpine, etc.
+        // On Windows the paths simply don't exist, so the loop is a harmless no-op.
+        if (Environment.get_variable("GTLS_SYSTEM_CA_FILE") == null) {
+            string[] system_ca_paths = {
+                "/etc/ssl/certs/ca-certificates.crt",       // Debian, Ubuntu, Arch, Gentoo
+                "/etc/pki/tls/certs/ca-bundle.crt",         // Fedora, RHEL, CentOS
+                "/etc/ssl/ca-bundle.pem",                   // openSUSE
+                "/var/lib/ca-certificates/ca-bundle.pem",   // openSUSE (alternative)
+                "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // Fedora p11-kit
+                "/etc/ssl/cert.pem",                        // Alpine, macOS
+            };
+            foreach (string path in system_ca_paths) {
+                if (FileUtils.test(path, FileTest.EXISTS)) {
+                    Environment.set_variable("GTLS_SYSTEM_CA_FILE", path, true);
+                    debug("Set GTLS_SYSTEM_CA_FILE to %s (system CA)", path);
+                    break;
+                }
+            }
+        }
 
         Plugins.Loader loader = new Plugins.Loader(app);
         app.plugin_loader = loader;

@@ -293,7 +293,7 @@ private static bool run_gpg_internal(string[] extra_args, string? stdin_data, ou
                 return exit_status == 0;
             } else {
                 debug("GPGHelper.run_gpg_internal: Interactive mode, creating subprocess...");
-                var subprocess = new Subprocess.newv(cmd, SubprocessFlags.NONE);
+                var subprocess = new Subprocess.newv(cmd, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
                 debug("GPGHelper.run_gpg_internal: Waiting for subprocess...");
                 subprocess.wait();
                 debug("GPGHelper.run_gpg_internal: Subprocess finished");
@@ -311,15 +311,12 @@ private static bool run_gpg_internal(string[] extra_args, string? stdin_data, ou
         } else {
             // Non-interactive mode (batch): Pipes are safe
             debug("GPGHelper.run_gpg_internal: Batch mode, creating subprocess with pipes...");
-            SubprocessFlags flags = SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE;
-            if (stdin_data != null && stdin_data.length > 0) {
-                flags |= SubprocessFlags.STDIN_PIPE;
-            }
+            SubprocessFlags flags = SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE;
             var subprocess = new Subprocess.newv(cmd, flags);
             
             Bytes? stdout_bytes = null;
             Bytes? stderr_bytes = null;
-            Bytes? input_bytes = (stdin_data != null && stdin_data.length > 0) ? new Bytes(stdin_data.data) : null;
+            Bytes? input_bytes = (stdin_data != null && stdin_data.length > 0) ? new Bytes(stdin_data.data) : new Bytes(new uint8[0]);
             debug("GPGHelper.run_gpg_internal: Communicating with subprocess...");
             subprocess.communicate(input_bytes, null, out stdout_bytes, out stderr_bytes);
             debug("GPGHelper.run_gpg_internal: Communication complete");
@@ -1374,10 +1371,10 @@ private static bool download_key_from_openpgp_org_api(string key_id) {
         
         // Use Subprocess instead of Process.spawn_sync for Windows stability
         try {
-            var subprocess = new Subprocess.newv(curl_args, SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
+            var subprocess = new Subprocess.newv(curl_args, SubprocessFlags.STDIN_PIPE | SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE);
             Bytes? stdout_bytes = null;
             Bytes? stderr_bytes = null;
-            subprocess.communicate(null, null, out stdout_bytes, out stderr_bytes);
+            subprocess.communicate(new Bytes(new uint8[0]), null, out stdout_bytes, out stderr_bytes);
             
             int curl_exit = subprocess.get_if_exited() ? subprocess.get_exit_status() : -1;
             

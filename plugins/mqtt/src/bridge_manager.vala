@@ -188,7 +188,7 @@ public class MqttBridgeManager : Object {
         string trimmed = text.strip();
         if (trimmed == "") return null;
         /* Must be an absolute path */
-        if (!trimmed.has_prefix("/")) return null;
+        if (!Path.is_absolute(trimmed)) return null;
         /* Reject paths with suspicious characters (path traversal etc.) */
         if (trimmed.contains("..")) return null;
         /* Find end of path (first whitespace or end of string) */

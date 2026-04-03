@@ -256,6 +256,13 @@ public class FileManager : StreamInteractionModule, Object {
         }
         file_transfer.file_metadata = metadata;
 
+        debug("send_file: preparing '%s' size=%lld mime=%s conv_encryption=%d conv_type=%d",
+              file_transfer.file_name,
+              (int64) file_transfer.size,
+              file_transfer.mime_type ?? "(null)",
+              (int) conversation.encryption,
+              (int) conversation.type_);
+
         if (configure != null) {
             configure(file_transfer);
         }
@@ -310,6 +317,17 @@ public class FileManager : StreamInteractionModule, Object {
                         }
                     }
                 }
+            }
+
+            if (file_sender != null) {
+                debug("send_file: selected sender id=%d prio=%f encryptor=%s",
+                      file_sender.get_id(),
+                      file_sender.get_priority(),
+                      file_encryptor != null ? file_encryptor.get_type().name() : "(none)");
+            } else {
+                warning("send_file: no sender/encryptor available (encryption=%d size=%lld)",
+                        (int) file_transfer.encryption,
+                        (int64) file_transfer.size);
             }
 
             if (file_sender == null) {

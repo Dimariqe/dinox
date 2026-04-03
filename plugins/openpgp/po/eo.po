@@ -198,7 +198,6 @@ msgstr "Generante Ŝlosilon..."
 #: plugins/openpgp/src/key_management_dialog.vala:341
 msgid "Please wait while your key is being generated. This may take a moment."
 msgstr "Bonvolu atendi dum via ŝlosilo estas generata. Tio povas daŭri momenton."
-"Bonvolu atendi dum via ŝlosilo estas generata. Ĉi tio povas daŭri momenton."
 
 #: plugins/openpgp/src/key_management_dialog.vala:393
 #: plugins/openpgp/src/key_management_dialog.vala:459

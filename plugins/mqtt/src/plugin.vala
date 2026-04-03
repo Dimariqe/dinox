@@ -64,6 +64,9 @@ public class Plugin : RootInterface, Object {
     private HashMap<string, MqttDiscoveryManager> discovery_managers =
         new HashMap<string, MqttDiscoveryManager>();
 
+    /* ── CRITICAL alert sound (GStreamer playbin) ────────────────── */
+    private Gst.Element? alert_playbin = null;
+
     /* ── Retained message dedup cache ─────────────────────────────── */
     /* Key: "label\ttopic", Value: payload hash.
      * Prevents re-injecting the same retained message on every reconnect. */
@@ -235,6 +238,12 @@ public class Plugin : RootInterface, Object {
          * Without this, handlers on pre_message_send and
          * connection_state_changed remain active permanently. */
         disconnect_signal_handlers();
+
+        /* Stop alert sound */
+        if (alert_playbin != null) {
+            alert_playbin.set_state(Gst.State.NULL);
+            alert_playbin = null;
+        }
 
         /* Stop periodic purge timer */
         if (purge_timer_id != 0) {
@@ -1296,7 +1305,10 @@ public class Plugin : RootInterface, Object {
          * for the dialog status display to work. */
         account_clients[jid] = client;
 
-        bool ok = yield client.connect_async(host, port, tls, user, pass);
+        bool ok = yield client.connect_async(host, port, tls, user, pass,
+                                              account.proxy_type, account.proxy_host,
+                                              account.proxy_port, account.proxy_user,
+                                              account.proxy_pass);
 
         if (!ok) {
             warning("MQTT: Per-account connect failed for %s (host=%s port=%d)",
@@ -1587,6 +1599,18 @@ public class Plugin : RootInterface, Object {
                 mqtt_db.record_message(label, topic, payload_str,
                                        qos, retained,
                                        priority.to_string_key());
+            }
+
+            /* Play CRITICAL alert sound via GStreamer */
+            if (priority == MqttPriority.CRITICAL) {
+                if (alert_playbin != null) {
+                    alert_playbin.set_state(Gst.State.NULL);
+                }
+                alert_playbin = Gst.ElementFactory.make("playbin", null);
+                if (alert_playbin != null) {
+                    alert_playbin.set("uri", "resource:///im/github/rallep71/DinoX/sounds/alert.wav");
+                    alert_playbin.set_state(Gst.State.PLAYING);
+                }
             }
 
             /* Inject into bot conversation with priority.

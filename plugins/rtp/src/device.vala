@@ -72,6 +72,10 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
     private Gst.Element? echo_resample;
     private Gst.Element? echo_filter;
     private Gst.Element? recv_volume; // Volume element for receive ramp-up
+    private Gst.Element? src_convert;  // audioconvert before source capsfilter
+    private Gst.Element? src_resample; // audioresample before source capsfilter
+    private Gst.Element? sink_convert;  // audioconvert before sink element
+    private Gst.Element? sink_resample; // audioresample before sink element
     private bool recv_ramp_done = false; // true after initial 200ms ramp-up
     private int sink_peers = 0; // Number of peers connected to this sink (for gain scaling)
     private int links;
@@ -142,13 +146,21 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
     public Gst.Element? link_sink() {
         if (!is_sink) return null;
         if (element == null) create();
+        if (element == null) {
+            warning("link_sink(%s): create() failed, element is still null", id);
+            return null;
+        }
         links++;
         if (mixer != null) {
             sink_peers++;
             Gst.Element rate = Gst.ElementFactory.make("audiorate", @"$(id)_rate_$(Random.next_int())");
+            rate.@set("tolerance", (uint64) 40 * Gst.MSECOND);
+            rate.@set("skip-to-first", true);
             pipe.add(rate);
             rate.link(mixer);
             update_recv_gain();
+            debug("link_sink(%s): audiorate → mixer → ... → %s (peers=%d)",
+                  id, element.get_factory() != null ? element.get_factory().get_name() : "?", sink_peers);
             return rate;
         }
         if (media == "audio") return filter;
@@ -158,33 +170,59 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
     public Gst.Element? link_source(PayloadType? payload_type = null, uint ssrc = 0, int seqnum_offset = -1, uint32 timestamp_offset = 0) {
         if (!is_source) return null;
         if (element == null) create();
+        if (element == null) {
+            warning("link_source(%s): create() failed, element is still null", id);
+            return null;
+        }
         links++;
         if (payload_type != null && ssrc != 0 && tee != null) {
             bool new_codec = false;
             string? codec = CodecUtil.get_codec_from_payload(media, payload_type);
             if (!codecs.has_key(payload_type)) {
-                codecs[payload_type] = codec_util.get_encode_bin_without_payloader(media, payload_type, @"$(id)_$(codec)_encoder");
+                var encode_bin = codec_util.get_encode_bin_without_payloader(media, payload_type, @"$(id)_$(codec)_encoder");
+                if (encode_bin == null) {
+                    warning("link_source(%s): encoder for %s/%s not available", id, media, codec ?? "?");
+                    return tee;
+                }
+                codecs[payload_type] = encode_bin;
                 pipe.add(codecs[payload_type]);
+                codecs[payload_type].sync_state_with_parent();
                 new_codec = true;
             }
             if (!codec_tees.has_key(payload_type)) {
-                codec_tees[payload_type] = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_tee");
+                var ct = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_tee");
+                if (ct == null) {
+                    warning("link_source(%s): failed to create codec tee", id);
+                    return tee;
+                }
+                codec_tees[payload_type] = ct;
                 codec_tees[payload_type].@set("allow-not-linked", true);
                 pipe.add(codec_tees[payload_type]);
+                codec_tees[payload_type].sync_state_with_parent();
                 codecs[payload_type].link(codec_tees[payload_type]);
             }
             if (!payloaders.has_key(payload_type)) {
                 payloaders[payload_type] = new HashMap<uint, Gst.Element>();
             }
             if (!payloaders[payload_type].has_key(ssrc)) {
-                payloaders[payload_type][ssrc] = codec_util.get_payloader_bin(media, payload_type, @"$(id)_$(codec)_$(ssrc)");
-                var payload = (Gst.RTP.BasePayload) ((Gst.Bin) payloaders[payload_type][ssrc]).get_by_name(@"$(id)_$(codec)_$(ssrc)_rtp_pay");
+                var payloader_bin = codec_util.get_payloader_bin(media, payload_type, @"$(id)_$(codec)_$(ssrc)");
+                if (payloader_bin == null) {
+                    warning("link_source(%s): payloader for %s/%s not available", id, media, codec ?? "?");
+                    return tee;
+                }
+                payloaders[payload_type][ssrc] = payloader_bin;
+                var payload = ((Gst.Bin) payloaders[payload_type][ssrc]).get_by_name(@"$(id)_$(codec)_$(ssrc)_rtp_pay") as Gst.RTP.BasePayload;
+                if (payload == null) {
+                    warning("link_source(%s): payloader element not found in bin", id);
+                    return tee;
+                }
                 payload.ssrc = ssrc;
                 payload.seqnum_offset = seqnum_offset;
                 if (timestamp_offset != 0) {
                     payload.timestamp_offset = timestamp_offset;
                 }
                 pipe.add(payloaders[payload_type][ssrc]);
+                payloaders[payload_type][ssrc].sync_state_with_parent();
                 codec_tees[payload_type].link(payloaders[payload_type][ssrc]);
                 debug("Payload for %s with %s using ssrc %u, seqnum_offset %u, timestamp_offset %u", media, codec, ssrc, seqnum_offset, timestamp_offset);
             }
@@ -192,9 +230,15 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 payloader_tees[payload_type] = new HashMap<uint, Gst.Element>();
             }
             if (!payloader_tees[payload_type].has_key(ssrc)) {
-                payloader_tees[payload_type][ssrc] = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_$(ssrc)_tee");
+                var pt_tee = Gst.ElementFactory.make("tee", @"$(id)_$(codec)_$(ssrc)_tee");
+                if (pt_tee == null) {
+                    warning("link_source(%s): failed to create payloader tee", id);
+                    return tee;
+                }
+                payloader_tees[payload_type][ssrc] = pt_tee;
                 payloader_tees[payload_type][ssrc].@set("allow-not-linked", true);
                 pipe.add(payloader_tees[payload_type][ssrc]);
+                payloader_tees[payload_type][ssrc].sync_state_with_parent();
                 payloaders[payload_type][ssrc].link(payloader_tees[payload_type][ssrc]);
             }
             if (!payloader_links.has_key(payload_type)) {
@@ -206,7 +250,28 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 payloader_links[payload_type][ssrc] = payloader_links[payload_type][ssrc] + 1;
             }
             if (new_codec) {
-                tee.link(codecs[payload_type]);
+                bool link_ok = tee.link(codecs[payload_type]);
+                // Check element states after sync + link
+                Gst.State enc_st, enc_pend;
+                codecs[payload_type].get_state(out enc_st, out enc_pend, 0);
+                Gst.State ct_st, ct_pend;
+                codec_tees[payload_type].get_state(out ct_st, out ct_pend, 0);
+                debug("AUDIO-CHECK[2/4] %s encode pipeline linked to tee: codec=%s encoder=%s link=%s enc_state=%s codec_tee_state=%s",
+                        id, codec ?? "?",
+                        codecs[payload_type].name ?? "?",
+                        link_ok ? "OK" : "FAILED",
+                        enc_st.to_string(), ct_st.to_string());
+                // Flow probe on encode bin output to confirm data passes through
+                string probe_id = id;
+                Gst.Pad? enc_src = codecs[payload_type].get_static_pad("src");
+                if (enc_src != null) {
+                    enc_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        debug("AUDIO-FLOW[E] %s: buffer exits encode_bin", probe_id);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                } else {
+                    warning("AUDIO-FLOW[E] %s: encode_bin has NO src pad!", probe_id);
+                }
             }
             // Bandwidth coordination: immediately cap encoder bitrate
             // when a new outgoing peer is added for video.
@@ -216,6 +281,23 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 debug("Bandwidth: new peer #%d, capping encoder to %u kbps",
                       payloaders[payload_type].size, budget);
                 update_bitrate(payload_type, budget);
+            }
+            // Payloader state check + flow probe
+            {
+                Gst.State pay_st, pay_pend;
+                payloaders[payload_type][ssrc].get_state(out pay_st, out pay_pend, 0);
+                Gst.State pt_st, pt_pend;
+                payloader_tees[payload_type][ssrc].get_state(out pt_st, out pt_pend, 0);
+                debug("AUDIO-CHECK[2.5/4] %s payloader_state=%s payloader_tee_state=%s",
+                        id, pay_st.to_string(), pt_st.to_string());
+                string probe_id2 = id;
+                Gst.Pad? pt_src = payloader_tees[payload_type][ssrc].get_static_pad("sink");
+                if (pt_src != null) {
+                    pt_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        debug("AUDIO-FLOW[F] %s: buffer reaches payloader_tee", probe_id2);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
             }
             return payloader_tees[payload_type][ssrc];
         }
@@ -298,7 +380,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             }
             codec_bitrates[payload_type].remove_all(remove);
             if (media == "video") {
-                if (bitrate < 128) bitrate = 128;
+                if (bitrate < 256) bitrate = 256;
                 // Multi-peer bandwidth coordination: cap at per-peer budget
                 int source_peers = get_source_peer_count(payload_type);
                 if (source_peers > 1) {
@@ -446,7 +528,11 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
 
     private Gst.Caps get_best_caps() {
         if (media == "audio") {
-            return Gst.Caps.from_string("audio/x-raw,rate=48000,channels=1");
+            // Explicit format=S16LE,layout=interleaved: ensures upstream
+            // audioconvert produces S16LE (required by VoiceProcessor).
+            // Without this, WASAPI2 on Windows would pass F32LE through,
+            // causing VoiceProcessor to block and no audio data to flow.
+            return Gst.Caps.from_string("audio/x-raw,rate=48000,channels=1,format=S16LE,layout=interleaved");
         } else if (media == "video" && device != null && device.caps.get_size() > 0) {
             int best_index = -1;
             Value? best_fraction = null;
@@ -582,9 +668,25 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             warning("Cannot create device %s — Gst.Device already released", id);
             return;
         }
-        debug("Creating device %s", id);
+        debug("Creating device %s (media=%s, source=%s, sink=%s, protocol=%s, caps=%s)",
+              id, media ?? "null", is_source.to_string(), is_sink.to_string(),
+              protocol.to_string(), device.caps != null ? device.caps.to_string() : "null");
         plugin.pause();
         element = device.create_element(id);
+        if (element == null) {
+            warning("device.create_element(%s) returned null — audio/video will NOT work", id);
+            plugin.unpause();
+            return;
+        }
+        debug("Device %s: created element %s (factory=%s)", id, element.name,
+              element.get_factory() != null ? element.get_factory().get_name() : "unknown");
+        // Enable low-latency mode on WASAPI2 elements (Windows) for
+        // tighter audio buffers.  The property only exists on wasapi2src
+        // and wasapi2sink — check with find_property to avoid warnings.
+        if (element.get_class().find_property("low-latency") != null) {
+            element.@set("low-latency", true);
+            debug("Device %s: low-latency=true", id);
+        }
         if (is_sink) {
             element.@set("async", false);
             element.@set("sync", false);
@@ -598,15 +700,40 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             filter.@set("caps", device_caps);
             pipe.add(filter);
             filter.sync_state_with_parent();
-            element.link(filter);
+            if (media == "audio") {
+                // WASAPI2 (Windows) devices often only provide stereo;
+                // audioconvert+audioresample bridge the gap to our mono/48kHz
+                // capsfilter.  On Linux these are pass-through (zero overhead).
+                src_convert = Gst.ElementFactory.make("audioconvert", @"src_convert_$id");
+                src_resample = Gst.ElementFactory.make("audioresample", @"src_resample_$id");
+                src_resample.@set("quality", 10);
+                pipe.add(src_convert);
+                pipe.add(src_resample);
+                src_convert.sync_state_with_parent();
+                src_resample.sync_state_with_parent();
+                element.link(src_convert);
+                src_convert.link(src_resample);
+                src_resample.link(filter);
+            } else {
+                element.link(filter);
+            }
             element.sync_state_with_parent();
 #if WITH_VOICE_PROCESSOR
             if (media == "audio" && plugin.echoprobe != null) {
+#if WINDOWS
+                // Skip VoiceProcessor on Windows: WASAPI2 shared mode already
+                // applies noise suppression, echo cancellation, and AGC at the
+                // driver level.  Adding our WebRTC processing on top causes
+                // double-processing artifacts and can block the audio pipeline.
+                dsp = null;
+                debug("Device %s: VoiceProcessor SKIPPED (Windows — WASAPI2 handles audio processing)", id);
+#else
                 dsp = new VoiceProcessor(plugin.echoprobe as EchoProbe, element as Gst.Audio.StreamVolume);
                 dsp.name = @"dsp_$id";
                 pipe.add(dsp);
                 dsp.sync_state_with_parent();
                 filter.link(dsp);
+#endif
             }
 #endif
             tee = Gst.ElementFactory.make("tee", @"tee_$id");
@@ -630,12 +757,13 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 (dsp ?? filter).link(volume_element);
                 volume_element.link(source_queue);
 
-                // Smooth ramp-up: 0→1.0 in 200ms (10 steps of 20ms)
+                // Smooth ramp-up: 0→1.0 in 200ms (40 steps of 5ms)
+                // Fine granularity avoids audible clicks at step boundaries.
                 int ramp_step = 0;
-                GLib.Timeout.add(20, () => {
+                GLib.Timeout.add(5, () => {
                     if (volume_element == null) return false;
                     ramp_step++;
-                    double vol = ramp_step / 10.0;
+                    double vol = ramp_step / 40.0;
                     if (vol >= 1.0) {
                         volume_element.@set("volume", 1.0);
                         return false;
@@ -647,27 +775,117 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 (dsp ?? filter).link(source_queue);
             }
             source_queue.link(tee);
+
+            // ── Audio diagnostics: verify chain negotiated caps ──
+            if (media == "audio") {
+                Gst.Pad? tee_sink = tee.get_static_pad("sink");
+                Gst.Caps? negotiated = tee_sink != null ? tee_sink.get_current_caps() : null;
+                debug("AUDIO-CHECK[1/4] source chain built: %s → caps: %s (dsp=%s)",
+                        id, negotiated != null ? negotiated.to_string() : "NOT YET NEGOTIATED",
+                        dsp != null ? "VoiceProcessor" : "NONE");
+
+                // ── Flow probes: find exactly where data stops ──
+                string dev_id = id;
+
+                // Probe A: data exits wasapi2src?
+                Gst.Pad? el_src = element.get_static_pad("src");
+                if (el_src != null) {
+                    el_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        debug("AUDIO-FLOW[A] %s: buffer exits wasapi2src", dev_id);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
+
+                // Probe B: data exits capsfilter?
+                Gst.Pad? filt_src = filter.get_static_pad("src");
+                if (filt_src != null) {
+                    filt_src.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        Gst.Caps? c = pad.get_current_caps();
+                        debug("AUDIO-FLOW[B] %s: buffer exits capsfilter → %s", dev_id,
+                                c != null ? c.to_string() : "NO CAPS");
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
+
+                // Probe C: data reaches tee?
+                if (tee_sink != null) {
+                    tee_sink.add_probe(Gst.PadProbeType.BUFFER, (pad, info) => {
+                        debug("AUDIO-FLOW[C] %s: buffer reaches tee", dev_id);
+                        return Gst.PadProbeReturn.REMOVE;
+                    });
+                }
+
+                // Delayed state check: 2 seconds after chain built
+                Gst.Element? el_ref = element;
+                Gst.Element? dsp_ref = dsp;
+                Gst.Element? vol_ref = volume_element;
+                GLib.Timeout.add_seconds(2, () => {
+                    if (el_ref == null) return false;
+                    Gst.State el_st, el_pend;
+                    el_ref.get_state(out el_st, out el_pend, 0);
+                    Gst.Caps? neg = tee_sink != null ? tee_sink.get_current_caps() : null;
+                    string dsp_state = "n/a";
+                    if (dsp_ref != null) {
+                        Gst.State ds, dp;
+                        dsp_ref.get_state(out ds, out dp, 0);
+                        dsp_state = ds.to_string();
+                    }
+                    string vol_state = "n/a";
+                    if (vol_ref != null) {
+                        Gst.State vs, vp;
+                        vol_ref.get_state(out vs, out vp, 0);
+                        vol_state = vs.to_string();
+                    }
+                    debug("AUDIO-FLOW[D] %s 2s-check: src=%s dsp=%s vol=%s caps=%s",
+                            dev_id, el_st.to_string(), dsp_state, vol_state,
+                            neg != null ? neg.to_string() : "STILL NONE");
+                    return false;
+                });
+            }
         }
         if (is_sink) {
             if (media == "audio") {
+                debug("Device %s: building audio SINK chain (echoprobe=%s, echoprobe_src_linked=%s)",
+                      id, plugin.echoprobe != null ? "yes" : "no",
+                      plugin.echoprobe != null ? plugin.echoprobe.get_static_pad("src").is_linked().to_string() : "n/a");
                 mixer = (Gst.Base.Aggregator) Gst.ElementFactory.make("audiomixer", @"mixer_$id");
+                if (mixer == null) {
+                    warning("Device %s: audiomixer not available — audio sink will not work", id);
+                    element.sync_state_with_parent();
+                    plugin.unpause();
+                    return;
+                }
+                // 20ms aggregation latency: gives audiomixer time to collect
+                // samples from all input pads before outputting.  Without this
+                // (default=0) it outputs immediately even when data hasn't
+                // arrived yet, producing silence gaps → crackling.
+                mixer.@set("latency", (uint64) 20 * Gst.MSECOND);
                 pipe.add(mixer);
                 mixer.sync_state_with_parent();
 
                 // Volume ramp-up on receive path to prevent initial crackling
                 recv_volume = Gst.ElementFactory.make("volume", @"recv_vol_$id");
+                if (recv_volume == null) {
+                    warning("Device %s: volume element not available — linking mixer directly to sink", id);
+                    mixer.link(element);
+                    element.sync_state_with_parent();
+                    plugin.unpause();
+                    return;
+                }
                 pipe.add(recv_volume);
                 recv_volume.@set("volume", 0.0);
                 recv_volume.sync_state_with_parent();
                 mixer.link(recv_volume);
-                // Ramp up from 0.0 to target over 200ms (10 steps x 20ms)
-                // Target gain is 1/sqrt(N) to prevent clipping with N peers
+                // Ramp up from 0.0 to target over 200ms (40 steps × 5ms)
+                // Fine granularity avoids audible clicks at step boundaries.
                 double recv_vol = 0.0;
-                GLib.Timeout.add(20, () => {
+                int recv_ramp_step = 0;
+                GLib.Timeout.add(5, () => {
                     double target = get_target_recv_gain();
-                    recv_vol += target / 10.0;
                     if (recv_volume == null) return false;
-                    if (recv_vol >= target) {
+                    recv_ramp_step++;
+                    recv_vol = (recv_ramp_step / 40.0) * target;
+                    if (recv_ramp_step >= 40) {
                         recv_volume.@set("volume", target);
                         recv_ramp_done = true;
                         return false;
@@ -681,6 +899,7 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                     // to avoid caps mismatches (e.g. stereo from some peers/devices) degrading AEC.
                     echo_convert = Gst.ElementFactory.make("audioconvert", @"echo_convert_$id");
                     echo_resample = Gst.ElementFactory.make("audioresample", @"echo_resample_$id");
+                    if (echo_resample != null) echo_resample.@set("quality", 10);
                     echo_filter = Gst.ElementFactory.make("capsfilter", @"echo_caps_$id");
                     if (echo_convert != null && echo_resample != null && echo_filter != null) {
                         echo_filter.@set("caps", Gst.Caps.from_string("audio/x-raw,rate=48000,channels=1,layout=interleaved,format=S16LE"));
@@ -695,18 +914,70 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                         echo_convert.link(echo_resample);
                         echo_resample.link(echo_filter);
                         echo_filter.link(plugin.echoprobe);
-                        plugin.echoprobe.link(element);
+                        // audioconvert+audioresample between echoprobe and sink
+                        // element: echoprobe outputs mono/48kHz but WASAPI2
+                        // sinks may require stereo and/or a different rate.
+                        sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
+                        sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                        if (sink_resample != null) sink_resample.@set("quality", 10);
+                        if (sink_convert != null && sink_resample != null) {
+                            pipe.add(sink_convert);
+                            pipe.add(sink_resample);
+                            sink_convert.sync_state_with_parent();
+                            sink_resample.sync_state_with_parent();
+                            plugin.echoprobe.link(sink_convert);
+                            sink_convert.link(sink_resample);
+                            sink_resample.link(element);
+                        } else {
+                            warning("Device %s: audioconvert/audioresample not available in echoprobe path, linking directly", id);
+                            plugin.echoprobe.link(element);
+                        }
                     } else {
                         recv_volume.link(plugin.echoprobe);
-                        plugin.echoprobe.link(element);
+                        sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
+                        sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                        if (sink_resample != null) sink_resample.@set("quality", 10);
+                        if (sink_convert != null && sink_resample != null) {
+                            pipe.add(sink_convert);
+                            pipe.add(sink_resample);
+                            sink_convert.sync_state_with_parent();
+                            sink_resample.sync_state_with_parent();
+                            plugin.echoprobe.link(sink_convert);
+                            sink_convert.link(sink_resample);
+                            sink_resample.link(element);
+                        } else {
+                            warning("Device %s: audioconvert/audioresample not available in echoprobe fallback", id);
+                            plugin.echoprobe.link(element);
+                        }
                     }
                 } else {
                     filter = Gst.ElementFactory.make("capsfilter", @"caps_filter_$id");
-                    filter.@set("caps", device_caps);
-                    pipe.add(filter);
-                    filter.sync_state_with_parent();
-                    recv_volume.link(filter);
-                    filter.link(element);
+                    if (filter != null) {
+                        filter.@set("caps", device_caps);
+                        pipe.add(filter);
+                        filter.sync_state_with_parent();
+                        recv_volume.link(filter);
+                    } else {
+                        warning("Device %s: capsfilter not available, skipping caps filter", id);
+                    }
+                    // audioconvert+audioresample between capsfilter and sink
+                    // element to handle format differences (e.g. mono→stereo,
+                    // 48kHz→44.1kHz on WASAPI2).
+                    sink_convert = Gst.ElementFactory.make("audioconvert", @"sink_convert_$id");
+                    sink_resample = Gst.ElementFactory.make("audioresample", @"sink_resample_$id");
+                    if (sink_resample != null) sink_resample.@set("quality", 10);
+                    if (sink_convert != null && sink_resample != null) {
+                        pipe.add(sink_convert);
+                        pipe.add(sink_resample);
+                        sink_convert.sync_state_with_parent();
+                        sink_resample.sync_state_with_parent();
+                        (filter ?? recv_volume).link(sink_convert);
+                        sink_convert.link(sink_resample);
+                        sink_resample.link(element);
+                    } else {
+                        warning("Device %s: audioconvert/audioresample not available, linking directly", id);
+                        (filter ?? recv_volume).link(element);
+                    }
                 }
             }
             element.sync_state_with_parent();
@@ -733,6 +1004,10 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
         echo_convert = null;
         echo_resample = null;
         echo_filter = null;
+        src_convert = null;
+        src_resample = null;
+        sink_convert = null;
+        sink_resample = null;
         codecs.clear();
         codec_tees.clear();
         payloaders.clear();
@@ -805,14 +1080,33 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
                 recv_volume = null;
             }
             if (plugin.echoprobe != null && element != null) {
-                plugin.echoprobe.unlink(element);
+                if (sink_resample != null) sink_resample.unlink(element);
+                else plugin.echoprobe.unlink(element);
+                if (sink_convert != null && sink_resample != null) sink_convert.unlink(sink_resample);
+                if (plugin.echoprobe != null && sink_convert != null) plugin.echoprobe.unlink(sink_convert);
+            }
+            if (sink_resample != null) {
+                sink_resample.set_locked_state(true);
+                sink_resample.set_state(Gst.State.NULL);
+                pipe.remove(sink_resample);
+                sink_resample = null;
+            }
+            if (sink_convert != null) {
+                sink_convert.set_locked_state(true);
+                sink_convert.set_state(Gst.State.NULL);
+                pipe.remove(sink_convert);
+                sink_convert = null;
             }
         }
         if (is_source) {
             // 1. Unlink the full source chain to break pad reference cycles.
             //    gst_bin_remove() does NOT unlink pads, so we must do it
             //    explicitly to avoid elements keeping each other alive.
-            if (element != null && filter != null) element.unlink(filter);
+            //    Chain: element → [src_convert → src_resample →] filter → [dsp →] [volume →] source_queue → tee
+            if (element != null && src_convert != null) element.unlink(src_convert);
+            if (src_convert != null && src_resample != null) src_convert.unlink(src_resample);
+            if (src_resample != null && filter != null) src_resample.unlink(filter);
+            if (element != null && filter != null && src_convert == null) element.unlink(filter);
             if (filter != null && dsp != null) filter.unlink(dsp);
             else if (filter != null && volume_element != null) filter.unlink(volume_element);
             else if (filter != null && source_queue != null) filter.unlink(source_queue);
@@ -827,6 +1121,8 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             if (volume_element != null) volume_element.set_state(Gst.State.NULL);
             if (dsp != null) dsp.set_state(Gst.State.NULL);
             if (filter != null) filter.set_state(Gst.State.NULL);
+            if (src_resample != null) src_resample.set_state(Gst.State.NULL);
+            if (src_convert != null) src_convert.set_state(Gst.State.NULL);
             
             foreach (var map in payloader_tees.values) {
                 foreach (var pt in map.values) pt.set_state(Gst.State.NULL);
@@ -876,6 +1172,14 @@ public class Dino.Plugins.Rtp.Device : MediaDevice, Object {
             if (filter != null) {
                 pipe.remove(filter);
                 filter = null;
+            }
+            if (src_resample != null) {
+                pipe.remove(src_resample);
+                src_resample = null;
+            }
+            if (src_convert != null) {
+                pipe.remove(src_convert);
+                src_convert = null;
             }
         }
         if (element != null) {

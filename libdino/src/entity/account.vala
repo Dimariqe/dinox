@@ -35,6 +35,8 @@ public class Account : Object {
     public string proxy_type { get; set; default = "none"; }
     public string? proxy_host { get; set; }
     public int proxy_port { get; set; default = 0; }
+    public string? proxy_user { get; set; }
+    public string? proxy_pass { get; set; }
     public bool require_channel_binding { get; set; default = false; }
 
     private Database? db;
@@ -62,6 +64,8 @@ public class Account : Object {
         proxy_type = row[db.account.proxy_type];
         proxy_host = row[db.account.proxy_host];
         proxy_port = row[db.account.proxy_port];
+        proxy_user = row[db.account.proxy_user];
+        proxy_pass = row[db.account.proxy_pass];
         require_channel_binding = row[db.account.require_channel_binding];
 
         notify.connect(on_update);
@@ -83,6 +87,8 @@ public class Account : Object {
                 .value(db.account.proxy_type, proxy_type)
                 .value(db.account.proxy_host, proxy_host)
                 .value(db.account.proxy_port, proxy_port)
+                .value(db.account.proxy_user, proxy_user)
+                .value(db.account.proxy_pass, proxy_pass)
                 .value(db.account.require_channel_binding, require_channel_binding)
                 .perform();
 
@@ -200,6 +206,10 @@ public class Account : Object {
                 update.set(db.account.proxy_host, proxy_host); break;
             case "proxy-port":
                 update.set(db.account.proxy_port, proxy_port); break;
+            case "proxy-user":
+                update.set(db.account.proxy_user, proxy_user); break;
+            case "proxy-pass":
+                update.set(db.account.proxy_pass, proxy_pass); break;
             case "require-channel-binding":
                 update.set(db.account.require_channel_binding, require_channel_binding); break;
         }

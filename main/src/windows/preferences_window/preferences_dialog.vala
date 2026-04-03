@@ -11,6 +11,7 @@ public class Dino.Ui.PreferencesDialog : Adw.PreferencesDialog {
     [GtkChild] public unowned Dino.Ui.PreferencesWindowContacts contacts_page;
     [GtkChild] public unowned Dino.Ui.PreferencesWindowEncryption encryption_page;
     [GtkChild] public unowned Dino.Ui.GeneralPreferencesPage general_page;
+    [GtkChild] public unowned Dino.Ui.AudioVideoPreferencesPage audio_video_page;
     public Dino.Ui.AccountPreferencesSubpage account_page = new Dino.Ui.AccountPreferencesSubpage();
 
     [GtkChild] public unowned ViewModel.PreferencesDialog model { get; }
@@ -35,6 +36,7 @@ public class Dino.Ui.PreferencesDialog : Adw.PreferencesDialog {
             contacts_page.title = "";
             encryption_page.title = "";
             general_page.title = "";
+            audio_video_page.title = "";
             this.content_width = 360;
             this.set_size_request(300, -1);
             this.queue_resize();
@@ -45,6 +47,7 @@ public class Dino.Ui.PreferencesDialog : Adw.PreferencesDialog {
             contacts_page.title = _("Contacts");
             encryption_page.title = _("Encryption");
             general_page.title = _("General");
+            audio_video_page.title = _("Audio & Video");
             this.content_width = 700;
             this.set_size_request(-1, -1);
         });
@@ -55,6 +58,8 @@ public class Dino.Ui.PreferencesDialog : Adw.PreferencesDialog {
         this.bind_property("model", contacts_page, "model", BindingFlags.SYNC_CREATE);
         this.bind_property("model", account_page, "model", BindingFlags.SYNC_CREATE);
         this.bind_property("model", encryption_page, "model", BindingFlags.SYNC_CREATE);
+
+        audio_video_page.populate();
 
         accounts_page.account_chosen.connect((account) => {
             model.selected_account = model.account_details[account];

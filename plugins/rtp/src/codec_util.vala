@@ -107,6 +107,9 @@ public class Dino.Plugins.Rtp.CodecUtil {
                         "vah264lpenc",
                         "vah264enc",
 #endif
+#if WINDOWS
+                        "mfh264enc",
+#endif
                         "openh264enc",
                         "x264enc"
                     };
@@ -160,6 +163,9 @@ public class Dino.Plugins.Rtp.CodecUtil {
 #if ENABLE_V4L2SL
                         "v4l2slh264dec",
 #endif
+#if WINDOWS
+                        "mfh264dec",
+#endif
                         "openh264dec",
                         "avdec_h264"
                     };
@@ -191,6 +197,10 @@ public class Dino.Plugins.Rtp.CodecUtil {
     public static string? get_encode_prefix(string media, string codec, string encode, JingleRtp.PayloadType? payload_type) {
         if (encode == "msdkh264enc") return "capsfilter caps=video/x-raw,format=NV12 ! ";
         if (encode == "vah264lpenc" || encode == "vah264enc") return "capsfilter caps=video/x-raw,format=NV12 ! ";
+        // mfh264enc (Windows Media Foundation): explicit NV12 format, same as
+        // VA-API on Linux. Without this, videoconvert may negotiate a format
+        // mfh264enc cannot handle, stalling the encoder and freezing the feed.
+        if (encode == "mfh264enc") return "capsfilter caps=video/x-raw,format=NV12 ! ";
         if (encode == "openh264enc") return "capsfilter caps=video/x-raw,format=I420 ! ";
         return null;
     }
@@ -199,6 +209,9 @@ public class Dino.Plugins.Rtp.CodecUtil {
         // H264 - key-int-max=30 ensures keyframe every ~1 second at 30fps
         if (encode == "msdkh264enc") return @" rate-control=vbr key-int-max=30";
         if (encode == "vah264lpenc" || encode == "vah264enc") return @" rate-control=vbr key-int-max=30";
+        // Windows Media Foundation H.264 — native hardware-accelerated encoder
+        // low-latency=true reduces initial buffering (faster call setup)
+        if (encode == "mfh264enc") return " bframes=0 gop-size=30 low-latency=true";
         // openh264enc uses bitrate in bits/sec and gop-size for keyframe interval
         if (encode == "openh264enc") return " bitrate=1500000 gop-size=30";
         if (encode == "x264enc") return @" byte-stream=1 speed-preset=faster tune=zerolatency bframes=0 cabac=false dct8x8=false key-int-max=30";
@@ -215,8 +228,12 @@ public class Dino.Plugins.Rtp.CodecUtil {
 
         // OPUS
         if (encode == "opusenc") {
-            if (payload_type != null && payload_type.parameters.has("useinbandfec", "1")) return " audio-type=voice inband-fec=true packet-loss-percentage=10";
-            return " audio-type=voice";
+            if (payload_type != null && payload_type.parameters.has("useinbandfec", "1")) {
+                debug("OPUS-FEC: inband-fec ENABLED (useinbandfec=1 negotiated), bitrate=48000, packet-loss-percentage=10");
+                return " audio-type=voice bitrate=48000 inband-fec=true packet-loss-percentage=10";
+            }
+            debug("OPUS-FEC: inband-fec DISABLED (useinbandfec=1 NOT negotiated), bitrate=48000");
+            return " audio-type=voice bitrate=48000";
         }
 
         return null;
@@ -243,6 +260,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
             case "msdkh264enc":
             case "vah264lpenc":
             case "vah264enc":
+            case "mfh264enc":
             case "x264enc":
             case "msdkvp8enc":
             case "vavp8enc":
@@ -257,6 +275,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
             case "vp8enc":
             case "vp9enc":
                 bitrate = uint.min(2147483, bitrate);
+                debug("VP8/VP9 encoder target-bitrate set to %u kbps (%u bps)", bitrate, bitrate * 1024);
                 encode.set("target-bitrate", bitrate * 1024);
                 return bitrate;
         }
@@ -267,8 +286,20 @@ public class Dino.Plugins.Rtp.CodecUtil {
     public void update_rescale_caps(Gst.Element encode_element, Gst.Caps caps) {
         Gst.Bin? encode_bin = encode_element as Gst.Bin;
         if (encode_bin == null) return;
+        Gst.Element? rescale = encode_bin.get_by_name(@"$(encode_bin.name)_rescale");
         Gst.Element rescale_caps = encode_bin.get_by_name(@"$(encode_bin.name)_rescale_caps");
-        rescale_caps.set("caps", caps);
+        if (rescale == null) {
+            rescale_caps.set("caps", caps);
+            return;
+        }
+        // Block data on videoscale's src pad so no buffer is mid-copy
+        // in videoconvert when we change the capsfilter.
+        // Prevents SIGSEGV in gst_video_frame_copy_plane.
+        Gst.Pad srcpad = rescale.get_static_pad("src");
+        srcpad.add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM, (pad, info) => {
+            rescale_caps.set("caps", caps);
+            return Gst.PadProbeReturn.REMOVE;
+        });
     }
 
     public Gst.Caps? get_rescale_caps(Gst.Element encode_element) {
@@ -363,7 +394,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
         string decode_args = get_decode_args(media, codec, decode, payload_type) ?? "";
         string decode_suffix = get_decode_suffix(media, codec, decode, payload_type) ?? "";
         string depay_args = get_depay_args(media, codec, decode, payload_type) ?? "";
-        string resample = media == "audio" ? @" ! audioresample name=$(base_name)_resample" : "";
+        string resample = media == "audio" ? @" ! audioresample quality=10 name=$(base_name)_resample" : "";
         return @"queue ! $depay$depay_args name=$(base_name)_rtp_depay ! $decode_prefix$decode$decode_args name=$(base_name)_$(codec)_decode$decode_suffix ! $(media)convert name=$(base_name)_convert$resample";
     }
 
@@ -410,7 +441,7 @@ public class Dino.Plugins.Rtp.CodecUtil {
         string encode_prefix = get_encode_prefix(media, codec, encode, payload_type) ?? "";
         string encode_args = get_encode_args(media, codec, encode, payload_type) ?? "";
         string encode_suffix = get_encode_suffix(media, codec, encode, payload_type) ?? "";
-        string rescale = media == "audio" ? @" ! audioresample name=$(base_name)_resample" : @" ! videoscale name=$(base_name)_rescale ! capsfilter name=$(base_name)_rescale_caps";
+        string rescale = media == "audio" ? @" ! audioresample quality=10 name=$(base_name)_resample" : @" ! videoscale name=$(base_name)_rescale ! capsfilter name=$(base_name)_rescale_caps";
         return @"$(media)convert name=$(base_name)_convert$rescale ! queue ! $encode_prefix$encode$encode_args name=$(base_name)_encode$encode_suffix";
     }
 

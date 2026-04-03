@@ -77,6 +77,8 @@ public class Dino.CallState : Object {
     internal PeerState set_first_peer(Jid peer) {
         var peer_state = new PeerState(peer, call, this, stream_interactor);
         peer_state.first_peer = true;
+        peer_state.we_should_send_video = this.we_should_send_video;
+        peer_state.we_should_send_audio = this.we_should_send_audio;
         add_peer(peer_state);
         return peer_state;
     }
@@ -89,8 +91,14 @@ public class Dino.CallState : Object {
 
     internal void on_peer_stream_created(PeerState peer, string media) {
         if (media == "audio") {
-            call_plugin.set_device(peer.get_audio_stream(), get_microphone_device());
-            call_plugin.set_device(peer.get_audio_stream(), get_speaker_device());
+            var mic = get_microphone_device();
+            var spk = get_speaker_device();
+            debug("on_peer_stream_created audio: mic=%s spk=%s stream=%s",
+                  mic != null ? mic.display_name : "NULL",
+                  spk != null ? spk.display_name : "NULL",
+                  peer.get_audio_stream() != null ? "ok" : "NULL");
+            if (mic != null) call_plugin.set_device(peer.get_audio_stream(), mic);
+            if (spk != null) call_plugin.set_device(peer.get_audio_stream(), spk);
         } else if (media == "video") {
             call_plugin.set_device(peer.get_video_stream(), get_video_device());
         }
@@ -269,6 +277,7 @@ public class Dino.CallState : Object {
     public void mute_own_audio(bool mute) {
         we_should_send_audio = !mute;
         foreach (PeerState peer in peers.values) {
+            peer.we_should_send_audio = !mute;
             peer.mute_own_audio(mute);
         }
     }
@@ -276,6 +285,7 @@ public class Dino.CallState : Object {
     public void mute_own_video(bool mute) {
         we_should_send_video = !mute;
         foreach (PeerState peer in peers.values) {
+            peer.we_should_send_video = !mute;
             peer.mute_own_video(mute);
         }
     }
@@ -332,7 +342,13 @@ public class Dino.CallState : Object {
 
     public Plugins.MediaDevice? get_microphone_device() {
         if (selected_microphone_device == null) {
-            if (!peers.is_empty) {
+            string saved = ((Dino.Application) GLib.Application.get_default()).settings.call_audio_input_device;
+            if (saved != "") {
+                foreach (var dev in call_plugin.get_devices("audio", false)) {
+                    if (dev.display_name == saved) { selected_microphone_device = dev; break; }
+                }
+            }
+            if (selected_microphone_device == null && !peers.is_empty) {
                 var audio_stream = peers.values.to_array()[0].get_audio_stream();
                 selected_microphone_device = call_plugin.get_device(audio_stream, false);
             }
@@ -345,7 +361,13 @@ public class Dino.CallState : Object {
 
     public Plugins.MediaDevice? get_speaker_device() {
         if (selected_speaker_device == null) {
-            if (!peers.is_empty) {
+            string saved = ((Dino.Application) GLib.Application.get_default()).settings.call_audio_output_device;
+            if (saved != "") {
+                foreach (var dev in call_plugin.get_devices("audio", true)) {
+                    if (dev.display_name == saved) { selected_speaker_device = dev; break; }
+                }
+            }
+            if (selected_speaker_device == null && !peers.is_empty) {
                 var audio_stream = peers.values.to_array()[0].get_audio_stream();
                 selected_speaker_device = call_plugin.get_device(audio_stream, true);
             }
@@ -358,7 +380,13 @@ public class Dino.CallState : Object {
 
     public Plugins.MediaDevice? get_video_device() {
         if (selected_video_device == null) {
-            if (!peers.is_empty) {
+            string saved = ((Dino.Application) GLib.Application.get_default()).settings.call_video_device;
+            if (saved != "") {
+                foreach (var dev in call_plugin.get_devices("video", false)) {
+                    if (dev.display_name == saved) { selected_video_device = dev; break; }
+                }
+            }
+            if (selected_video_device == null && !peers.is_empty) {
                 var video_stream = peers.values.to_array()[0].get_video_stream();
                 selected_video_device = call_plugin.get_device(video_stream, false);
             }

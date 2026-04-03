@@ -217,6 +217,7 @@ public class Dino.Ui.CallWindowController : Object {
         peer_states[peer_id] = peer_state;
 
         peer_connection_ready_handler_ids[peer_id] = peer_state.connection_ready.connect(() => {
+            if (!participant_widgets.has_key(peer_id)) return;
             call_window.set_status(peer_id, "");
             
             // Show volume controls only in group calls (more than 1 participant)
@@ -240,7 +241,9 @@ public class Dino.Ui.CallWindowController : Object {
 
                 call_state.can_convert_into_groupcall.begin((_, res) => {
                     bool can_convert = call_state.can_convert_into_groupcall.end(res);
-                    participant_widgets[peer_id].may_show_invite_button = can_convert;
+                    if (participant_widgets.has_key(peer_id)) {
+                        participant_widgets[peer_id].may_show_invite_button = can_convert;
+                    }
                 });
 
                 devices_changed_handler_id = call_plugin.devices_changed.connect((media, incoming) => {
@@ -255,6 +258,9 @@ public class Dino.Ui.CallWindowController : Object {
             }
         });
         peer_video_updated_handler_ids[peer_id] = peer_state.counterpart_sends_video_updated.connect((mute) => {
+            debug("RECV-VIDEO-UI: counterpart_sends_video_updated mute=%s widgets=%s videos=%s",
+                    mute.to_string(), participant_widgets.has_key(peer_id).to_string(), participant_videos.has_key(peer_id).to_string());
+            if (!participant_widgets.has_key(peer_id) || !participant_videos.has_key(peer_id)) return;
             if (mute) {
                 Conversation? conversation = stream_interactor.get_module<ConversationManager>(ConversationManager.IDENTITY).get_conversation(peer_jid.bare_jid, call.account, Conversation.Type.CHAT);
                 call_window.set_placeholder(peer_id, conversation, stream_interactor);
@@ -272,6 +278,7 @@ public class Dino.Ui.CallWindowController : Object {
             }
         });
         peer_encryption_handler_ids[peer_id] = peer_state.encryption_updated.connect((state, audio_encryption,  video_encryption) => {
+            if (!participant_widgets.has_key(peer_id) || !peer_states.has_key(peer_id)) return;
             update_encryption_indicator(participant_widgets[peer_id].encryption_button_controller, peer_states[peer_id].audio_content != null, audio_encryption, peer_states[peer_id].video_content != null, video_encryption);
         });
     }
@@ -353,7 +360,7 @@ public class Dino.Ui.CallWindowController : Object {
                 return false;
             });
         });
-        invite_handler_ids[participant_id] += participant_widget.invite_button_clicked.connect(() => invite_button_clicked());
+        invite_handler_ids[participant_id] = participant_widget.invite_button_clicked.connect(() => invite_button_clicked());
         
         // Connect volume slider to stream volume control
         volume_handler_ids[participant_id] = participant_widget.volume_changed.connect((volume) => {
@@ -439,7 +446,10 @@ public class Dino.Ui.CallWindowController : Object {
         // Disconnect participant widget signal handlers
         if (participant_widgets.has_key(participant_id)) {
             if (invite_handler_ids.has_key(participant_id)) {
-                participant_widgets[participant_id].disconnect(invite_handler_ids[participant_id]);
+                ulong hid = invite_handler_ids[participant_id];
+                if (hid != 0 && SignalHandler.is_connected(participant_widgets[participant_id], hid)) {
+                    participant_widgets[participant_id].disconnect(hid);
+                }
             }
             if (debug_info_handler_ids.has_key(participant_id)) {
                 ulong hid = debug_info_handler_ids[participant_id];
@@ -470,29 +480,32 @@ public class Dino.Ui.CallWindowController : Object {
     private void update_audio_device_choices() {
         if (call_plugin.get_devices("audio", true).size == 0 || call_plugin.get_devices("audio", false).size == 0) {
             call_window.bottom_bar.show_audio_device_error();
-        } else if (call_plugin.get_devices("audio", true).size == 1 && call_plugin.get_devices("audio", false).size == 1) {
-            call_window.bottom_bar.show_audio_device_choices(false);
-            return;
         }
 
         AudioSettingsPopover? audio_settings_popover = call_window.bottom_bar.show_audio_device_choices(true);
         update_current_audio_device(audio_settings_popover);
 
         audio_settings_popover.microphone_selected.connect((device) => {
+            if (call_state == null) return;
             call_state.set_audio_device(device);
+            ((Dino.Application) GLib.Application.get_default()).settings.call_audio_input_device = device.display_name;
             update_current_audio_device(audio_settings_popover);
         });
         audio_settings_popover.speaker_selected.connect((device) => {
+            if (call_state == null) return;
             call_state.set_audio_device(device);
+            ((Dino.Application) GLib.Application.get_default()).settings.call_audio_output_device = device.display_name;
             update_current_audio_device(audio_settings_popover);
         });
         audio_settings_popover.microphone_volume_changed.connect((volume) => {
+            if (call_state == null) return;
             var device = call_state.get_microphone_device();
             if (device != null) {
                 call_plugin.set_device_volume(device, volume);
             }
         });
         audio_settings_popover.speaker_volume_changed.connect((volume) => {
+            if (call_state == null) return;
             var device = call_state.get_speaker_device();
             if (device != null) {
                 call_plugin.set_device_volume(device, volume);
@@ -506,6 +519,7 @@ public class Dino.Ui.CallWindowController : Object {
     }
 
     private void update_current_audio_device(AudioSettingsPopover audio_settings_popover) {
+        if (call_state == null) return;
         audio_settings_popover.current_microphone_device = call_state.get_microphone_device();
         audio_settings_popover.current_speaker_device = call_state.get_speaker_device();
         // Update volume sliders
@@ -534,6 +548,7 @@ public class Dino.Ui.CallWindowController : Object {
 
         video_settings_popover.camera_selected.connect((device) => {
             call_state.set_video_device(device);
+            ((Dino.Application) GLib.Application.get_default()).settings.call_video_device = device.display_name;
             update_current_video_device(video_settings_popover);
             own_video.display_device(device);
         });
@@ -618,8 +633,16 @@ public class Dino.Ui.CallWindowController : Object {
             devices_changed_handler_id = 0;
         }
 
-        foreach (ulong handler_id in call_window_handler_ids) call_window.disconnect(handler_id);
-        foreach (ulong handler_id in bottom_bar_handler_ids) call_window.bottom_bar.disconnect(handler_id);
+        foreach (ulong handler_id in call_window_handler_ids) {
+            if (handler_id != 0 && SignalHandler.is_connected(call_window, handler_id)) {
+                call_window.disconnect(handler_id);
+            }
+        }
+        foreach (ulong handler_id in bottom_bar_handler_ids) {
+            if (handler_id != 0 && SignalHandler.is_connected(call_window.bottom_bar, handler_id)) {
+                call_window.bottom_bar.disconnect(handler_id);
+            }
+        }
 
         var participant_ids = new ArrayList<string>();
         participant_ids.add_all(participant_widgets.keys);

@@ -23,6 +23,14 @@ public class SearchPathGenerator {
         
         string? locale_dir = null;
         string dirname = Path.get_dirname(exec_path);
+
+        // Portable/Windows distribution: check <exe_dir>/locale/ first.
+        // This is where update_dist.sh places the .mo files.
+        string portable_locale = Path.build_filename(dirname, "locale");
+        if (FileUtils.test(Path.build_filename(portable_locale, "de", "LC_MESSAGES", gettext_package + ".mo"), FileTest.IS_REGULAR)) {
+            return portable_locale;
+        }
+
         // Does our environment look like a CMake build dir?
         if (dirname.contains("dino") || dirname == "." || dirname.contains("build")) {
             string exec_locale = Path.build_filename(dirname, "locale");
@@ -157,6 +165,26 @@ public static async HashMap<ChecksumType, string> compute_file_hashes(File file,
         ret[checksum_type] = computed_hash;
     }
     return ret;
+}
+
+public static string? build_socks5_proxy_uri(Dino.Entities.Account account) {
+    if (account.proxy_type != "socks5" && account.proxy_type != "tor") return null;
+
+    string h = account.proxy_host ?? "";
+    int p = account.proxy_port;
+    if (account.proxy_type == "tor") {
+        h = (h != "") ? h : "127.0.0.1";
+        p = (p > 0) ? p : 9050;
+    } else if (h == "" || p <= 0) {
+        return null;
+    }
+    if (":" in h) h = "[" + h + "]";
+    if (account.proxy_user != null && account.proxy_user != "") {
+        string eu = Uri.escape_string(account.proxy_user, null, false);
+        string ep = (account.proxy_pass != null && account.proxy_pass != "") ? Uri.escape_string(account.proxy_pass, null, false) : "";
+        return "socks5://%s:%s@%s:%d".printf(eu, ep, h, p);
+    }
+    return "socks5://%s:%d".printf(h, p);
 }
 
 }

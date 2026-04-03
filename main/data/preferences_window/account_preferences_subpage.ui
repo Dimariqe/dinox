@@ -319,38 +319,52 @@
                             <property name="title" translatable="yes">Server Hostname</property>
                           </object>
                         </child>
-                        <child>                          <object class="AdwComboRow" id="proxy_type_row">
-                            <property name="title" translatable="yes">Proxy Type</property>
-                            <property name="model">
-                              <object class="GtkStringList">
-                                <items>
-                                  <item translatable="yes">None</item>
-                                  <item translatable="yes">SOCKS5</item>
-                                </items>
-                              </object>
-                            </property>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="AdwEntryRow" id="proxy_host_entry">
-                            <property name="title" translatable="yes">Proxy Hostname</property>
-                            <property name="visible">False</property>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="AdwEntryRow" id="proxy_port_entry">
-                            <property name="title" translatable="yes">Proxy Port</property>
-                            <property name="visible">False</property>
-                          </object>
-                        </child>
                         <child>                          <object class="AdwEntryRow" id="custom_port_entry">
                             <property name="title" translatable="yes">Port</property>
+                            <property name="input-purpose">digits</property>
                           </object>
                         </child>
                         <child>
                           <object class="AdwSwitchRow" id="require_channel_binding_switch">
                             <property name="title" translatable="yes">MITM Protection</property>
                             <property name="subtitle" translatable="yes">Require channel binding (SCRAM-*-PLUS). Rejects login if server does not support it.</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwPreferencesGroup" id="proxy_group">
+                        <property name="title" translatable="yes">SOCKS5 Proxy</property>
+                        <child>
+                          <object class="AdwSwitchRow" id="proxy_enable_row">
+                            <property name="title" translatable="yes">Enable SOCKS5 Proxy</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwEntryRow" id="proxy_host_entry">
+                            <property name="title" translatable="yes">Proxy Hostname</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwEntryRow" id="proxy_port_entry">
+                            <property name="title" translatable="yes">Proxy Port</property>
+                            <property name="input-purpose">digits</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwEntryRow" id="proxy_user_entry">
+                            <property name="title" translatable="yes">Proxy Username (optional)</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPasswordEntryRow" id="proxy_pass_entry">
+                            <property name="title" translatable="yes">Proxy Password (optional)</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwActionRow" id="proxy_status_row">
+                            <property name="title" translatable="yes">Proxy Status</property>
+                            <property name="subtitle" translatable="yes">Not configured</property>
                           </object>
                         </child>
                       </object>

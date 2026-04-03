@@ -2,7 +2,7 @@
 Name=Hicolor
 Comment=Fallback Icon Theme
 Hidden=true
-Directories=16x16/apps,32x32/apps,48x48/apps,128x128/apps,256x256/apps,512x512/apps,scalable/apps
+Directories=16x16/apps,32x32/apps,48x48/apps,128x128/apps,256x256/apps,512x512/apps,scalable/apps,scalable/actions,scalable/devices,scalable/mimetypes,scalable/status
 
 [16x16/apps]
 Size=16
@@ -40,3 +40,31 @@ Context=Applications
 Type=Scalable
 MinSize=16
 MaxSize=1024
+
+[scalable/actions]
+Size=16
+Context=Actions
+Type=Scalable
+MinSize=8
+MaxSize=512
+
+[scalable/devices]
+Size=16
+Context=Devices
+Type=Scalable
+MinSize=8
+MaxSize=512
+
+[scalable/mimetypes]
+Size=16
+Context=MimeTypes
+Type=Scalable
+MinSize=8
+MaxSize=512
+
+[scalable/status]
+Size=16
+Context=Status
+Type=Scalable
+MinSize=8
+MaxSize=512

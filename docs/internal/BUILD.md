@@ -96,6 +96,7 @@ gst-inspect-1.0 srtpenc  >/dev/null
 sudo apt update
 sudo apt install \
     build-essential \
+    cmake \
     git \
     meson \
     ninja-build \
@@ -105,6 +106,7 @@ sudo apt install \
     libglib2.0-dev \
     libgee-0.8-dev \
     libsqlcipher-dev \
+    libssl-dev \
     libsecret-1-dev \
     libicu-dev \
     libdbusmenu-glib-dev \
@@ -113,6 +115,7 @@ sudo apt install \
     libjson-glib-dev \
     libqrencode-dev \
     libsoup-3.0-dev \
+    libcanberra-dev \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
     libgstreamer-plugins-bad1.0-dev \
@@ -125,6 +128,11 @@ sudo apt install \
     gstreamer1.0-plugins-good \
     golang-go
 
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+sudo apt install gstreamer1.0-plugins-ugly gstreamer1.0-libav
+# Optional: hardware-accelerated encoding on Intel/AMD:
+sudo apt install gstreamer1.0-vaapi
+
 # Then build custom dependencies from source (protobuf-c, mosquitto, libomemo-c, lyrebird, etc.)
 ./scripts/ci-build-deps.sh
 ```
@@ -136,6 +144,7 @@ sudo apt install \
 ```bash
 sudo dnf install \
     gcc \
+    cmake \
     git \
     meson \
     ninja-build \
@@ -145,6 +154,7 @@ sudo dnf install \
     glib2-devel \
     libgee-devel \
     sqlcipher-devel \
+    openssl-devel \
     libsecret-devel \
     libicu-devel \
     libdbusmenu-glib-devel \
@@ -153,6 +163,7 @@ sudo dnf install \
     json-glib-devel \
     qrencode-devel \
     libsoup3-devel \
+    libcanberra-devel \
     gstreamer1-devel \
     gstreamer1-plugins-base-devel \
     gstreamer1-plugins-bad-free-devel \
@@ -164,15 +175,88 @@ sudo dnf install \
     gstreamer1-plugins-good \
     golang
 
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+# Requires RPM Fusion repo: https://rpmfusion.org/
+sudo dnf install gstreamer1-plugins-ugly gstreamer1-libav
+
 # Then build custom dependencies from source
 ./scripts/ci-build-deps.sh
 ```
+
+### openSUSE Tumbleweed / Leap
+
+```bash
+sudo zypper install \
+    gcc gcc-c++ \
+    cmake \
+    git \
+    meson \
+    ninja \
+    vala \
+    gtk4-devel \
+    libadwaita-devel \
+    glib2-devel \
+    libgee-devel \
+    sqlcipher-devel \
+    libopenssl-devel \
+    libsecret-devel \
+    libicu-devel \
+    libdbusmenu-glib-devel \
+    libgcrypt-devel \
+    gpgme-devel \
+    json-glib-devel \
+    qrencode-devel \
+    libsoup-devel \
+    gstreamer-devel \
+    gstreamer-plugins-base-devel \
+    gstreamer-plugins-bad-devel \
+    gstreamer-plugins-good \
+    gstreamer-plugin-pipewire \
+    libnice-devel \
+    libgnutls-devel \
+    libsrtp2-devel \
+    geoclue2-devel \
+    libomemo-c-devel \
+    go
+
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+# Requires Packman repo — add it first:
+# Tumbleweed:
+sudo zypper ar -cfp 90 'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Tumbleweed/' packman
+# Leap (adjust version):
+# sudo zypper ar -cfp 90 'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.6/' packman
+sudo zypper install --from packman gstreamer-plugins-ugly gstreamer-plugins-libav
+
+# Then build custom dependencies from source (REQUIRED — libomemo-c, protobuf-c,
+# mosquitto, lyrebird etc. are not available as openSUSE packages)
+./scripts/ci-build-deps.sh
+```
+
+> **Note (openSUSE):** You MUST run `ci-build-deps.sh` before `meson setup`. It builds fixed/patched versions of `libomemo-c` (from [rallep71/libomemo-c](https://github.com/rallep71/libomemo-c) — do NOT use the openSUSE `libomemo-c-devel` package, it's outdated), `protobuf-c`, `mosquitto`, `lyrebird`, and others from source. The script handles everything automatically.
+
+> **Note (openSUSE):** The CA certificate bundle is at `/etc/ssl/ca-bundle.pem`. DinoX detects this automatically at startup — no manual `GTLS_SYSTEM_CA_FILE` configuration needed.
+
+> **Optional (openSUSE):** For notification sounds install `libcanberra-devel`. This is the core library (not GTK-bound). If not installed, DinoX builds fine — just without notification sounds.
+>
+> ```bash
+> # Option 1: Install from repository
+> sudo zypper install libcanberra-devel
+>
+> # Option 2: Build from source (if package not available)
+> git clone https://github.com/AshtonBrsc/libcanberra.git
+> cd libcanberra
+> meson setup build --prefix=/usr
+> ninja -C build
+> sudo ninja -C build install
+> sudo ldconfig
+> ```
 
 ### Arch Linux / Manjaro
 
 ```bash
 sudo pacman -S \
     base-devel \
+    cmake \
     meson \
     ninja \
     vala \
@@ -181,6 +265,7 @@ sudo pacman -S \
     glib2 \
     libgee \
     sqlcipher \
+    openssl \
     libsecret \
     icu \
     libdbusmenu-glib \
@@ -189,6 +274,7 @@ sudo pacman -S \
     json-glib \
     qrencode \
     libsoup3 \
+    libcanberra \
     gstreamer \
     gst-plugins-base \
     gst-plugins-good \
@@ -199,6 +285,9 @@ sudo pacman -S \
     libsrtp \
     geoclue \
     go
+
+# Runtime codecs for video messages (H.264 encoder + AAC audio):
+sudo pacman -S gst-plugins-ugly gst-libav
 
 # Then build custom dependencies from source
 ./scripts/ci-build-deps.sh
@@ -253,6 +342,33 @@ sqlcipher :memory: "PRAGMA compile_options;" | grep -i FTS5
 
 - **Required for A/V calls (RTP/Jingle):** GStreamer core + `gst-plugins-bad` (DTLS/SRTP/WebRTC libs), `libnice` (ICE), `libsrtp2` (SRTP), `gnutls` (DTLS).
 - **Optional (recommended) for better audio quality:** `webrtc-audio-processing` enables AEC/NS/AGC if present. The build works without it.
+
+### TLS / CA Certificates
+
+DinoX uses GnuTLS via GLib-Networking (`gio-2.0`). GnuTLS must be able to find the system CA trust store to verify server certificates. Different Linux distributions install the CA bundle at different paths:
+
+| Path | Distributions |
+|------|---------------|
+| `/etc/ssl/certs/ca-certificates.crt` | Debian, Ubuntu, Arch, Gentoo |
+| `/etc/pki/tls/certs/ca-bundle.crt` | Fedora, RHEL, CentOS |
+| `/etc/ssl/ca-bundle.pem` | openSUSE |
+| `/var/lib/ca-certificates/ca-bundle.pem` | openSUSE (alternative) |
+| `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem` | Fedora p11-kit |
+| `/etc/ssl/cert.pem` | Alpine, macOS |
+
+At startup, DinoX probes these paths in order and sets `GTLS_SYSTEM_CA_FILE` to the first one found. This means a binary built on Ubuntu will also work on openSUSE or Fedora without recompilation.
+
+**Override:** You can force a specific CA bundle by setting the environment variable before launching DinoX:
+
+```bash
+GTLS_SYSTEM_CA_FILE=/path/to/ca-bundle.pem ./build/main/dinox
+```
+
+**Windows:** On Windows, DinoX first looks for a bundled `ssl/certs/ca-bundle.crt` next to `dinox.exe` (portable mode). If not found, the system probe runs but finds nothing (the Linux paths don't exist on Windows) — GnuTLS then uses the Windows Schannel backend.
+
+**AppImage:** The AppRun entry point performs its own CA probe and exports `GTLS_SYSTEM_CA_FILE` before the application starts.
+
+**Flatpak:** The GNOME runtime (`org.gnome.Platform`) provides `/etc/ssl/certs/ca-certificates.crt` inside the sandbox — no special handling needed.
 
 If you want to build DinoX without call support, you can disable the plugin:
 
@@ -373,108 +489,31 @@ meson setup build -Dlocation-sharing=disabled
 
 DinoX can be built on Windows 10/11 using the MSYS2 environment with the MINGW64 toolchain.
 
-#### 1. Install MSYS2
+**Detailed step-by-step guides:**
 
-Download and install MSYS2 from [msys2.org](https://www.msys2.org/). Then open the **MINGW64** shell (not the MSYS shell).
+- **Deutsch:** [WINDOWS_BUILD.md](WINDOWS_BUILD.md) — Vollständige Anleitung zum Kompilieren von DinoX unter Windows
+- **English:** [WINDOWS_BUILD_EN.md](WINDOWS_BUILD_EN.md) — Complete guide for compiling DinoX on Windows
 
-#### 2. Install dependencies
+The guides cover MSYS2 installation, all dependencies, building lyrebird, webrtc-audio-processing v2.1, and libomemo-c from source, icon generation, meson/ninja build, distribution bundle creation, debugging, and troubleshooting.
 
-```bash
-pacman -Syu
-pacman -S --noconfirm \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-vala \
-    mingw-w64-x86_64-meson \
-    mingw-w64-x86_64-ninja \
-    mingw-w64-x86_64-pkg-config \
-    mingw-w64-x86_64-cmake \
-    mingw-w64-x86_64-gtk4 \
-    mingw-w64-x86_64-libadwaita \
-    mingw-w64-x86_64-glib2 \
-    mingw-w64-x86_64-libgee \
-    mingw-w64-x86_64-sqlcipher \
-    mingw-w64-x86_64-icu \
-    mingw-w64-x86_64-libgcrypt \
-    mingw-w64-x86_64-gpgme \
-    mingw-w64-x86_64-qrencode \
-    mingw-w64-x86_64-libsoup3 \
-    mingw-w64-x86_64-gstreamer \
-    mingw-w64-x86_64-gst-plugins-base \
-    mingw-w64-x86_64-gst-plugins-good \
-    mingw-w64-x86_64-gst-plugins-bad \
-    mingw-w64-x86_64-gst-plugins-ugly \
-    mingw-w64-x86_64-gst-libav \
-    mingw-w64-x86_64-libnice \
-    mingw-w64-x86_64-gnutls \
-    mingw-w64-x86_64-libsrtp \
-    mingw-w64-x86_64-python \
-    mingw-w64-x86_64-glib-networking \
-    mingw-w64-x86_64-mosquitto \
-    mingw-w64-x86_64-go \
-    mingw-w64-x86_64-sqlite3 \
-    mingw-w64-x86_64-hicolor-icon-theme \
-    mingw-w64-x86_64-adwaita-icon-theme \
-    git \
-    tar
-```
+#### Quick overview
 
-#### 3. Build lyrebird (Tor pluggable transport, not available in MSYS2)
-
-```bash
-cd /tmp
-LYREBIRD_VER=0.8.1
-LYREBIRD_TAG="lyrebird-${LYREBIRD_VER}"
-curl -sL -o "lyrebird-${LYREBIRD_VER}.tar.gz" \
-  "https://gitlab.torproject.org/api/v4/projects/417/repository/archive.tar.gz?sha=${LYREBIRD_TAG}"
-tar xf "lyrebird-${LYREBIRD_VER}.tar.gz"
-cd lyrebird-${LYREBIRD_TAG}-*
-CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o lyrebird.exe ./cmd/lyrebird
-cp lyrebird.exe /mingw64/bin/
-cd -
-```
-
-#### 4. Build libomemo-c (required, not available in MSYS2)
-
-```bash
-git clone https://github.com/rallep71/libomemo-c.git
-cd libomemo-c
-mkdir build && cd build
-cmake -G Ninja \
-    -DCMAKE_INSTALL_PREFIX=/mingw64 \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON \
-    ..
-ninja
-ninja install
-cd ../..
-```
-
-#### 5. Build DinoX
-
-```bash
-git clone https://github.com/rallep71/dinox.git
-cd dinox
-meson setup build --prefix=/mingw64
-ninja -C build
-```
-
-#### 6. Create distribution archive
-
-The `scripts/update_dist.sh` script collects the built executable, all required DLLs, and runtime data into a `dist/` folder:
-
-```bash
-bash scripts/update_dist.sh
-```
-
-The resulting `dist/` directory contains everything needed to run DinoX on Windows. Run `dinox.exe` directly.
+1. Install [MSYS2](https://www.msys2.org/) and open the **MINGW64** shell
+2. Update: `pacman -Syu` (then `pacman -Su` if terminal closes)
+3. Install ~45 packages via `pacman -S` (see guide for full list)
+4. Build **lyrebird 0.8.1** from source (Tor pluggable transport)
+5. Build **webrtc-audio-processing v2.1** from source (echo cancellation / noise suppression)
+6. Build **libomemo-c** from source (OMEMO encryption)
+7. Clone, configure (`meson setup build`), compile (`ninja -C build`)
+8. Create distribution bundle: `bash scripts/update_dist.sh`
+9. Run: `./dist/dinox.exe`
 
 #### Windows notes
 
-- **Tor/Lyrebird/Obfs4proxy**: Bundled and fully functional on Windows. Lyrebird (obfs4 + WebTunnel) is preferred at runtime; obfs4proxy serves as fallback. Build lyrebird from source (step 3) — it is not available as an MSYS2 package.
+- **Tor/Lyrebird/Obfs4proxy**: Bundled and fully functional on Windows. Lyrebird (obfs4 + WebTunnel) is preferred at runtime; obfs4proxy serves as fallback. Build lyrebird from source — it is not available as an MSYS2 package.
 - **libsecret/D-Bus**: Not used on Windows. Passwords are handled differently.
-- **libcanberra**: Notification sounds (message + call ringtone) are enabled by default on all Linux builds (native, Flatpak, AppImage) via `auto` detection. Not available on Windows (libcanberra is Linux-only). See [Development Plan](DEVELOPMENT_PLAN.md) for cross-platform notification sound plans.
-- **webrtc-audio-processing**: MSYS2 provides version 0.3 and 1.x. DinoX auto-detects and uses whatever is available. Version 2.x is not yet packaged for MSYS2.
-```
+- **libcanberra**: Notification sounds are enabled by default on Linux builds via `auto` detection. Not available on Windows (libcanberra is Linux-only). See [Development Plan](DEVELOPMENT_PLAN.md) for cross-platform notification sound plans.
+- **webrtc-audio-processing**: MSYS2 only provides version 1.x. DinoX needs v2.1 for best audio quality — built from source (see guide Step 5).
 
 ## Build Instructions
 

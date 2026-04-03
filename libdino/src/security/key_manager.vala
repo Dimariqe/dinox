@@ -89,13 +89,7 @@ public class KeyManager : Object {
 
         // No key stored yet — generate one and store it in the secrets service
         uint8[] key_bytes = new uint8[32];
-        var file = File.new_for_path("/dev/urandom");
-        var input = file.read();
-        size_t bytes_read;
-        input.read_all(key_bytes, out bytes_read);
-        if (bytes_read != 32) {
-            throw new IOError.FAILED("Could not read enough random bytes from /dev/urandom");
-        }
+        Crypto.randomize(key_bytes);
 
         StringBuilder hex = new StringBuilder();
         foreach (uint8 b in key_bytes) {

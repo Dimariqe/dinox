@@ -35,5 +35,12 @@
         <property name="model" bind-source="model" bind-property="general-page" bind-flags="sync-create" />
       </object>
     </child>
+    <child>
+      <object class="DinoUiAudioVideoPreferencesPage" id="audio_video_page">
+        <property name="title" translatable="yes">Audio &amp; Video</property>
+        <property name="name">audio-video</property>
+        <property name="icon-name">audio-headphones-symbolic</property>
+      </object>
+    </child>
   </template>
 </interface>

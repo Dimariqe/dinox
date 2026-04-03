@@ -193,9 +193,7 @@ msgstr "Erzeuge Schlüssel..."
 
 #: plugins/openpgp/src/key_management_dialog.vala:341
 msgid "Please wait while your key is being generated. This may take a moment."
-msgstr ""
-"Bitte warten, während dein Schlüssel erzeugt wird. Dies kann einen Moment "
-"dauern."
+msgstr "Bitte warten Sie, während Ihr Schlüssel erzeugt wird. Dies kann einen Moment dauern."
 
 #: plugins/openpgp/src/key_management_dialog.vala:393
 #: plugins/openpgp/src/key_management_dialog.vala:459
@@ -226,8 +224,7 @@ msgstr "Alle Dateien"
 
 #: plugins/openpgp/src/key_management_dialog.vala:459
 msgid "Key imported! Re-open Key Management to see it."
-msgstr ""
-"Schlüssel importiert! Öffne die Schlüsselverwaltung erneut, um ihn zu sehen."
+msgstr "Schlüssel importiert! Öffnen Sie die Schlüsselverwaltung erneut, um ihn zu sehen."
 
 #: plugins/openpgp/src/key_management_dialog.vala:461
 msgid "Import failed: "

@@ -35,6 +35,7 @@ namespace Xmpp.Sasl {
         public bool use_full_name = false;
 
         public signal void received_auth_failure(XmppStream stream, StanzaNode node);
+        public signal void channel_binding_failed(XmppStream stream);
 
         public Module(string name, string password) {
             this.name = name;
@@ -194,21 +195,7 @@ namespace Xmpp.Sasl {
 
         private static string generate_csprng_nonce() {
             uint8[] nonce_bytes = new uint8[24];
-            try {
-                var urandom = File.new_for_path("/dev/urandom");
-                var input_stream = urandom.read();
-                size_t bytes_read;
-                input_stream.read_all(nonce_bytes, out bytes_read);
-                input_stream.close();
-                if (bytes_read < 24) {
-                    throw new IOError.FAILED("Short read from /dev/urandom");
-                }
-            } catch (Error e) {
-                // Fallback for systems without /dev/urandom (Windows)
-                for (int i = 0; i < nonce_bytes.length; i++) {
-                    nonce_bytes[i] = (uint8) Random.int_range(0, 256);
-                }
-            }
+            GCrypt.Random.randomize(nonce_bytes, GCrypt.Random.Level.VERY_STRONG);
             return Base64.encode(nonce_bytes);
         }
 
@@ -387,7 +374,7 @@ namespace Xmpp.Sasl {
                 stream.add_flag(flag);
             } else if (require_channel_binding) {
                 warning("Channel binding required but no -PLUS mechanism available at %s (possible downgrade attack)", stream.remote_name.to_string());
-                received_auth_failure(stream, new StanzaNode.build("failure", NS_URI));
+                channel_binding_failed(stream);
                 return;
             } else if (Mechanism.PLAIN in supported_mechanisms) {
                 if (!(stream is TlsXmppStream)) {

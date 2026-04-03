@@ -198,9 +198,7 @@ msgstr "Génération de la clé..."
 
 #: plugins/openpgp/src/key_management_dialog.vala:341
 msgid "Please wait while your key is being generated. This may take a moment."
-msgstr ""
-"Veuillez patienter pendant la génération de votre clé. Cela peut prendre un "
-"moment."
+msgstr "Veuillez patienter pendant la génération de votre clé. Cela peut prendre un moment."
 
 #: plugins/openpgp/src/key_management_dialog.vala:393
 #: plugins/openpgp/src/key_management_dialog.vala:459

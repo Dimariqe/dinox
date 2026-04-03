@@ -69,7 +69,7 @@ public class VideoPlayerWidget : Widget {
     }
     private State state = State.EMPTY;
 
-    private Stack stack = new Stack() { transition_duration=600, transition_type=StackTransitionType.CROSSFADE, hhomogeneous=true, vhomogeneous=true, interpolate_size=false };
+    private Stack stack = new Stack() { transition_duration=150, transition_type=StackTransitionType.CROSSFADE, hhomogeneous=true, vhomogeneous=true, interpolate_size=false };
     private Overlay overlay = new Overlay();
 
     private bool show_overlay_toolbar = false;
@@ -101,6 +101,7 @@ public class VideoPlayerWidget : Widget {
     private Gtk.Button? stop_btn = null;
     private int64 playback_duration = -1;
     private bool seeking = false;
+    private uint seek_timeout_id = 0;
 
     private Gtk.ScrolledWindow? watched_scrolled = null;
     private Gtk.Adjustment? watched_vadjustment = null;
@@ -225,8 +226,10 @@ public class VideoPlayerWidget : Widget {
                 Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
                 target
             );
-            // Allow position updates again after a short delay
-            Timeout.add(200, () => {
+            // Cancel previous seek timeout to prevent stacking
+            if (seek_timeout_id != 0) Source.remove(seek_timeout_id);
+            seek_timeout_id = Timeout.add(200, () => {
+                seek_timeout_id = 0;
                 if (_disposed) return false;
                 seeking = false;
                 return false;
@@ -288,19 +291,10 @@ public class VideoPlayerWidget : Widget {
         // Retry preview after the widget has been realized and mapped.
         // The initial update_widget call may fire before the widget is mapped,
         // and notify["mapped"] only fires on transitions — so a deferred retry is needed.
-        // Use short timeout (200ms) rather than Idle.add because GTK may not have
-        // mapped the widget yet during the same main loop iteration.
-        Timeout.add(200, () => {
+        // Use Idle.add so GTK finishes layout before we check viewport visibility.
+        Idle.add(() => {
             if (_disposed) return false;
             try_lazy_preview_init();
-            // If still not initialized and widget exists, try once more after 1s
-            if (!preview_initialized && !preview_generating) {
-                Timeout.add(800, () => {
-                    if (_disposed) return false;
-                    try_lazy_preview_init();
-                    return false;
-                });
-            }
             return false;
         });
     }
@@ -312,6 +306,7 @@ public class VideoPlayerWidget : Widget {
 
     private static void attach_on_motion_event_leave(EventControllerMotion this_motion_events, MenuButton button) {
         this_motion_events.leave.connect((controller) => {
+            if (!controller.widget.get_realized()) return;
             if (button.popover != null && button.popover.visible) return;
 
             var widget = controller.widget as VideoPlayerWidget;
@@ -415,121 +410,112 @@ public class VideoPlayerWidget : Widget {
 
     private async void generate_preview(File encrypted_file) {
         debug("VideoPlayerWidget: generating preview thumbnail");
-        try {
-            var app = (Dino.Application) GLib.Application.get_default();
-            var enc = app.file_encryption;
+        temp_preview_file = yield decrypt_to_temp(encrypted_file, file_transfer.file_name, "preview_");
 
-            string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_video");
-            DirUtils.create_with_parents(temp_dir, 0700);
+        // Extract first frame using filesrc + decodebin — lighter than uridecodebin,
+        // avoids URI resolution overhead since we already have a local file path.
+        // NO playbin, NO autoaudiosink → ZERO PipeWire connections.
+        var pipe = new Gst.Pipeline("thumb-pipe");
+        var thumb_filesrc = ElementFactory.make("filesrc", "thumb-filesrc");
+        var thumb_decode = ElementFactory.make("decodebin", "thumb-decode");
+        var vconv = ElementFactory.make("videoconvert", "thumb-vc");
+        var vcaps_elem = ElementFactory.make("capsfilter", "thumb-vcaps");
+        var vsink = ElementFactory.make("fakesink", "thumb-vs");
 
-            string ext = "";
-            if ("." in file_transfer.file_name) {
-                string[] parts = file_transfer.file_name.split(".");
-                ext = "." + parts[parts.length - 1];
+        if (thumb_filesrc == null || thumb_decode == null || vconv == null || vcaps_elem == null || vsink == null) {
+            debug("VideoPlayerWidget: missing GStreamer elements for thumbnail");
+            show_fallback_preview();
+            preview_generating = false;
+            return;
+        }
+
+        vcaps_elem.set("caps", Gst.Caps.from_string("video/x-raw,format=RGBA"));
+        vsink.set("enable-last-sample", true);
+
+        thumb_filesrc.set("location", temp_preview_file.get_path());
+
+        pipe.add_many(thumb_filesrc, thumb_decode, vconv, vcaps_elem, vsink);
+        thumb_filesrc.link(thumb_decode);
+        vconv.link(vcaps_elem);
+        vcaps_elem.link(vsink);
+
+        // Dynamic pad linking from decodebin — only link video pads
+        thumb_decode.pad_added.connect((pad) => {
+            var pad_caps = pad.get_current_caps();
+            if (pad_caps == null) pad_caps = pad.query_caps(null);
+            if (pad_caps != null && pad_caps.get_size() > 0) {
+                unowned Gst.Structure st = pad_caps.get_structure(0);
+                if (!st.get_name().has_prefix("video/")) return;
             }
-            string random_name = "preview_" + GLib.Uuid.string_random() + ext;
-            string temp_path = Path.build_filename(temp_dir, random_name);
-            temp_preview_file = File.new_for_path(temp_path);
-
-            var source_stream = encrypted_file.read();
-            var target_stream = temp_preview_file.replace(null, false, GLib.FileCreateFlags.NONE);
-            yield enc.decrypt_stream(source_stream, target_stream);
-            try { source_stream.close(); } catch (Error e) {}
-            try { target_stream.close(); } catch (Error e) {}
-
-            // Extract first frame using uridecodebin — NO playbin, NO autoaudiosink
-            // uridecodebin only decodes, it creates NO sinks → ZERO PipeWire connections
-            var pipe = new Gst.Pipeline("thumb-pipe");
-            var thumb_src = ElementFactory.make("uridecodebin", "thumb-src");
-            var vconv = ElementFactory.make("videoconvert", "thumb-vc");
-            var vcaps_elem = ElementFactory.make("capsfilter", "thumb-vcaps");
-            var vsink = ElementFactory.make("fakesink", "thumb-vs");
-
-            if (thumb_src == null || vconv == null || vcaps_elem == null || vsink == null) {
-                debug("VideoPlayerWidget: missing GStreamer elements for thumbnail");
-                show_fallback_preview();
-                preview_generating = false;
-                return;
+            var sink_pad = vconv.get_static_pad("sink");
+            if (sink_pad != null && !sink_pad.is_linked()) {
+                pad.link(sink_pad);
             }
+        });
 
-            vcaps_elem.set("caps", Gst.Caps.from_string("video/x-raw,format=RGBA"));
-            vsink.set("enable-last-sample", true);
+        // Use async state change + bus watch instead of blocking get_state()
+        Gst.Bus thumb_bus = pipe.get_bus();
+        bool preroll_done = false;
+        SourceFunc callback = generate_preview.callback;
 
-            // Only decode video streams (no audio → no autoaudiosink)
-            thumb_src.set("caps", Gst.Caps.from_string("video/x-raw"));
-            thumb_src.set("uri", temp_preview_file.get_uri());
-
-            pipe.add_many(thumb_src, vconv, vcaps_elem, vsink);
-            vconv.link(vcaps_elem);
-            vcaps_elem.link(vsink);
-
-            // Dynamic pad linking from uridecodebin (decoded video pads)
-            thumb_src.pad_added.connect((pad) => {
-                var sink_pad = vconv.get_static_pad("sink");
-                if (sink_pad != null && !sink_pad.is_linked()) {
-                    pad.link(sink_pad);
-                }
-            });
-
-            // Use async state change + bus watch instead of blocking get_state()
-            Gst.Bus thumb_bus = pipe.get_bus();
-            bool preroll_done = false;
-            SourceFunc callback = generate_preview.callback;
-
-            uint thumb_bus_watch = thumb_bus.add_watch(0, (bus, msg) => {
-                if (msg.type == Gst.MessageType.ASYNC_DONE || msg.type == Gst.MessageType.ERROR) {
-                    if (!preroll_done) {
-                        preroll_done = true;
-                        Idle.add((owned) callback);
-                    }
-                }
-                return true;
-            });
-
-            // Safety timeout 3s
-            uint timeout_id = Timeout.add(3000, () => {
+        uint thumb_bus_watch = thumb_bus.add_watch(0, (bus, msg) => {
+            if (msg.type == Gst.MessageType.ASYNC_DONE || msg.type == Gst.MessageType.ERROR) {
                 if (!preroll_done) {
                     preroll_done = true;
-                    callback();
+                    Idle.add((owned) callback);
                 }
-                return false;
-            });
-
-            pipe.set_state(Gst.State.PAUSED);
-            yield;
-
-            // After yield, the widget may have been disposed — bail out safely
-            if (_disposed) {
-                pipe.set_state(Gst.State.NULL);
-                preview_generating = false;
-                return;
             }
+            return true;
+        });
 
-            Source.remove(thumb_bus_watch);
-            // timeout may have already fired, try removing anyway
-            Source.remove(timeout_id);
+        // Safety timeout 3s
+        bool timeout_fired = false;
+        uint timeout_id = Timeout.add(3000, () => {
+            timeout_fired = true;
+            if (!preroll_done) {
+                preroll_done = true;
+                callback();
+            }
+            return false;
+        });
 
-            // Check if pipeline reached PAUSED (prerolled first frame)
-            Gst.State cur_state, pend_state;
-            pipe.get_state(out cur_state, out pend_state, 0); // non-blocking check
+        pipe.set_state(Gst.State.PAUSED);
+        yield;
 
-            if (cur_state == Gst.State.PAUSED) {
-                // Get last-sample from the fakesink directly
-                Gst.Sample? sample = null;
-                vsink.get("last-sample", out sample);
+        // After yield, the widget may have been disposed — bail out safely
+        if (_disposed) {
+            pipe.set_state(Gst.State.NULL);
+            preview_generating = false;
+            return;
+        }
 
-                if (sample != null) {
-                    var buf = sample.get_buffer();
-                    var caps = sample.get_caps();
-                    if (buf != null && caps != null && caps.get_size() > 0) {
-                        unowned Gst.Structure st = caps.get_structure(0);
-                        int width = 0, height = 0;
-                        st.get_int("width", out width);
-                        st.get_int("height", out height);
+        Source.remove(thumb_bus_watch);
+        if (!timeout_fired) Source.remove(timeout_id);
 
-                        if (width > 0 && height > 0) {
-                            Gst.MapInfo map;
-                            if (buf.map(out map, Gst.MapFlags.READ)) {
+        // Check if pipeline reached PAUSED (prerolled first frame)
+        Gst.State cur_state, pend_state;
+        pipe.get_state(out cur_state, out pend_state, 0); // non-blocking check
+
+        if (cur_state == Gst.State.PAUSED) {
+            // Get last-sample from the fakesink directly
+            Gst.Sample? sample = null;
+            vsink.get("last-sample", out sample);
+
+            if (sample != null) {
+                var buf = sample.get_buffer();
+                var caps = sample.get_caps();
+                if (buf != null && caps != null && caps.get_size() > 0) {
+                    unowned Gst.Structure st = caps.get_structure(0);
+                    int width = 0, height = 0;
+                    st.get_int("width", out width);
+                    st.get_int("height", out height);
+
+                    if (width > 0 && height > 0) {
+                        Gst.MapInfo map;
+                        if (buf.map(out map, Gst.MapFlags.READ)) {
+                            if (map.data == null || map.size < (size_t)(width * height * 4)) {
+                                buf.unmap(map);
+                            } else {
                                 var bytes = new GLib.Bytes(map.data);
                                 size_t row_stride = (size_t)(width * 4);
                                 var texture = new Gdk.MemoryTexture(width, height,
@@ -547,22 +533,18 @@ public class VideoPlayerWidget : Widget {
                         }
                     }
                 }
-            } else {
-                debug("VideoPlayerWidget: pipeline did not reach PAUSED, no thumbnail");
-                show_fallback_preview();
             }
-
-            // Immediately destroy pipeline → zero PipeWire footprint
-            pipe.set_state(Gst.State.NULL);
-
-            preview_initialized = true;
-            preview_generating = false;
-            debug("VideoPlayerWidget: preview generation complete, pipeline destroyed");
-        } catch (Error e) {
-            preview_generating = false;
-            warning("VideoPlayerWidget: Failed to generate preview: %s", e.message);
+        } else {
+            debug("VideoPlayerWidget: pipeline did not reach PAUSED, no thumbnail");
             show_fallback_preview();
         }
+
+        // Immediately destroy pipeline → zero PipeWire footprint
+        pipe.set_state(Gst.State.NULL);
+
+        preview_initialized = true;
+        preview_generating = false;
+        debug("VideoPlayerWidget: preview generation complete, pipeline destroyed");
     }
 
     private void show_fallback_preview() {
@@ -626,6 +608,10 @@ public class VideoPlayerWidget : Widget {
             video_picture.set_paintable(null);
         }
         playback_duration = -1;
+        if (seek_timeout_id != 0) {
+            Source.remove(seek_timeout_id);
+            seek_timeout_id = 0;
+        }
         seeking = false;
         pipeline_active = false;
 #if HAVE_MALLOC_TRIM
@@ -635,6 +621,41 @@ public class VideoPlayerWidget : Widget {
     }
 
     private File? temp_play_file = null;
+    private File? temp_open_file = null;
+
+    /**
+     * Decrypt an encrypted file to a random temp file in the video cache dir.
+     * Returns the decrypted temp file, or the original file on error.
+     */
+    private async File decrypt_to_temp(File source_file, string filename, string prefix = "") {
+        try {
+            var app = (Dino.Application) GLib.Application.get_default();
+            var enc = app.file_encryption;
+
+            string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_video");
+            DirUtils.create_with_parents(temp_dir, 0700);
+
+            string ext = "";
+            if ("." in filename) {
+                string[] parts = filename.split(".");
+                ext = "." + parts[parts.length - 1];
+            }
+            string random_name = prefix + GLib.Uuid.string_random() + ext;
+            string temp_path = Path.build_filename(temp_dir, random_name);
+            var temp_file = File.new_for_path(temp_path);
+
+            var source_stream = source_file.read();
+            var target_stream = temp_file.replace(null, false, GLib.FileCreateFlags.NONE);
+            yield enc.decrypt_stream(source_stream, target_stream);
+            try { source_stream.close(); } catch (Error e) {}
+            try { target_stream.close(); } catch (Error e) {}
+
+            return temp_file;
+        } catch (Error e) {
+            warning("VideoPlayerWidget: decrypt failed: %s", e.message);
+            return source_file;
+        }
+    }
 
     private async void setup_pipeline(File file) {
         if (pipeline_active) return;
@@ -651,36 +672,8 @@ public class VideoPlayerWidget : Widget {
             debug("VideoPlayerWidget: reusing existing temp file");
         } else {
             // Decrypt file
-            try {
-                var app = (Dino.Application) GLib.Application.get_default();
-                var enc = app.file_encryption;
-                
-                string temp_dir = Path.build_filename(Environment.get_user_cache_dir(), "dinox", "temp_video");
-                DirUtils.create_with_parents(temp_dir, 0700);
-                
-                string ext = "";
-                if ("." in file_transfer.file_name) {
-                    string[] parts = file_transfer.file_name.split(".");
-                    ext = "." + parts[parts.length - 1];
-                }
-                string random_name = GLib.Uuid.string_random() + ext;
-                
-                string temp_path = Path.build_filename(temp_dir, random_name);
-                temp_play_file = File.new_for_path(temp_path);
-                
-                var source_stream = file.read();
-                var target_stream = temp_play_file.replace(null, false, GLib.FileCreateFlags.NONE);
-                
-                yield enc.decrypt_stream(source_stream, target_stream);
-                
-                try { source_stream.close(); } catch (Error e) {}
-                try { target_stream.close(); } catch (Error e) {}
-                
-                file_to_play = temp_play_file;
-            } catch (Error e) {
-                warning("VideoPlayerWidget: Failed to decrypt video: %s", e.message);
-                file_to_play = file;
-            }
+            temp_play_file = yield decrypt_to_temp(file, file_transfer.file_name);
+            file_to_play = temp_play_file;
         }
 
         // Destroy any existing pipeline
@@ -755,6 +748,29 @@ public class VideoPlayerWidget : Widget {
 
         playbin.set("uri", file_to_play.get_uri());
         playbin.set("video-sink", vbin);
+        // Use saved audio output device from preferences — wrap in bin with
+        // audioconvert + audioresample so WASAPI2 format negotiation works on Windows
+        var app = (Dino.Ui.Application) GLib.Application.get_default();
+        var asink = app.av_device_service.create_audio_sink(app.settings.msg_audio_output_device);
+        if (asink != null) {
+            if (asink.get_class().find_property("async") != null) {
+                asink.set("async", false);
+                asink.set("sync", true);
+            }
+            var aconv = ElementFactory.make("audioconvert", "play-aconv");
+            var aresample = ElementFactory.make("audioresample", "play-aresample");
+            if (aconv != null && aresample != null) {
+                var abin = new Gst.Bin("audio-sink-bin");
+                abin.add_many(aconv, aresample, asink);
+                aconv.link(aresample);
+                aresample.link(asink);
+                var aghost = new Gst.GhostPad("sink", aconv.get_static_pad("sink"));
+                abin.add_pad(aghost);
+                playbin.set("audio-sink", abin);
+            } else {
+                playbin.set("audio-sink", asink);
+            }
+        }
 
         playback_pipeline = playbin;
 
@@ -772,7 +788,14 @@ public class VideoPlayerWidget : Widget {
                 GLib.Error err;
                 string dbg;
                 msg.parse_error(out err, out dbg);
-                warning("VideoPlayerWidget: playback error: %s", err.message);
+                warning("VideoPlayerWidget: playback error: %s\n  debug: %s", err.message, dbg ?? "(none)");
+
+                // Check for missing-plugin and log details
+                unowned Gst.Structure? st = msg.get_structure();
+                if (st != null) {
+                    warning("VideoPlayerWidget: error structure: %s", st.to_string());
+                }
+
                 cleanup_playback();
                 if (controls_bar != null) controls_bar.visible = false;
                 if (start_play_button != null) start_play_button.visible = true;
@@ -834,9 +857,10 @@ public class VideoPlayerWidget : Widget {
 
         Gst.MapInfo map;
         if (buf.map(out map, Gst.MapFlags.READ)) {
-            // Release old paintable before creating new one
-            video_picture.set_paintable(null);
-
+            if (map.data == null || map.size < (size_t)(width * height * 4)) {
+                buf.unmap(map);
+                return;
+            }
             var bytes = new GLib.Bytes(map.data);
             buf.unmap(map);
 
@@ -883,7 +907,8 @@ public class VideoPlayerWidget : Widget {
                 string safe_name = Path.get_basename(file_transfer.file_name);
                 if (safe_name == "" || safe_name == "." || safe_name == "..") safe_name = "file";
                 string temp_path = Path.build_filename(temp_dir, safe_name);
-                File temp_file = File.new_for_path(temp_path);
+                temp_open_file = File.new_for_path(temp_path);
+                File temp_file = temp_open_file;
 
                 var source_stream = file.read();
                 var target_stream = temp_file.replace(null, false, GLib.FileCreateFlags.NONE);
@@ -959,6 +984,12 @@ public class VideoPlayerWidget : Widget {
                 temp_preview_file.delete(null);
             } catch (Error e) {}
             temp_preview_file = null;
+        }
+        if (temp_open_file != null) {
+            try {
+                temp_open_file.delete(null);
+            } catch (Error e) {}
+            temp_open_file = null;
         }
         if (video_picture != null) {
             video_picture.set_paintable(null);

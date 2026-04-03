@@ -1,7 +1,7 @@
 # DinoX - Development Plan
 
-> **Last Updated**: March 13, 2026 (v1.1.6.5)
-> **Current Release Line**: 1.1.6.x
+> **Last Updated**: March 26, 2026 (v1.1.8.0)
+> **Current Release Line**: 1.1.8.x
 
 This document is organized as a **chronological release timeline** first, followed by a **forward-looking roadmap**.
 
@@ -11,15 +11,138 @@ This document is organized as a **chronological release timeline** first, follow
 
 | Metric | Status |
 |--------|--------|
-| **Current Version** | 1.1.6.5 |
+| **Current Version** | 1.1.8.0 |
 | **XEPs Implemented** | ~78 |
-| **Languages** | 47 (~85% translated) |
+| **Languages** | 47 (DE/FR/ES 100%) |
 | **Build Status** | Clean |
 | **GTK/libadwaita** | GTK4 4.14, libadwaita 1.5 |
 
 ---
 
 ## Timeline (Recent Releases)
+
+### v1.1.8.0 (Windows DB Reset Fix, AppImage CI Fix)
+- **Windows database reset race condition**: Delete + restart combined into single sequential batch file — reset now works reliably
+- **Windows factory reset**: Same fix applied
+- **AppImage CI**: Removed unsupported `--no-net` flag from appimagetool (continuous build doesn't support it)
+- 2 commits
+
+### v1.1.7.9 (Windows Sound Notifications, MF Warm-up, Debug Cleanup)
+- **Cross-platform sound notifications**: GStreamer playbin on Windows with 4 bundled WAV GResource files; Linux libcanberra unchanged
+- **GStreamer MF warm-up**: Background thread pre-loads MF/WASAPI2/codec DLLs at startup — video recording ~2s instead of ~8s
+- **Missing gio plugin**: Added to update_dist.sh for resource:// URI playback
+- **Video bitrate**: 1500→800 kbps for mobile, REMB 256→800
+- **Debug cleanup**: 18 TIMING warnings removed, voice_processor g_warning→g_debug
+- **AppImage**: --no-net for appimagetool
+- 7 commits, ~15 files changed
+
+### v1.1.7.8 (AV Device Settings, GStreamer Performance, Windows Call Fixes)
+- **Audio/Video device preferences**: New preferences page with persistent mic/speaker/camera selection
+- **Device deduplication**: Filters duplicate WASAPI2 devices on Windows
+- **GStreamer pipeline linking performance**: TEMPLATE_CAPS, NO_RECONFIGURE, PadLinkCheck.NOTHING — significantly faster on Windows
+- **WASAPI2 audio fixes**: S16LE capsfilter, audioresample in all paths, VoiceProcessor skip
+- **Video send bitrate fix**: Initial 1500kbps (was 256), floor 256kbps — REMB chicken-egg fix
+- **DMA-BUF TOCTOU race**: Pin memory during deep copy to prevent PipeWire SIGSEGV
+- **Video message improvements**: Blocking pad probes for fast stop, cached H.264 encoder, 640×480@24fps
+- **OMEMO partial MUC delivery**: Send succeeds even when some participants unreachable
+- **SOCKS5 proxy overhaul**: Tor/SOCKS5 coexistence, HTTP proxy bypass
+- **Windows CI**: Added gst-plugins-ugly + cantarell-fonts
+- 62 commits, 43 files changed, 20+ crash fixes
+
+### v1.1.7.7 (AV Call Stability, Tor DNS Leak Fix, Proxy Hardening)
+- **Echo probe null dereference** (voice_processor.vala): SIGSEGV when `echo_probe == null` in `start()` — safe conditional added
+- **SRTP crypto_session destroy race** (stream.vala): nulled before EOS → incoming packets hit null decryptor. Reordered.
+- **RTP/RTCP EOS null crash** (stream.vala): EOS callbacks after send pads nulled. Null guards added.
+- **Video caps.get_size() crash** (video_widget.vala): out-of-bounds when caps empty. Size check added.
+- **EOS timeout too short** (audio_recorder.vala): 500ms→3000ms for MP4 faststart rewrite
+- **Windows H.264 encoder** (video_recorder.vala): `mfh264enc` added as first fallback
+- **Tor DNS anonymity leak** (stream_connect.vala): SRV lookups done locally before Tor proxy — ISP sees target server. Fixed: skip SRV when `proxy_type=="tor"`
+- **is_transitioning deadlock** (tor_manager.vala): exception in start/stop_tor prevents future toggles. try-finally added.
+- **lyrebird.exe zombie** (tor_controller.vala): Windows pluggable transport not killed on restart. taskkill added.
+- **Quieter startup**: 39× `message()`→`debug()` for less noise
+- **URL display fix**: body-only URLs shown as clickable text instead of broken file offers
+- 11 files changed, 9 bugs fixed (5 CRITICAL, 3 HIGH, 1 Windows-specific)
+
+### v1.1.7.6 (Windows: Font Rendering, Systray Modernization, CI Hardening, Stability)
+- **Font rendering**: `gtk-font-name` set to "Segoe UI 10", `gtk-hint-font-metrics` enabled, fontconfig `fonts.conf` with Windows font aliases, avatar letter font fixed
+- **GDK surface assertions**: `get_realized()` guards at 6 critical motion-event code paths (conversation_view, chat_text_view, chat_input/view, file_image_widget, video_player_widget)
+- **Systray menu**: Replaced ugly GDI owner-drawn painting with native `MF_STRING` items — Windows renders with Segoe UI, ClearType, DPI, dark mode support
+- **Portable ZIP fixes**: GDK-Pixbuf loaders path, loaders.cache portable paths, missing CI packages (glib-networking, icon themes)
+- **Window buttons**: CSD close/minimize on the left, MQTT plugin enabled in CI
+- **Icon fixes**: hicolor index.theme preserved, encryption/mark icons restored after avatar refactor
+- **MUC reactions**: Fixed reactions lost after restart/reconnect (occupant→JID mapping)
+- **Build**: abseil nullability patch, unused variable warnings, const annotations
+- 80+ commits, 50+ files changed
+
+### v1.1.7.5 (Windows Exit Fix — hold/release + debug diagnostics)
+- **finish_post_unlock()**: `this.hold()` at start, `this.release()` at end — prevents GApplication from quitting during the entire unlock→main transition
+- **Debug messages**: Strategic `message()` calls at every step of the transition for Windows diagnostics
+- 1 file changed
+
+### v1.1.7.4 (Windows Exit Fix, GCC 13+ Build Fix, openSUSE Docs)
+- **Windows exit-after-unlock**: Reordered `finish_post_unlock()` — `activate()` FIRST (creates MainWindow), THEN `unlock_parent.close()`. Removed `hold()`/`release()`. Fixes silent app exit on Windows (GitHub #18 revisited)
+- **libevent DLL naming**: Added `libevent-7.dll` variants to `update_dist.sh` (MSYS2 renamed DLLs)
+- **webrtc trace_event.h**: Auto-patch `#include <cstdint>` for GCC 13+ compatibility (affects all modern distros)
+- **BUILD.md**: Added `libomemo-c-devel` to zypper, updated libomemo-c note (rallep71 fork), libcanberra install example
+- 5 files changed
+
+### v1.1.7.3 (Locale Fix for AppImage on openSUSE)
+- **LC_ALL env var**: Set working locale in `LC_ALL` so `Gtk.init()` doesn't re-fail
+- **LOCPATH removed**: Was breaking `locale-archive` resolution on openSUSE/Fedora
+- **BUILD.md**: Corrected 3 openSUSE package names, added `ci-build-deps.sh` warning, optional `libcanberra-devel` note
+- 2 commits, 5 files changed
+
+### v1.1.7.2 (Windows Startup Fix, Channel Binding, Locale/IM Fixes)
+- **Windows startup crash**: `hold()`/`release()` around `unlock_parent.close()`→`activate()` transition to prevent GApplication use_count race (GitHub #18)
+- **DBUS_SESSION_BUS_ADDRESS**: `"nul"` → `""` for safer behavior
+- **libevent DLL**: Added monolithic `libevent-2-1-7.dll` to Windows dist
+- **SCRAM channel binding**: Distinct `channel_binding_failed` signal → proper error message instead of "Wrong password" when server lacks -PLUS mechanisms
+- **Locale fallback**: Graceful fallback chain before `Gtk.init()` for openSUSE/custom locales
+- **GTK_IM_MODULE**: Only unsets GTK3-only modules (`cedilla`, `xim`); leaves ibus/fcitx5 alone
+- **AppImage**: LOCPATH export + conservative IM module handling in AppRun
+- **BUILD.md**: Added openSUSE Tumbleweed/Leap `zypper install` section
+- 10 files changed
+
+### v1.1.7.1 (Hotfix: Native Linux SSL/TLS)
+- **CRITICAL FIX**: System CA cert probe was inside `#if WINDOWS` — moved outside so it runs on ALL platforms
+- **Docs**: CA cert sections added to BUILD.md and DEBUG.md
+- 1 commit, 3 files changed
+
+### v1.1.7.0 (Language Selector, Translation Fixes, openSUSE SSL Fix)
+- **In-app language selector**: Settings → General → Appearance — 48 languages, AdwComboRow, dual persistence (DB + plaintext file for early startup)
+- **DE/FR/ES translations 100%**: 140 new translations across main/omemo/openpgp
+- **53 .po file fixes**: 7 fatal msgfmt errors + 46 silent duplicate msgstr entries removed across 14 files
+- **AppImage SSL on openSUSE/Fedora/Alpine**: Probe 6 distro CA cert paths in AppRun + main.vala + MQTT client
+- 3 commits, 30 files changed
+
+### v1.1.6.9 (Windows Systray LoadIconW Fix)
+- **systray_win32.c**: `MAKEINTRESOURCEW(32512)` statt `IDI_APPLICATION` — UNICODE-Inkompatibilität in MSYS2 MINGW64
+
+### v1.1.6.8 (Windows CI Build Fix)
+- **meson.build fix**: Added `cc = meson.get_compiler('c')` before Windows block — `cc.find_library('shell32')` / `cc.find_library('user32')` failed on fresh CI builds
+
+### v1.1.6.7 (Call Audit Hardening, Audio Pipeline Fixes, AGC Tuning, Windows Systray)
+
+- **Video SIGSEGV fix**: Reordered detach() teardown — `set_state(NULL)` before `remove_output`/`unlink`, added queue element, fixed error path leaks
+- **12 null-pointer guards**: HashMap `has_key()` checks + `call_state == null` guards across call_window_controller and call_window
+- **Audio pipeline hardening**: audiomixer latency=20ms, output_queue 50ms time-based, drop-on-latency=true, audiorate tolerance=40ms
+- **WebRTC AGC tuning**: Consistent kFixedDigital mode (no more kAdaptiveDigital override), 9dB gain, -6dBFS target, kLow noise suppression
+- **Dialpad performance**: Pipeline pre-warm on show, persistent across open/close, 80ms debounce
+- **Audio settings popover**: Always shown (removed single-device hide logic), volume sliders always accessible
+- **Windows Systray**: Full Shell_NotifyIcon implementation (left-click toggle, right-click status menu). Missing DLLs added.
+- **CI**: Node.js 24 forced in all workflows, custom GitHub Pages workflow
+- 4 commits, 22 files changed, 588 insertions, 73 deletions
+
+### v1.1.6.6 (Retraction Bugs, Chat Window Audit, Audio/Video Hardening, Windows Systray, CI Fixes)
+
+- **Retraction (XEP-0424)**: Desktop notification retraction, empty ID rejection, dead null-check removal, `ContentItem.is_own()` consolidation (6 copies → 1 helper)
+- **Chat window**: O(1) highlight via `main.pick()`, mutex deadlock fix, tile cache LRU (max 100), truncation text fix, reactions i18n, `decrypt_to_temp()` extraction, typo fix
+- **Audio widget**: Position reset on stop, download timeout race fix, `_disposed` guard in callbacks, null duration guard
+- **Video widget**: Preview timeout race fix, paintable flicker fix, temp file leak fix, seek throttle fix
+- **Windows Systray (GitHub Issue #18)**: Full Shell_NotifyIcon implementation replacing stub. C helper (systray_win32.c/h) + VAPI bridge. Left-click toggles window, right-click context menu with status selection (Online/Away/Busy/N/A) + Quit. Meson wiring for shell32/user32.
+- **Windows DLLs (GitHub Issue #18)**: Added 5 missing DLLs to update_dist.sh: libnpth-0, libprotobuf-c-1, libcjson-1, libevent_core/extra
+- **CI/Build**: Lyrebird download retry+gzip validation in windows-build.yml and ci-build-deps.sh. Custom GitHub Pages workflow replacing auto-generated one. `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` env var in all workflows (Node.js 20 deprecation June 2026).
+- **i18n**: Chinese (Simplified) and Kabyle translation updates via Weblate
 
 ### v1.1.6.5 (Location Sharing, Tor WebTunnel, i18n Audit, MQTT Fixes)
 
@@ -700,45 +823,24 @@ This document is organized as a **chronological release timeline** first, follow
 | **MQTT Dashboard** | Bot-conversation paradigm replaces traditional dashboard. Chat commands (`/mqtt subscribe`, `/mqtt status`, `/mqtt history`) provide interactive topic management within XMPP conversations. ASCII sparklines for numeric data. | **DONE** |
 | **MQTT Settings UI** | Broker host/port, TLS, server type detection (ejabberd vs Prosody), XMPP credential reuse. Per-account and standalone mode. Preferences → MQTT panel. | **DONE** |
 | **Home Assistant / Node-RED** | Subscribe to HA discovery topics, control actuators, Node-RED flow integration. 3 network scenarios documented (LAN, mixed, cloud). Bridge formatting for XMPP↔MQTT. | **DONE** |
-| **MQTT Bridge: File Transfer** | Extend bridge to forward files (images, PDFs, etc.) from MQTT to XMPP. Node-RED (or any MQTT publisher) sends URL or base64-Daten → DinoX bridge uploads via HTTP Upload (XEP-0363) → sends OOB download link to target JID. OMEMO encryption applies automatically. Use-case: Node-RED KI-Flows erzeugen Bilder/Reports → publizieren auf MQTT-Topic → DinoX leitet an XMPP-Kontakte/MUCs weiter. | **PLANNED** |
-
-#### MQTT Bridge File Transfer — Implementation Plan
-
-Typischer Flow: **Node-RED** (KI-Flow, Bildgenerierung, Reports) → **MQTT publish** → **DinoX Bridge** (existiert) → **HTTP Upload + OOB** → **XMPP mit OMEMO**
-
-**Phase 1: URL-basiertes File Forwarding**
-- Bridge rule bekommt neues `format`: `"file"` (zusätzlich zu `"full"`, `"payload"`, `"short"`)
-- MQTT payload = plain URL (z.B. Node-RED schickt `https://example.com/report.pdf`)
-- DinoX lädt die Datei runter, re-uploaded via HTTP Upload (XEP-0363), sendet OOB-Message an Ziel-JID
-- OMEMO-Verschlüsselung greift automatisch (wie bei Textmessages)
-
-**Phase 2: Base64/Binary Payload**
-- MQTT payload = JSON: `{"filename": "chart.png", "mime": "image/png", "data": "<base64>"}`
-- Node-RED kann z.B. KI-generierte Bilder direkt als base64 senden
-- DinoX decodiert, schreibt temp-Datei, uploaded via HTTP Upload, sendet OOB
-- Größenlimit konfigurierbar pro Bridge-Rule (Standard: 10 MB)
-
-**Phase 3: Text + Attachments kombiniert**
-- MQTT payload = JSON: `{"text": "Tagesbericht ...", "attachments": [{"url": "...", "filename": "report.pdf"}]}`
-- DinoX sendet Text als normale Nachricht + Dateien als OOB-Messages
-- Ermöglicht Node-RED KI-Flows die Text + Bilder/PDFs in einem Rutsch zu schicken
-
-**Betroffene Dateien:**
-- `plugins/mqtt/src/bridge_manager.vala` — `deliver_message()` erweitert für File-Handling
-- `libdino/src/service/file_manager.vala` — HTTP Upload API (existiert, wiederverwenden)
-- `plugins/mqtt/src/mqtt_bot_manager_dialog.vala` — UI für File-Bridge Format-Option
-- `plugins/mqtt/src/connection_config.vala` — Größenlimit-Config
-
-**Dependencies (alle bereits vorhanden):**
-- HTTP Upload (XEP-0363)
-- OMEMO File Encryption (encrypt-then-upload)
+| **MQTT Bridge: File Transfer** | Binary transfer via magic-byte detection (17 formats: images, audio, video, documents). MQTT binary payloads are saved to temp file and forwarded via HTTP Upload (XEP-0363) with automatic OMEMO encryption. 10MB limit, security-audited temp file handling (`/tmp/dinox-mqtt-*`). Works with Node-RED and any MQTT publisher. | **DONE** |
 - ejabberd `mod_mqtt`
+
+### Q2 2026: PipeWire Compatibility (Video Messages & Call Pipeline)
+
+| Item | Description | Status |
+|------|-------------|--------|
+| **Video Messages: pipewiresrc → autovideosrc** | Replace direct `pipewiresrc` usage in `video_recorder.vala` with `autovideosrc`. Fixes EINVAL (-22) on PipeWire >= 1.2 (openSUSE, Fedora, Arch, Ubuntu 26.04 LTS with PipeWire 1.6.0). Root cause: Range-based caps (`width=[1,1280]`) propagate backwards to `pipewiresrc` which rejects them. `autovideosrc` handles caps negotiation correctly via internal wrapping. Also change range-caps to fixed caps (`1280x720@30fps`) matching the working call pipeline. | **DONE** — v1.1.7.6 (42fda212) |
+| **Unified Source Selection** | Long-term: all pipelines (video messages, calls) use consistent source selection: `Gst.DeviceMonitor` → `create_element()` (preferred) or `autovideosrc`/`autoaudiosrc` (fallback). Never use `pipewiresrc`/`v4l2src` directly. | CONCEPT — v1.3.x |
+
+Detailed analysis and implementation plan: [PIPEWIRE_MIGRATION_PLAN.md](PIPEWIRE_MIGRATION_PLAN.md) (gitignored)
 
 ### Q3 2026: Advanced media
 
 | Item | Description | Status |
 |------|-------------|--------|
-| **Notification Sounds (Windows)** | Linux notification sounds (messages + call ringtone) are complete via libcanberra. Windows needs a native backend (PlaySound/XAudio2) since libcanberra is not available. | TODO |
+| **Windows Code Signing (SignPath)** | Authenticode certificate via SignPath Foundation (free for OSS). Eliminates SmartScreen warnings. Build-integrated via GitHub Actions. Application submitted Feb 2026, awaiting approval. | ⏳ Waiting for SignPath approval since Feb 11, 2026 |
+| **Notification Sounds (Windows)** | Messages and incoming calls already play Windows system sounds via Toast notifications (`ms-winsoundevent`). Missing: outgoing call ringback, MQTT alerts without toast, custom sound selection. Full native backend (PlaySound/XAudio2) still needed for these cases. | PARTIAL |
 | **Screen Sharing** | Share desktop or windows during calls | TODO |
 | **Whiteboard** | Collaborative drawing (protocol TBD) | CONCEPT |
 
